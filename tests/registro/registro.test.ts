@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Registro, type Evento } from "../../src/registro/registro.js";
+import { Registro, TETO_EVENTOS_POR_DIA, type Evento } from "../../src/registro/registro.js";
 
 const DIA_MS = 86_400_000;
 
@@ -184,5 +184,64 @@ describe("Registro", () => {
   it("apagarVencidos com pasta vazia devolve 0", () => {
     const r = new Registro(dir, DIA_MS);
     expect(r.apagarVencidos(new Date("2026-11-20T12:00:00Z"))).toBe(0);
+  });
+});
+
+describe("Registro: teto de eventos por dia", () => {
+  it("o teto padrao e 50000 eventos por dia", () => {
+    expect(TETO_EVENTOS_POR_DIA).toBe(50_000);
+  });
+
+  it("passado o teto, so conta: nao escreve no arquivo e avisa uma unica vez no stderr", () => {
+    const r = new Registro(dir, DIA_MS, 3);
+    const linhas = espiarStderr();
+    for (let i = 0; i < 3; i++) r.gravar(ev({ caminho: `/${i}` }));
+    expect(linhas).toEqual([]);
+    for (let i = 3; i < 10; i++) r.gravar(ev({ caminho: `/${i}` }));
+    expect(r.ler("2026-11-20").map((e) => e.caminho)).toEqual(["/0", "/1", "/2"]);
+    expect(readFileSync(join(dir, "2026-11-20.jsonl"), "utf8").split("\n")).toHaveLength(4);
+    expect(r.contagem("2026-11-20")).toBe(10);
+    expect(linhas).toEqual([
+      "[anti-rea] registro: limite de 3 eventos atingido em 2026-11-20; o resto do dia so conta.\n",
+    ]);
+  });
+
+  it("o teto vale por dia: o dia seguinte volta a gravar e tem o proprio aviso", () => {
+    const r = new Registro(dir, DIA_MS, 2);
+    const linhas = espiarStderr();
+    for (let i = 0; i < 4; i++) r.gravar(ev({ quando: "2026-11-20T10:00:00Z" }));
+    for (let i = 0; i < 4; i++) r.gravar(ev({ quando: "2026-11-21T10:00:00Z" }));
+    expect(r.ler("2026-11-20")).toHaveLength(2);
+    expect(r.ler("2026-11-21")).toHaveLength(2);
+    expect(r.contagem("2026-11-20")).toBe(4);
+    expect(r.contagem("2026-11-21")).toBe(4);
+    expect(linhas).toEqual([
+      "[anti-rea] registro: limite de 2 eventos atingido em 2026-11-20; o resto do dia so conta.\n",
+      "[anti-rea] registro: limite de 2 eventos atingido em 2026-11-21; o resto do dia so conta.\n",
+    ]);
+  });
+
+  it("o teto conta o que ja estava no arquivo do dia: reiniciar o processo nao zera", () => {
+    const antes = new Registro(dir, DIA_MS, 3);
+    antes.gravar(ev());
+    antes.gravar(ev());
+    const depois = new Registro(dir, DIA_MS, 3);
+    const linhas = espiarStderr();
+    depois.gravar(ev());
+    depois.gravar(ev());
+    expect(depois.ler("2026-11-20")).toHaveLength(3);
+    expect(depois.contagem("2026-11-20")).toBe(4);
+    expect(linhas).toHaveLength(1);
+  });
+
+  it("contagem de dia sem evento e 0", () => {
+    const r = new Registro(dir, DIA_MS, 3);
+    expect(r.contagem("2026-11-20")).toBe(0);
+  });
+
+  it("o teto padrao vale quando o construtor nao recebe teto", () => {
+    const r = new Registro(dir, DIA_MS);
+    for (let i = 0; i < 5; i++) r.gravar(ev());
+    expect(r.ler("2026-11-20")).toHaveLength(5);
   });
 });

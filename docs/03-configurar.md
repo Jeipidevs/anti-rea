@@ -65,3 +65,13 @@ As senhas de cada canal vão no `.env`. Veja [Avisos](05-avisos.md).
 log:
   retention: 30d           # apaga tentativas mais velhas que isso (LGPD)
 ```
+
+O registro grava no máximo 50000 tentativas por dia. Numa varredura em massa, passado esse teto,
+o porteiro só conta as tentativas do resto do dia, sem gravar no disco, e escreve uma única linha
+no log do contêiner:
+
+```
+[anti-rea] registro: limite de 50000 eventos atingido em AAAA-MM-DD; o resto do dia so conta.
+```
+
+Assim um ataque não enche o disco do servidor, que costuma hospedar outros sites.

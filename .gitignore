@@ -3,9 +3,7 @@ dist/
 .env
 .env.*
 !.env.example
-registro/
-!src/registro/
-!tests/registro/
+/registro/
 *.log
 .DS_Store
 context.md
