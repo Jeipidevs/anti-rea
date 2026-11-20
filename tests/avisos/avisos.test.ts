@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Avisos, textoDoAviso, type Canal } from "../../src/avisos/avisos.js";
+import { Avisos, MAX_IPS_AGRUPADOS, textoDoAviso, type Canal } from "../../src/avisos/avisos.js";
 import type { Config } from "../../src/config/carregar.js";
 import type { Evento } from "../../src/registro/registro.js";
 
@@ -71,6 +71,36 @@ describe("textoDoAviso", () => {
     const linhas = texto.split("\n");
     expect(linhas[0]).toBe("Varredura barrada");
     expect(linhas.at(-1)).toBe("Mais 4 tentativas deste IP na última janela (agrupadas).");
+  });
+
+  it("corta campos longos vindos do pedido e fica abaixo de 4096 caracteres", () => {
+    const longo = "A".repeat(8000);
+    const texto = textoDoAviso(
+      ev({ caminho: "/.git/" + longo, dominio: longo, ip: longo, motivo: longo, quando: longo }),
+      12,
+    );
+    expect(texto.length).toBeLessThan(4096);
+    const pagina = texto.split("\n")[2]!;
+    expect(pagina.startsWith("Página: /.git/AAA")).toBe(true);
+    expect(pagina.endsWith("\u2026")).toBe(true);
+    expect(pagina.length).toBe("Página: ".length + 301);
+    expect(texto.split("\n").at(-1)).toBe("Mais 12 tentativas deste IP na última janela (agrupadas).");
+  });
+
+  it("caracteres de controle e marcas bidi do pedido não criam linhas nem invertem texto", () => {
+    const caminho = "/x\r\nDestino: falso\u0085\u2028\u202Eabc\u2066\u200F\u0000\u007F\u009B";
+    const texto = textoDoAviso(ev({ caminho, dominio: "a\nSite: b" }), 0);
+    const linhas = texto.split("\n");
+    expect(linhas).toHaveLength(7);
+    expect(linhas.filter((l) => l.startsWith("Destino:"))).toEqual(["Destino: página sombra"]);
+    expect(linhas[1]).toBe("Site: a Site: b");
+    expect(texto).not.toMatch(/[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200E\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/);
+  });
+
+  it("não corta no meio de um par substituto", () => {
+    const texto = textoDoAviso(ev({ caminho: "/" + "😀".repeat(400) }), 0);
+    const pagina = texto.split("\n")[2]!;
+    expect(pagina).toBe("Página: /" + "😀".repeat(299) + "\u2026");
   });
 
   it("é texto puro, sem markdown e sem o travessão longo", () => {
@@ -146,7 +176,7 @@ describe("Avisos: agrupamento por IP", () => {
     expect(canal.enviados[2]).not.toContain("Mais");
   });
 
-  it("estado de IP cuja janela venceu há mais de uma janela é descartado", async () => {
+  it("os repetidos ficam guardados até o próximo aviso do IP, mesmo depois de várias janelas", async () => {
     const canal = canalQueGuarda();
     let t = 0;
     const a = new Avisos(cfg(), [canal], () => t);
@@ -156,7 +186,33 @@ describe("Avisos: agrupamento por IP", () => {
     await a.receber(ev({ ip: "203.0.113.9" }));
     await a.receber(ev({ ip: "203.0.113.1" }));
     expect(canal.enviados).toHaveLength(3);
-    expect(canal.enviados[2]).not.toContain("Mais");
+    expect(canal.enviados[2]).toContain("Mais 1 tentativas deste IP na última janela (agrupadas).");
+  });
+
+  it("50 cópias e uma pausa de 2 h: o aviso seguinte traz Mais 49", async () => {
+    const canal = canalQueGuarda();
+    let t = 0;
+    const a = new Avisos(cfg(), [canal], () => t);
+    for (let i = 0; i < 50; i++) await a.receber(ev({ ip: "203.0.113.1" }));
+    t = 2 * HORA;
+    await a.receber(ev({ ip: "203.0.113.1" }));
+    expect(canal.enviados).toHaveLength(2);
+    expect(canal.enviados[1]).toContain("Mais 49 tentativas deste IP");
+  });
+
+  it("o mapa de IPs tem teto e, cheio, descarta o IP mais antigo primeiro", async () => {
+    const canal = canalQueGuarda();
+    let t = 0;
+    const a = new Avisos(cfg(), [canal], () => t);
+    const porIp = (a as unknown as { porIp: Map<string, unknown> }).porIp;
+    for (let i = 0; i < MAX_IPS_AGRUPADOS + 5; i++) {
+      t = i;
+      await a.receber(ev({ ip: `ip-${i}` }));
+      await a.receber(ev({ ip: `ip-${i}` }));
+    }
+    expect(porIp.size).toBe(MAX_IPS_AGRUPADOS);
+    expect(porIp.has("ip-0")).toBe(false);
+    expect(porIp.has(`ip-${MAX_IPS_AGRUPADOS + 4}`)).toBe(true);
   });
 
   it("o estado guardado não cresce sem limite com muitos IPs", async () => {

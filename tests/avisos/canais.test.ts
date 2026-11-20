@@ -137,6 +137,14 @@ describe("canal Telegram", () => {
     expect((erro as Error).message).not.toContain("123:abc");
   });
 
+  it("texto acima do limite da Bot API (4096) é cortado antes do envio", async () => {
+    const { fetchFn, chamadas } = fetchFalso();
+    const { canais } = canaisDoAmbiente(AMBIENTE_COMPLETO, ["telegram"], fetchFn);
+    await canais[0]!.enviar("B".repeat(5000), EVENTO);
+    const { text } = JSON.parse(String(chamadas[0]!.init.body)) as { text: string };
+    expect(text).toBe("B".repeat(4095) + "\u2026");
+  });
+
   it("erro de rede que cite a URL não vaza o token", async () => {
     const fetchFn = (async (url: string | URL | Request) => {
       throw new TypeError(`falhou ao buscar ${String(url)}`);
@@ -174,6 +182,30 @@ describe("canal webhook", () => {
 });
 
 describe("canais reais dentro de Avisos", () => {
+  it("caminho enorme não derruba o Telegram nem cala os avisos seguintes do IP", async () => {
+    const textos: string[] = [];
+    const fetchFn = (async (_url: string | URL | Request, init?: RequestInit) => {
+      const { text } = JSON.parse(String(init?.body)) as { text: string };
+      textos.push(text);
+      return new Response(null, { status: text.length > 4096 ? 400 : 200 });
+    }) as typeof fetch;
+    const linhas: string[] = [];
+    vi.spyOn(process.stderr, "write").mockImplementation((texto: string | Uint8Array) => {
+      linhas.push(String(texto));
+      return true;
+    });
+    const { canais } = canaisDoAmbiente(AMBIENTE_COMPLETO, ["telegram"], fetchFn);
+    let t = 0;
+    const a = new Avisos({ channels: ["telegram"], groupByIpMs: 3_600_000, scans: "panel" }, canais, () => t);
+    await a.receber({ ...EVENTO, caminho: "/.git/" + "A".repeat(8000) });
+    for (let i = 0; i < 5; i++) await a.receber(EVENTO);
+    t = 3_600_000;
+    await a.receber({ ...EVENTO, caminho: "/.git/" + "A".repeat(8000) });
+    expect(linhas).toEqual([]);
+    expect(textos).toHaveLength(2);
+    expect(textos[1]).toContain("Mais 5 tentativas deste IP");
+  });
+
   it("falha de um canal real é registrada sem segredo e os outros recebem", async () => {
     const linhas: string[] = [];
     vi.spyOn(process.stderr, "write").mockImplementation((texto: string | Uint8Array) => {

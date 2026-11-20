@@ -71,15 +71,31 @@ function dataLocal(quando: string): string {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/** Caracteres mantidos de cada campo que vem do pedido antes das reticências. */
+const MAX_CAMPO = 300;
+
+// C0, DEL, C1, separadores de linha e parágrafo do Unicode e marcas de direção (bidi).
+const CONTROLE = /[\u0000-\u001F\u007F-\u009F\u061C\u200E\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/g;
+
+/**
+ * Campo vindo do pedido (logo, do visitante): caractere de controle ou bidi vira espaço, para não criar
+ * linha falsa nem inverter o texto. Campo acima de MAX_CAMPO caracteres é cortado ali, com reticências e
+ * sem partir emoji, para o aviso caber no limite dos canais (Telegram recusa texto acima de 4096).
+ */
+function campo(valor: string): string {
+  const pontos = Array.from(valor.replace(CONTROLE, " "));
+  return pontos.length > MAX_CAMPO ? `${pontos.slice(0, MAX_CAMPO).join("")}\u2026` : pontos.join("");
+}
+
 /** Texto puro do aviso, uma linha por campo; com repetidos > 0, a linha do agrupamento no fim. */
 export function textoDoAviso(e: Evento, repetidos: number): string {
   const linhas = [
     TITULO[e.gravidade],
-    `Site: ${e.dominio}`,
-    `Página: ${e.caminho}`,
-    `IP: ${e.ip}`,
-    `Motivo: ${e.motivo}`,
-    `Quando: ${dataLocal(e.quando)}`,
+    `Site: ${campo(e.dominio)}`,
+    `Página: ${campo(e.caminho)}`,
+    `IP: ${campo(e.ip)}`,
+    `Motivo: ${campo(e.motivo)}`,
+    `Quando: ${campo(dataLocal(e.quando))}`,
     `Destino: ${DESTINO[e.destino]}`,
   ];
   if (repetidos > 0) linhas.push(`Mais ${repetidos} tentativas deste IP na última janela (agrupadas).`);
@@ -88,12 +104,15 @@ export function textoDoAviso(e: Evento, repetidos: number): string {
 
 type Janela = { inicio: number; repetidos: number };
 
+/** Teto de IPs guardados para o agrupamento; cheio, sai o IP de janela mais antiga. */
+export const MAX_IPS_AGRUPADOS = 10_000;
+
 /**
  * Decide o que vira aviso e despacha para os canais.
  * - `copia` sempre avisa; `varredura` avisa só com scans "alert", entra no resumo com "dailySummary"
  *   e com "panel" não faz nada aqui (o registro é de quem chama).
  * - Por IP, o primeiro aviso de cada janela `groupByIpMs` sai na hora; os seguintes só contam, e a
- *   contagem vai no primeiro aviso da janela seguinte.
+ *   contagem fica guardada até o próximo aviso daquele IP, por mais tarde que ele venha.
  */
 export class Avisos {
   private readonly porIp = new Map<string, Janela>();
@@ -119,8 +138,10 @@ export class Avisos {
       atual.repetidos++;
       return;
     }
-    // Só conta os repetidos da janela imediatamente anterior; mais antigos que isso já valem como descartados.
-    const repetidos = atual && agora - atual.inicio < 2 * janela ? atual.repetidos : 0;
+    const repetidos = atual?.repetidos ?? 0;
+    // Apaga e grava de novo para a ordem do Map seguir o início da janela (mais antigo primeiro).
+    this.porIp.delete(e.ip);
+    if (this.porIp.size >= MAX_IPS_AGRUPADOS) this.porIp.delete(this.porIp.keys().next().value!);
     this.porIp.set(e.ip, { inicio: agora, repetidos: 0 });
     await this.despachar(textoDoAviso(e, repetidos), e);
   }
@@ -134,11 +155,14 @@ export class Avisos {
     return [cabeca, ...porMotivo.map(([motivo, n]) => `${motivo}: ${n}`)].join("\n");
   }
 
-  /** No máximo uma vez por janela, apaga os IPs cuja janela venceu há mais de uma janela. */
+  /**
+   * No máximo uma vez por janela, apaga os IPs cuja janela venceu sem repetidos. IP com repetidos fica
+   * até o próximo aviso dele levar a contagem (ou até sair pelo teto MAX_IPS_AGRUPADOS).
+   */
   private limpar(agora: number, janela: number): void {
     if (agora - this.ultimaLimpeza < janela) return;
     this.ultimaLimpeza = agora;
-    for (const [ip, j] of this.porIp) if (agora - j.inicio >= 2 * janela) this.porIp.delete(ip);
+    for (const [ip, j] of this.porIp) if (j.repetidos === 0 && agora - j.inicio >= janela) this.porIp.delete(ip);
   }
 
   private async despachar(texto: string, e: Evento): Promise<void> {
