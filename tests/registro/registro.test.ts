@@ -145,6 +145,7 @@ describe("Registro", () => {
     expect(linhas).toHaveLength(1);
     expect(linhas[0]).toContain(`falha ao gravar em ${pasta}`);
     expect(linhas[0]).toContain("chown 1000:1000");
+    expect(linhas[0]).toContain("não ficam guardados (esta linha sai uma vez por dia). Confira se o usuário do porteiro");
     // O dia seguinte tem a própria linha.
     r.gravar(ev({ quando: "2026-11-21T10:00:00Z" }));
     r.gravar(ev({ quando: "2026-11-21T11:00:00Z" }));
@@ -166,8 +167,7 @@ describe("Registro", () => {
     const r = new Registro(dir, DIA_MS);
     const linhas = espiarStderr();
     expect(() => r.gravar(ev({ quando: "ontem" }))).not.toThrow();
-    expect(linhas).toHaveLength(1);
-    expect(linhas[0]!.startsWith("[anti-rea] registro:")).toBe(true);
+    expect(linhas).toEqual(['[anti-rea] registro: evento com data inválida, não gravado: "ontem"\n']);
   });
 
   it("apagarVencidos guarda os dias que ainda podem ter evento dentro da retencao", () => {
@@ -237,7 +237,7 @@ describe("Registro: teto de eventos por dia", () => {
     expect(readFileSync(join(dir, "2026-11-20.jsonl"), "utf8").split("\n")).toHaveLength(4);
     expect(r.contagem("2026-11-20")).toBe(10);
     expect(linhas).toEqual([
-      "[anti-rea] registro: limite de 3 eventos atingido em 2026-11-20; o resto do dia so conta.\n",
+      "[anti-rea] registro: limite de 3 eventos atingido em 2026-11-20; o resto do dia só conta.\n",
     ]);
   });
 
@@ -251,8 +251,8 @@ describe("Registro: teto de eventos por dia", () => {
     expect(r.contagem("2026-11-20")).toBe(4);
     expect(r.contagem("2026-11-21")).toBe(4);
     expect(linhas).toEqual([
-      "[anti-rea] registro: limite de 2 eventos atingido em 2026-11-20; o resto do dia so conta.\n",
-      "[anti-rea] registro: limite de 2 eventos atingido em 2026-11-21; o resto do dia so conta.\n",
+      "[anti-rea] registro: limite de 2 eventos atingido em 2026-11-20; o resto do dia só conta.\n",
+      "[anti-rea] registro: limite de 2 eventos atingido em 2026-11-21; o resto do dia só conta.\n",
     ]);
   });
 

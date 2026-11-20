@@ -116,7 +116,7 @@ export class Registro {
     try {
       const ms = Date.parse(e.quando);
       if (Number.isNaN(ms)) {
-        avisar(`evento com data invalida, nao gravado: ${JSON.stringify(e.quando)}`);
+        avisar(`evento com data inválida, não gravado: ${JSON.stringify(e.quando)}`);
         return;
       }
       dia = new Date(ms).toISOString().slice(0, 10);
@@ -125,7 +125,7 @@ export class Registro {
       if (contagem.total > this.tetoPorDia) {
         if (!contagem.avisado) {
           contagem.avisado = true;
-          avisar(`limite de ${this.tetoPorDia} eventos atingido em ${dia}; o resto do dia so conta.`);
+          avisar(`limite de ${this.tetoPorDia} eventos atingido em ${dia}; o resto do dia só conta.`);
         }
         return;
       }
@@ -136,7 +136,7 @@ export class Registro {
       if (contagem) contagem.falhaAvisada = true;
       avisar(
         `falha ao gravar em ${this.pasta}: ${mensagem(erro)}. Os eventos ${dia ? `de ${dia} ` : ""}que falharem ` +
-          "nao ficam guardados (esta linha sai uma vez por dia). Confira se o usuario do porteiro pode gravar " +
+          "não ficam guardados (esta linha sai uma vez por dia). Confira se o usuário do porteiro pode gravar " +
           "na pasta; no Docker, a pasta do host precisa ser do uid 1000: sudo chown 1000:1000 registro.",
       );
     }

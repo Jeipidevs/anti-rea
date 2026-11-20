@@ -268,7 +268,7 @@ o porteiro só conta as tentativas do resto do dia, sem gravar no disco, e escre
 no log do contêiner:
 
 ```
-[anti-rea] registro: limite de 50000 eventos atingido em AAAA-MM-DD; o resto do dia so conta.
+[anti-rea] registro: limite de 50000 eventos atingido em AAAA-MM-DD; o resto do dia só conta.
 ```
 
 Assim um ataque não enche o disco do servidor, que costuma hospedar outros sites.
