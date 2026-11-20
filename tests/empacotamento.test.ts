@@ -60,6 +60,7 @@ describe("GitHub Actions", () => {
       "npm run typecheck",
       "npm test",
       "npx playwright install --with-deps chromium",
+      "sudo apt-get update\nsudo apt-get install -y wget httrack",
       "npm run test:e2e",
     ]);
   });
@@ -128,6 +129,27 @@ describe("Perguntas frequentes", () => {
     expect(faq).toMatch(/depuração remota ativa/);
     expect(faq).toMatch(/duas tabelas/);
     expect(faq).toMatch(/DuckDuckGo/);
+  });
+
+  it("lista os limites conhecidos: revogação em memória, CSP sem 'self', og:image dinâmico e inspeção curta", () => {
+    const faq = ler("docs/perguntas-frequentes.md");
+    expect(faq).toMatch(/Limites conhecidos/);
+    expect(faq).toMatch(/só na memória/);
+    expect(faq).toMatch(/1 hora/);
+    expect(faq).toContain("script-src");
+    expect(faq).toContain("'self'");
+    expect(faq).toContain("og:image");
+    expect(faq).toContain("exempt");
+    expect(faq).toMatch(/inspeção curta/);
+  });
+
+  it("docs/01-o-que-e.md não diz que o REA é pego pelo agente e conta o que de fato pega", () => {
+    const doc = ler("docs/01-o-que-e.md");
+    expect(doc).not.toMatch(/ferramenta conhecida \(REA/);
+    expect(doc).toMatch(/verificação/);
+    expect(doc).toMatch(/guarda/);
+    expect(doc).toMatch(/mapas? de código/);
+    expect(doc).toContain("403");
   });
 
   it("docs/05-avisos.md fala do teto global e cita só caminho que o porteiro trata como varredura", () => {

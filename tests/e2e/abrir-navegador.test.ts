@@ -1,7 +1,7 @@
 // Regra de abertura do navegador dos casos e2e: no CI uma falha ao abrir derruba o caso; fora dele
 // o caso pula dizendo por quê (o Mac com macOS 13 não instala o Chromium do Playwright).
 import { describe, expect, it } from "vitest";
-import { abrirComReserva, emCI, type CanalNavegador } from "./abrir-navegador.js";
+import { abrirComReserva, argsDoChrome, emCI, type CanalNavegador } from "./abrir-navegador.js";
 
 const CANAIS: CanalNavegador[] = [{ channel: "chrome" }, {}];
 
@@ -47,5 +47,17 @@ describe("emCI", () => {
     expect(emCI({ CI: "" })).toBe(false);
     expect(emCI({ CI: "false" })).toBe(false);
     expect(emCI({ CI: "0" })).toBe(false);
+  });
+});
+
+describe("argsDoChrome", () => {
+  it("no CI acrescenta --no-sandbox (o runner do GitHub não abre o Chrome com a caixa de areia)", () => {
+    expect(argsDoChrome(["--headless=new"], true)).toEqual(["--headless=new", "--no-sandbox"]);
+    expect(argsDoChrome(undefined, true)).toEqual(["--no-sandbox"]);
+  });
+
+  it("fora do CI devolve as mesmas chaves, sem repetir --no-sandbox", () => {
+    expect(argsDoChrome(["--headless=new"], false)).toEqual(["--headless=new"]);
+    expect(argsDoChrome(["--no-sandbox"], true)).toEqual(["--no-sandbox"]);
   });
 });

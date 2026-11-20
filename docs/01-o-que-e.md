@@ -27,15 +27,29 @@ cabra** é o REA, o robô copiador, o navegador automatizado e a ferramenta de a
 ## O que ele confere
 
 **No servidor, a cada pedido:**
-- se o pedido tem a cara de uma ferramenta conhecida (REA, wget, HTTrack, scanners de ataque);
-- se está pedindo um mapa de código ou um arquivo sensível (`.env`, `.git`, backup);
+- se o pedido traz o passe da verificação. Quem busca código ou dados do site direto, sem passar
+  pela tela de verificação, leva **403**. É assim que fica de fora a busca que o REA faz por conta
+  própria, fora do navegador: ela não se apresenta com um nome conhecido, mas também não tem passe;
+- se está pedindo um **mapa de código** ou um arquivo sensível (`.env`, `.git`, backup). Esses ficam
+  trancados para todo mundo, até para quem tem passe;
+- se o pedido se apresenta como uma ferramenta de cópia ou de ataque conhecida (wget, HTTrack,
+  navegador sem tela, scanners);
 - se está navegando rápido demais para ser gente;
 - se está testando caminhos clássicos de ataque.
 
-**No navegador, na primeira visita (menos de 1 segundo):**
-- se o navegador é automatizado (robô pilotando um Chrome);
+**No navegador, na primeira visita (a verificação, menos de 1 segundo):**
+- se o navegador é automatizado (robô pilotando um Chrome) ou roda sem tela, como o navegador que o
+  próprio REA abre;
 - se o navegador está em modo de depuração, que é como o REA se conecta. Abrir o F12 deixa o mesmo
   sinal, por isso quem abre o F12 também cai na sombra (dá para mudar).
+
+**No navegador, depois da verificação (a guarda na aba):**
+- com a configuração padrão, cada página do site leva uma **guarda** pequena que repete a conferência
+  a cada 1,5 s. Se o REA se liga a uma aba que já passou, a página vira sombra, o passe é cancelado
+  e o aviso sai.
+
+Nem tudo é pego. O que ainda escapa está em
+[Limites conhecidos](perguntas-frequentes.md#limites-conhecidos).
 
 ## O que ele não é
 

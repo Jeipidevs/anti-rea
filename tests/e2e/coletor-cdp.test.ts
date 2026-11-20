@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { avaliarNavegador, type SinaisNavegador } from "../../src/deteccao/navegador/avaliar.js";
 import { COLETOR, paginaDesafio } from "../../src/deteccao/navegador/desafio.js";
 import { scriptGuarda } from "../../src/deteccao/navegador/guarda.js";
+import { argsDoChrome } from "./abrir-navegador.js";
 
 const CHROME = [
   process.env.CHROME_PATH,
@@ -82,7 +83,7 @@ async function abrir(pagina: string, dominios: Comando[] | null, esperaMs = 20_0
   const srv = await servidor(pagina);
   const perfil = mkdtempSync(join(tmpdir(), "anti-rea-e2e-"));
   const args = ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${perfil}`, "--no-first-run", "--no-default-browser-check"];
-  const p = spawn(CHROME!, [...args, dominios ? "about:blank" : srv.url], { stdio: ["ignore", "ignore", "pipe"] });
+  const p = spawn(CHROME!, [...argsDoChrome(args), dominios ? "about:blank" : srv.url], { stdio: ["ignore", "ignore", "pipe"] });
   let ws: WebSocket | undefined;
   try {
     const porta = await limite(
@@ -196,7 +197,7 @@ describe.skipIf(!CHROME)("coletor num Chrome de verdade", () => {
       executablePath: CHROME,
       headless: true,
       ignoreDefaultArgs: ["--enable-automation"],
-      args: ["--disable-blink-features=AutomationControlled"],
+      args: argsDoChrome(["--disable-blink-features=AutomationControlled"]),
       timeout: 20_000,
     });
     try {
@@ -258,7 +259,7 @@ describe.skipIf(!CHROME)("tela de desafio sem laço de recarga num Chrome de ver
     });
     await new Promise<void>((ok) => s.listen(0, "127.0.0.1", ok));
     const { port } = s.address() as { port: number };
-    const navegador = await chromium.launch({ executablePath: CHROME, headless: true, timeout: 20_000 });
+    const navegador = await chromium.launch({ executablePath: CHROME, headless: true, args: argsDoChrome(), timeout: 20_000 });
     try {
       const pagina = await navegador.newPage();
       await pagina.goto(`http://127.0.0.1:${port}/`);

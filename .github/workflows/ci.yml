@@ -20,4 +20,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npx playwright install --with-deps chromium
+      # Sem wget e httrack os casos deles pulam no runner e nunca rodam de verdade.
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y wget httrack
       - run: npm run test:e2e

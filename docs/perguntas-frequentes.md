@@ -33,7 +33,8 @@ sombra, o aviso chega e o REA sai sem nada. Com `devtoolsIsCaught: false` a aba 
 verificação não é mais conferida, e o REA ligado a ela não é pego. Uma
 inspeção curta (a padrão do REA, de meio segundo) numa aba que já passou pela verificação pode
 terminar entre duas conferências e levar o que aquela aba já carregou: a página e os scripts
-compilados. O mapa e o código-fonte original não saem.
+compilados. O mapa e o código-fonte original não saem. Veja os
+[limites conhecidos](#limites-conhecidos).
 
 **Atrapalha SEO ou anúncios?**
 Não. Veja [Robôs oficiais](08-robos-oficiais.md).
@@ -74,3 +75,30 @@ de privacidade e configure `log.retention`.
 
 **O ANTI-REA é do mesmo autor do REA?**
 Não. É um projeto independente que estudou a lógica do REA para se defender dela.
+
+## Limites conhecidos
+
+O que a versão 0.1 ainda não resolve, dito às claras.
+
+**O cancelamento do passe fica só na memória.** Quando alguém é pego, o passe dele entra numa lista
+de cancelados que mora na memória do porteiro. Se o porteiro reiniciar, a lista some e um passe
+cancelado volta a valer até vencer. Além disso, a marca de pego, que manda aquele navegador para a
+sombra, segura 1 hora. Passada essa hora, o mesmo navegador pode tentar a verificação de novo, e só
+cai se for pego outra vez.
+
+**A política de segurança do seu site pode desligar a guarda.** A guarda entra na página como um
+script do próprio endereço do site (`/.anti-rea/guarda.js`). Se o seu site manda um cabeçalho
+`Content-Security-Policy` em que o `script-src` não tem `'self'`, o navegador não roda a guarda. O
+site continua funcionando, mas a aba deixa de ser conferida depois da verificação. Resolva
+acrescentando `'self'` ao `script-src`.
+
+**Imagem de prévia gerada na hora, sem extensão, precisa ir em `exempt`.** Robô de prévia de link
+(WhatsApp, Telegram, LinkedIn) recebe as imagens, fontes e ícones que ele reconhece pela extensão
+do arquivo (`.png`, `.jpg` e afins). Se o `og:image` do seu site aponta para um endereço sem
+extensão, como `/api/og?titulo=...`, o robô recebe a tela de verificação no lugar da imagem e a
+prévia sai sem foto. Ponha esse caminho em [`exempt`](03-configurar.md).
+
+**Uma inspeção curta do REA numa aba que já passou pode escapar.** A guarda confere a aba de tempos
+em tempos. Se o REA se liga, olha e se desliga entre duas conferências, ninguém percebe: ele leva o
+que a aba já tinha carregado (a página e os scripts compilados), nunca o mapa nem o código-fonte
+original. Quanto isso acontece na prática ainda vai ser medido.

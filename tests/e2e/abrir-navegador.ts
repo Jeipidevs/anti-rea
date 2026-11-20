@@ -32,3 +32,11 @@ export async function abrirComReserva<B>(
   const texto = ultimo instanceof Error ? ultimo.message : String(ultimo);
   return { navegador: null, motivo: `navegador não abriu: ${texto.split("\n")[0]}` };
 }
+
+/**
+ * Chaves de linha de comando do Chrome dos casos e2e. No CI acrescenta `--no-sandbox`: o runner do
+ * GitHub (Ubuntu) não deixa o Chrome do sistema montar a caixa de areia e ele não abre.
+ */
+export function argsDoChrome(args: readonly string[] = [], ci: boolean = emCI()): string[] {
+  return ci && !args.includes("--no-sandbox") ? [...args, "--no-sandbox"] : [...args];
+}

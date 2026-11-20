@@ -18,7 +18,7 @@ import { validarConfig } from "../../src/config/carregar.js";
 import { iniciarPorteiro } from "../../src/porteiro/servidor.js";
 import { Registro, type Evento } from "../../src/registro/registro.js";
 import { FaixasMeta } from "../../src/robos/faixas-meta.js";
-import { abrirComReserva, emCI, type CanalNavegador } from "./abrir-navegador.js";
+import { abrirComReserva, argsDoChrome, emCI, type CanalNavegador } from "./abrir-navegador.js";
 // SINAIS_LIMPOS é a fixture tests/fixtures/sinais/chrome.json sem "manual" e "nonce".
 import { CHROME, HTML, SINAIS_LIMPOS, cookieDe, esperar, pedir } from "../porteiro/apoio-servidor.js";
 
@@ -77,7 +77,7 @@ function rodar(comando: string, args: string[], ms = 30_000): Promise<Saida> {
  * último erro; fora do CI ele pula com o motivo (ver abrir-navegador.ts).
  */
 async function abrirNavegador(ctx: TestContext, opcoes: LaunchOptions): Promise<Browser> {
-  const lancar = (canal: CanalNavegador) => chromium.launch({ timeout: 20_000, ...opcoes, ...canal });
+  const lancar = (canal: CanalNavegador) => chromium.launch({ timeout: 20_000, ...opcoes, args: argsDoChrome(opcoes.args), ...canal });
   const r = await abrirComReserva(lancar, [{ channel: "chrome" }, {}], emCI());
   if (!r.navegador) return ctx.skip(r.motivo);
   const navegador = r.navegador;
@@ -355,7 +355,7 @@ async function abrirChromeDoSistema(t: Montado, depuracao: boolean): Promise<str
   // Sem tela e com porta de depuração, o Chrome liga navigator.webdriver (com tela, não). A chave
   // desliga isso, para ficar como o Chrome com tela que a pessoa abre para o REA.
   if (depuracao) args.push("--remote-debugging-port=0", "--disable-blink-features=AutomationControlled");
-  const chrome = spawn(CHROME_DO_SISTEMA!, [...args, `${t.url}/`], { stdio: ["ignore", "ignore", "pipe"] });
+  const chrome = spawn(CHROME_DO_SISTEMA!, [...argsDoChrome(args), `${t.url}/`], { stdio: ["ignore", "ignore", "pipe"] });
   limpezas.push(async () => {
     chrome.kill("SIGKILL");
     await new Promise((ok) => setTimeout(ok, 300));
