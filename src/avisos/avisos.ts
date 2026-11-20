@@ -80,20 +80,21 @@ function dataLocal(quando: string): string {
   return `${doisDigitos(d.getDate())}/${doisDigitos(d.getMonth() + 1)}/${d.getFullYear()} ${horaLocal(d)}`;
 }
 
-/** Tamanho máximo de cada campo que vem do pedido, já contando as reticências do corte. */
-const MAX_CAMPO = 200;
+/** Tamanho máximo de cada campo do aviso que vem do pedido, já contando as reticências do corte. */
+const MAX_CAMPO_AVISO = 200;
 
 // C0, DEL, C1, separadores de linha e parágrafo do Unicode e marcas de direção (bidi).
 const CONTROLE = /[\u0000-\u001F\u007F-\u009F\u061C\u200E\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/g;
 
 /**
  * Campo vindo do pedido (logo, do visitante): caractere de controle ou bidi sai, para não criar linha
- * falsa nem inverter o texto. Campo acima de MAX_CAMPO caracteres fica com MAX_CAMPO, o último sendo as
- * reticências, sem partir emoji, para o aviso caber no limite dos canais (Telegram recusa acima de 4096).
+ * falsa nem inverter o texto. Campo acima de MAX_CAMPO_AVISO caracteres fica com MAX_CAMPO_AVISO, o
+ * último sendo as reticências, sem partir emoji, para o aviso caber no limite dos canais (Telegram
+ * recusa acima de 4096).
  */
 function campo(valor: string): string {
   const pontos = Array.from(valor.replace(CONTROLE, ""));
-  return pontos.length > MAX_CAMPO ? `${pontos.slice(0, MAX_CAMPO - 1).join("")}\u2026` : pontos.join("");
+  return pontos.length > MAX_CAMPO_AVISO ? `${pontos.slice(0, MAX_CAMPO_AVISO - 1).join("")}\u2026` : pontos.join("");
 }
 
 /** Texto puro do aviso, uma linha por campo; com repetidos > 0, a linha do agrupamento no fim. */

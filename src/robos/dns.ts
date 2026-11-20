@@ -71,18 +71,10 @@ function nomeTerminaEm(nome: string, sufixos: string[]): boolean {
   return sufixos.some((s) => n.endsWith(s.toLowerCase()));
 }
 
-/** true só quando o reverso termina num dos sufixos e o direto desse nome volta ao mesmo IP. */
-export async function confirmarPorDns(
-  ip: string,
-  sufixos: string[],
-  r: Resolvedor,
-): Promise<boolean> {
-  return (await verificarPorDns(ip, sufixos, r)) === "sim";
-}
-
 /**
- * Como `confirmarPorDns`, mas separa o negativo definitivo (sem nome reverso, nome de fora
- * dos sufixos, direto para outro IP) da falha passageira, que volta como "incerto".
+ * "sim" só quando o reverso termina num dos sufixos e o direto desse nome volta ao mesmo IP.
+ * "nao" com resposta definitiva (IP inválido, sem nome reverso, nome de fora dos sufixos, direto
+ * para outro IP). Falha passageira (tempo esgotado, SERVFAIL, erro sem código) é "incerto".
  */
 export async function verificarPorDns(
   ip: string,

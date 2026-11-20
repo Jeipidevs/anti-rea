@@ -89,6 +89,16 @@ describe("start", () => {
     expect(r.corpo).toContain("SOMBRA PROPRIA /.env");
   });
 
+  it("resolve shadow.logo relativo à pasta da config", async () => {
+    const config = instalar("nenhum");
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><title>LOGO PROPRIO</title></svg>';
+    writeFileSync(join(dir, "logo.svg"), svg);
+    writeFileSync(config, readFileSync(config, "utf8").replace("  showIp: true", "  showIp: true\n  logo: logo.svg"));
+    const { porteiro } = await rodarStart();
+    const r = await pedir(porteiro.porta, "/.env");
+    expect(r.corpo).toContain(`data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`);
+  });
+
   it("config inválida vira erro em português", async () => {
     writeFileSync(join(dir, "anti-rea.config.yml"), "upstream: nada\ndomains: []\n");
     await expect(rodarStart()).rejects.toThrow(/Configuração inválida/);

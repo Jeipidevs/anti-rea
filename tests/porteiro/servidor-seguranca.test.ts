@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cacheSoDoNavegador } from "../../src/porteiro/repasse.js";
 import { HTML, PNG, limparTudo, montar } from "./apoio-servidor.js";
 
-// Achados da revisão da Task 9: caminho decidido igual ao recebido pelo site, cache compartilhado,
+// Segurança do servidor (src/porteiro/servidor.ts): caminho decidido igual ao recebido pelo site, cache compartilhado,
 // prévia sem query e corpo sempre enquadrado no pedido ao site.
 
 afterEach(limparTudo);

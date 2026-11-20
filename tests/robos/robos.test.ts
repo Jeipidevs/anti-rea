@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmarPorDns, type Resolvedor } from "../../src/robos/dns.js";
+import { verificarPorDns, type Resolvedor } from "../../src/robos/dns.js";
 import { FaixasMeta } from "../../src/robos/faixas-meta.js";
 import { confirmarRobo, roboDeclarado } from "../../src/robos/robos.js";
 
@@ -83,13 +83,13 @@ describe("roboDeclarado", () => {
   });
 });
 
-describe("confirmarPorDns", () => {
+describe("verificarPorDns", () => {
   it("confirma quando o reverso termina no sufixo e o direto volta ao IP", async () => {
-    expect(await confirmarPorDns("66.249.66.1", [".googlebot.com"], dnsGoogle)).toBe(true);
+    expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], dnsGoogle)).toBe("sim");
   });
 
   it("recusa nome que so contem o sufixo no meio", async () => {
-    expect(await confirmarPorDns("203.0.113.9", [".googlebot.com"], dnsGoogle)).toBe(false);
+    expect(await verificarPorDns("203.0.113.9", [".googlebot.com"], dnsGoogle)).toBe("nao");
   });
 
   it("recusa quando o direto aponta para outro IP", async () => {
@@ -97,7 +97,7 @@ describe("confirmarPorDns", () => {
       reverso: async () => ["crawl.googlebot.com"],
       direto: async () => ["66.249.66.2"],
     };
-    expect(await confirmarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe(false);
+    expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe("nao");
   });
 
   it("aceita ponto final no nome e maiusculas", async () => {
@@ -105,7 +105,7 @@ describe("confirmarPorDns", () => {
       reverso: async () => ["Crawl-1.GoogleBot.com."],
       direto: async () => ["66.249.66.1"],
     };
-    expect(await confirmarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe(true);
+    expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe("sim");
   });
 
   it("nao aceita o proprio dominio sem subdominio como sufixo falso", async () => {
@@ -113,7 +113,7 @@ describe("confirmarPorDns", () => {
       reverso: async () => ["evilgooglebot.com"],
       direto: async () => ["66.249.66.1"],
     };
-    expect(await confirmarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe(false);
+    expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe("nao");
   });
 
   it("compara IPv6 em formas diferentes", async () => {
@@ -121,7 +121,7 @@ describe("confirmarPorDns", () => {
       reverso: async () => ["crawl.googlebot.com"],
       direto: async () => ["2001:4860:4801:0010:0000:0000:0000:0001"],
     };
-    expect(await confirmarPorDns("2001:4860:4801:10::1", [".googlebot.com"], r)).toBe(true);
+    expect(await verificarPorDns("2001:4860:4801:10::1", [".googlebot.com"], r)).toBe("sim");
   });
 
   it("trata IPv4 mapeado em IPv6 como IPv4", async () => {
@@ -133,11 +133,11 @@ describe("confirmarPorDns", () => {
       },
       direto: async () => ["66.249.66.1"],
     };
-    expect(await confirmarPorDns("::ffff:66.249.66.1", [".googlebot.com"], r)).toBe(true);
+    expect(await verificarPorDns("::ffff:66.249.66.1", [".googlebot.com"], r)).toBe("sim");
     expect(perguntado).toBe("66.249.66.1");
   });
 
-  it("erro do resolvedor vira false, nunca excecao", async () => {
+  it("erro do resolvedor nunca vira excecao: sem codigo e incerto, ENOTFOUND e nao", async () => {
     const reversoQuebra: Resolvedor = {
       reverso: async () => {
         throw new Error("ENOTFOUND");
@@ -150,12 +150,19 @@ describe("confirmarPorDns", () => {
         throw new Error("ETIMEOUT");
       },
     };
-    expect(await confirmarPorDns("66.249.66.1", [".googlebot.com"], reversoQuebra)).toBe(false);
-    expect(await confirmarPorDns("66.249.66.1", [".googlebot.com"], diretoQuebra)).toBe(false);
+    const semNomeReverso: Resolvedor = {
+      reverso: async () => {
+        throw Object.assign(new Error("getHostByAddr ENOTFOUND"), { code: "ENOTFOUND" });
+      },
+      direto: async () => ["66.249.66.1"],
+    };
+    expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], reversoQuebra)).toBe("incerto");
+    expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], diretoQuebra)).toBe("incerto");
+    expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], semNomeReverso)).toBe("nao");
   });
 
-  it("IP invalido vira false", async () => {
-    expect(await confirmarPorDns("nao-e-ip", [".googlebot.com"], dnsGoogle)).toBe(false);
+  it("IP invalido vira nao", async () => {
+    expect(await verificarPorDns("nao-e-ip", [".googlebot.com"], dnsGoogle)).toBe("nao");
   });
 });
 

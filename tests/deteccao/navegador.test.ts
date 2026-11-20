@@ -247,7 +247,7 @@ describe("coletor em celular no modo computador", () => {
   });
 });
 
-describe("coletor com memo (Task 13)", () => {
+describe("coletor com memo (docs/_medicoes/2026-11-guarda.md)", () => {
   it("com o mesmo memo monta as 1000 linhas uma vez; sem memo, monta a cada chamada", () => {
     // O Chrome guarda os argumentos do console mesmo com o DevTools fechado: tabela nova a cada
     // volta da guarda retinha uns 7,5 MB (docs/_medicoes/2026-11-guarda.md).

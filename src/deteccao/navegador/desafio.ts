@@ -28,10 +28,11 @@ const VALIDADE_NONCE_MS = 120_000;
  * - Runtime (automação por CDP, como o REA): com `Runtime.enable` o Chrome monta a prévia
  *   de cada linha de `console.table`, que passa a custar dezenas de vezes o tempo de
  *   copiar as mesmas linhas em JSON (medido no Chrome 157: razão de 70 a 134 com CDP,
- *   de 0,5 a 3,1 sem; com a tabela como objeto, na Task 13: no mínimo 40 com CDP, no
- *   máximo 0,25 sem). Limiar: 20 vezes. Só roda em Blink e com `console.table` nativo
- *   (ferramenta do site que embrulha o console poderia encarecer a chamada). Com a
- *   janela encolhida mais de 160 px (F12 acoplado com pausas desligadas) conta como F12.
+ *   de 0,5 a 3,1 sem; com a tabela como objeto, em docs/_medicoes/2026-11-guarda.md: no
+ *   mínimo 40 com CDP, no máximo 0,25 sem). Limiar: 20 vezes. Só roda em Blink e com
+ *   `console.table` nativo (ferramenta do site que embrulha o console poderia encarecer a
+ *   chamada). Com a janela encolhida mais de 160 px (F12 acoplado com pausas desligadas)
+ *   conta como F12.
  * - O getter em `Error.stack` passado a `console.debug` não serve mais: no Chrome 157
  *   ele não roda nem com `Runtime.enable`.
  * - `uaChrome` só vale para Chrome de computador: celular e WebView (navegador
@@ -192,7 +193,7 @@ function scriptDesafio(nonce: string, sondarPausa: boolean, t: (typeof TEXTOS)[k
 
 /**
  * Tela "verificando" de menos de um segundo: coleta, posta e recarrega. Sem recurso externo.
- * `sondarPausa` (padrão true) liga a sonda de `debugger;`; a Task 9 passa
+ * `sondarPausa` (padrão true) liga a sonda de `debugger;`; o servidor (src/porteiro/servidor.ts) passa
  * `cfg.check.devtoolsIsCaught`, para quem abre o F12 não parar no depurador quando ele não pega.
  */
 export function paginaDesafio(opts: { nonce: string; previa: Previa; idioma: "pt-BR" | "en"; sondarPausa?: boolean }): string {

@@ -142,22 +142,31 @@ describe("FaixasMeta", () => {
   });
 
   it("espera no maximo o limite pela primeira carga e ela segue em segundo plano", async () => {
-    let chamadas = 0;
-    const meta = new FaixasMeta(
-      async () => {
-        chamadas++;
-        await esperar(80);
-        return ["31.13.24.0/21"];
-      },
-      86_400_000,
-      10,
-    );
-    const inicio = Date.now();
-    expect(await meta.contem("31.13.24.10", 0)).toBe("incerto");
-    expect(Date.now() - inicio).toBeLessThan(70);
-    await esperar(120);
-    expect(await meta.contem("31.13.24.10", 1)).toBe("sim");
-    expect(chamadas).toBe(1);
+    vi.useFakeTimers();
+    try {
+      let chamadas = 0;
+      const meta = new FaixasMeta(
+        async () => {
+          chamadas++;
+          await esperar(80);
+          return ["31.13.24.0/21"];
+        },
+        86_400_000,
+        10,
+      );
+      let resposta: string | undefined;
+      void meta.contem("31.13.24.10", 0).then((r) => (resposta = r));
+      await vi.advanceTimersByTimeAsync(9);
+      expect(resposta).toBeUndefined();
+      // Passado o limite (10 ms), responde incerto sem esperar a carga (80 ms).
+      await vi.advanceTimersByTimeAsync(1);
+      expect(resposta).toBe("incerto");
+      await vi.advanceTimersByTimeAsync(80);
+      expect(await meta.contem("31.13.24.10", 1)).toBe("sim");
+      expect(chamadas).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("espera padrao pela primeira carga e de 3 segundos", async () => {

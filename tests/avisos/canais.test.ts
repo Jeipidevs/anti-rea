@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Avisos, canaisDoAmbiente } from "../../src/avisos/avisos.js";
+import type { Config } from "../../src/config/carregar.js";
 import type { Evento } from "../../src/registro/registro.js";
 
 const EVENTO: Evento = {
@@ -228,7 +229,7 @@ describe("canais reais dentro de Avisos", () => {
 });
 
 describe("resumo do dia pelos canais reais", () => {
-  async function resumoPor(canal: string) {
+  async function resumoPor(canal: Config["alerts"]["channels"][number]) {
     const { fetchFn, chamadas } = fetchFalso();
     const { canais } = canaisDoAmbiente(AMBIENTE_COMPLETO, [canal], fetchFn);
     const a = new Avisos({ channels: [canal], groupByIpMs: 3_600_000, scans: "dailySummary" }, canais, () => 0);

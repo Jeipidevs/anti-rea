@@ -1,7 +1,7 @@
 import { COLETOR, COLETOR_SEM_PAUSA } from "./desafio.js";
 
 /**
- * Intervalo entre as voltas com a aba visível. Medido na Task 13 (docs/_medicoes/2026-11-guarda.md):
+ * Intervalo entre as voltas com a aba visível. Medido em docs/_medicoes/2026-11-guarda.md:
  * o menor intervalo em que a volta custa menos de 1% de CPU com a CPU 6 vezes mais lenta (com a
  * tabela como objeto simples, a volta caiu de uns 8 para uns 3,4 ms a 6x: 500 ms passou a caber).
  */
@@ -31,7 +31,7 @@ const OCIOSO_MS = 150;
  * remota ou F12, avisa uma vez em POST /.anti-rea/pego, para de vigiar e só recarrega quando o
  * porteiro responde 204 (passe revogado).
  * `sondarPausa` (padrão true) liga a sonda de `debugger;`; com false ela nem vai no script
- * (a Task 9 passa `cfg.check.devtoolsIsCaught`).
+ * (o servidor, em src/porteiro/servidor.ts, passa `cfg.check.devtoolsIsCaught`).
  */
 export function scriptGuarda(opts: { sondarPausa?: boolean } = {}): string {
   const sondar = opts.sondarPausa !== false;

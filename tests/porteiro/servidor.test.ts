@@ -155,7 +155,7 @@ describe("porteiro: repasse", () => {
     expect(js.texto).toBe("Acesso negado.");
     expect(js.headers["cache-control"]).toBe("no-store");
     expect(t.site.recebidos.some((p) => p.url === "/app.js")).toBe(false);
-    expect(t.eventos().at(-1)).toMatchObject({ destino: "recusado", caminho: "/app.js" });
+    expect(t.eventos().at(-1)).toMatchObject({ destino: "recusado", caminho: "/app.js", motivo: "sem passe", gravidade: "varredura" });
   });
 
   it("robô de prévia (WhatsApp) leva a imagem e não leva o JS", async () => {

@@ -1,4 +1,5 @@
-// Política da guarda (Task 13): intervalo, aba visível, recuo em aparelho lento e sonda de pausa.
+// Política da guarda: intervalo, aba visível, recuo em aparelho lento e sonda de pausa.
+// Os números vêm de docs/_medicoes/2026-11-guarda.md.
 // O script gerado roda em node:vm com relógio e agenda falsos; o coletor de verdade é trocado por
 // um coletor de teste que registra cada chamada e "gasta" o tempo pedido no relógio falso.
 import vm from "node:vm";

@@ -1,4 +1,4 @@
-// Latência da guarda (Task 13) num Chrome do sistema, com o porteiro na frente do site de exemplo.
+// Latência da guarda (docs/_medicoes/2026-11-guarda.md) num Chrome do sistema, com o porteiro na frente do site de exemplo.
 // - Um cliente CDP próprio liga o Runtime.enable por 500 ms entre duas voltas da guarda antiga
 //   (de 0,7 s a 1,2 s depois da carga): a guarda atual (0,5 s) pega; a de 1,5 s não via nada ali.
 // - O REA de verdade (quando o CLI `rea` existe) ligado um pouco mais que um intervalo é pego.

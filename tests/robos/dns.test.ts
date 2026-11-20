@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmarPorDns, criarResolvedorDns } from "../../src/robos/dns.js";
+import { criarResolvedorDns, verificarPorDns } from "../../src/robos/dns.js";
 
 // Base falsa no formato de node:dns/promises: nenhum teste toca a rede.
 function baseFalsa(opcoes: {
@@ -39,20 +39,18 @@ describe("criarResolvedorDns", () => {
     expect(await r.reverso("66.249.66.1")).toEqual(["a.googlebot.com"]);
   });
 
-  it("estoura o tempo e a confirmacao vira false", async () => {
+  it("estoura o tempo e a verificacao fica incerta (na duvida, o robo passa)", async () => {
     const r = criarResolvedorDns({ base: baseFalsa({}), tempoMs: 20 });
-    const inicio = Date.now();
-    expect(await confirmarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe(false);
-    expect(Date.now() - inicio).toBeLessThan(1_000);
+    expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe("incerto");
   });
 
-  it("direto que nunca responde tambem estoura o tempo", async () => {
+  it("direto que nunca responde tambem estoura o tempo e fica incerto", async () => {
     const nunca = () => new Promise<string[]>(() => {});
     const r = criarResolvedorDns({
       base: baseFalsa({ reverse: async () => ["a.googlebot.com"], resolve4: nunca, resolve6: nunca }),
       tempoMs: 20,
     });
-    expect(await confirmarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe(false);
+    expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe("incerto");
   });
 
   it("direto sem endereco nas duas familias da erro definitivo (ENODATA)", async () => {
@@ -73,6 +71,6 @@ describe("criarResolvedorDns", () => {
 
   it("usa node:dns/promises por padrao sem quebrar com IP invalido", async () => {
     const r = criarResolvedorDns();
-    expect(await confirmarPorDns("nao-e-ip", [".googlebot.com"], r)).toBe(false);
+    expect(await verificarPorDns("nao-e-ip", [".googlebot.com"], r)).toBe("nao");
   });
 });

@@ -408,7 +408,7 @@ describe("Avisos: teto global", () => {
   it("um IP que volta depois da janela própria conta como tentativa, sem contar o IP duas vezes", async () => {
     const canal = canalQueGuarda();
     let t = 0;
-    const a = new Avisos({ channels: ["teste"], groupByIpMs: 1_000, scans: "panel" }, [canal], () => t);
+    const a = new Avisos({ channels: ["telegram"], groupByIpMs: 1_000, scans: "panel" }, [canal], () => t);
     for (let i = 0; i < 6; i++) await a.receber(ev({ ip: `198.51.100.${i}` }));
     t = 2_000;
     await a.receber(ev({ ip: "203.0.113.7" }));

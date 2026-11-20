@@ -48,8 +48,8 @@ export type Porteiro = { porta: number; fechar(): Promise<void> };
 /** 30 navegações por IP a cada 10 s. */
 const RITMO_LIMITE = 30;
 const RITMO_JANELA_MS = 10_000;
-/** Tamanho máximo de caminho e agente no evento. */
-const MAX_CAMPO = 300;
+/** Tamanho máximo de caminho e agente no evento do registro. */
+const MAX_CAMPO_EVENTO = 300;
 
 const SEM_PASSE: Sinal = { motivo: "sem passe", gravidade: "varredura" };
 const AMBIGUO: Sinal = { motivo: "caminho ambíguo", gravidade: "varredura" };
@@ -141,8 +141,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
       quando: new Date(agora).toISOString(),
       ip: p.ip,
       dominio: p.dominio,
-      caminho: cortar(p.caminho, MAX_CAMPO),
-      agente: cortar(p.agente ?? "", MAX_CAMPO),
+      caminho: cortar(p.caminho, MAX_CAMPO_EVENTO),
+      agente: cortar(p.agente ?? "", MAX_CAMPO_EVENTO),
       motivo: sinal.motivo,
       gravidade: sinal.gravidade,
       destino: destinoEvento,
