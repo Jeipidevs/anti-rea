@@ -66,7 +66,7 @@ const marcaPego = () => `anti_rea_pego=${criarMarcaPego(SEGREDO, AGORA)}`;
 const repassar = (injetarGuarda: boolean): Decisao => ({ acao: "repassar", injetarGuarda });
 /** Repasse cuja resposta é a mesma para todo mundo (isento ou mídia): a CDN pode guardar. */
 const publico = (injetarGuarda: boolean): Decisao => ({ acao: "repassar", injetarGuarda, publico: true });
-const sombra = (motivo: string, gravidade: "copia" | "varredura", status: 200 | 404): Decisao => ({
+const sombra = (motivo: string, gravidade: "copia" | "varredura" | "ataque", status: 200 | 404): Decisao => ({
   acao: "sombra",
   sinal: { motivo, gravidade },
   status,
@@ -244,6 +244,12 @@ describe("decidir: marca de pego", () => {
 describe("decidir: ferramentas e varredura", () => {
   it("Wget em / vai à sombra 200", async () => {
     expect(await decidir(pedido({ agente: "Wget/1.21.4" }), ctx())).toEqual(sombra("wget", "copia", 200));
+  });
+
+  it("scanner apontado vai à sombra 200 como ataque, até com passe de visitante", async () => {
+    expect(await decidir(pedido({ agente: "sqlmap/1.8.4#stable (https://sqlmap.org)" }), ctx())).toEqual(sombra("sqlmap", "ataque", 200));
+    expect(await decidir(pedido({ agente: "Mozilla/5.00 (Nikto/2.5.0)", cookie: passeVisitante() }), ctx())).toEqual(sombra("nikto", "ataque", 200));
+    expect(await decidir(pedido({ agente: "masscan/1.3" }), ctx())).toEqual(sombra("masscan", "varredura", 200));
   });
 
   it("sem agente vai à sombra", async () => {

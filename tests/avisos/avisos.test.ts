@@ -284,6 +284,18 @@ describe("Avisos: gravidade e scans", () => {
     expect(a.resumoDoDia()).toBe("Resumo do dia: 0 varreduras barradas");
   });
 
+  it("ataque sempre avisa, com o título Ataque barrado, em qualquer scans, e não entra no resumo", async () => {
+    for (const scans of ["panel", "dailySummary", "alert"] as const) {
+      const canal = canalQueGuarda();
+      const a = new Avisos(cfg(scans), [canal], () => 0);
+      await a.receber(ev({ gravidade: "ataque", motivo: "sqlmap", agente: "sqlmap/1.8" }));
+      expect(canal.enviados, scans).toHaveLength(1);
+      expect(canal.enviados[0]?.split("\n")[0], scans).toBe("Ataque barrado");
+      expect(a.resumoDoDia(), scans).toBe("Resumo do dia: 0 varreduras barradas");
+    }
+    expect(textoDoAviso(ev({ gravidade: "ataque" }), 0).split("\n")[0]).toBe("Ataque barrado");
+  });
+
   it("resumo com uma varredura usa o singular", async () => {
     const a = new Avisos(cfg("dailySummary"), [], () => 0);
     await a.receber(ev({ gravidade: "varredura", motivo: "scanner: nikto" }));

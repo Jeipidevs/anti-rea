@@ -185,7 +185,8 @@ Vem com uma mensagem padrão em português e inglês. Troque pelo seu texto, sua
 <img src="assets/telas/aviso-whatsapp.svg" alt="Aviso no WhatsApp: tentativa de cópia barrada, com site, página, IP, motivo, horário e destino" width="420">
 </div>
 
-Só tentativa de cópia e ataque direcionado viram aviso. A varredura automática que todo site recebe
+Só tentativa de cópia e ataque direcionado (scanner como sqlmap ou nikto apontado para o seu site)
+viram aviso. A varredura automática que todo site recebe
 o dia inteiro fica só no registro, com um resumo diário opcional. Durante um ataque de muitos IPs, os
 avisos param em 6 a cada 5 minutos e o resto chega agrupado. Seu celular não vira sirene.
 Configurar: [Avisos](docs/05-avisos.md).

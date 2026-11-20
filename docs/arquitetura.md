@@ -61,14 +61,15 @@ src/
 Todo sinal de detecção é uma função pequena, com teste, que olha uma coisa só e devolve:
 
 ```ts
-type Sinal = { motivo: string; gravidade: "copia" | "varredura" } | null;
+type Sinal = { motivo: string; gravidade: "copia" | "ataque" | "varredura" } | null;
 ```
 
 - `null`: não pegou nada. É a resposta da maioria dos pedidos.
 - `motivo`: o texto que vai para o registro e para o aviso, em português ("mapa de código",
   "navegação rápida demais").
-- `gravidade`: `copia` é tentativa de copiar o site e vira aviso na hora; `varredura` é a varredura
-  genérica da internet e fica só no registro (ou no resumo do dia, conforme `alerts.scans`).
+- `gravidade`: `copia` é tentativa de copiar o site e vira aviso na hora; `ataque` é scanner apontado
+  para o site (sqlmap, nikto e afins) e também vira aviso na hora; `varredura` é a varredura genérica
+  da internet e fica só no registro (ou no resumo do dia, conforme `alerts.scans`).
 
 Exemplos: `ferramentaConhecida(agente)` e `caminhoDeVarredura(caminho)` em `deteccao/servidor/`, e
 `avaliarNavegador(sinais)` em `deteccao/navegador/`. Quem junta os sinais e escolhe o destino

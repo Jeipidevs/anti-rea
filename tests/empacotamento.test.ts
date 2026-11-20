@@ -14,6 +14,7 @@ import {
   SEGMENTOS_TRANCADOS,
   SUFIXOS_TRANCADOS,
 } from "../src/deteccao/servidor/caminhos.js";
+import { SCANNERS } from "../src/deteccao/servidor/ferramentas.js";
 import { RITMO_JANELA_MS, RITMO_LIMITE } from "../src/porteiro/servidor.js";
 import type { Evento } from "../src/registro/registro.js";
 
@@ -204,6 +205,12 @@ describe("números da documentação vêm do código", () => {
     for (const caminho of caminhos) {
       expect((caminhoDeVarredura(caminho) ?? caminhoTrancado(caminho))?.gravidade, caminho).toBe("varredura");
     }
+  });
+
+  it("docs/05 lista cada scanner que vira ataque, na linha do aviso na hora", () => {
+    const linha = ler("docs/05-avisos.md").split("\n").find((l) => l.startsWith("| Scanner apontado"))!;
+    expect(linha).toContain("Ataque barrado");
+    for (const nome of SCANNERS) expect(linha, nome).toContain(nome);
   });
 
   it("ritmo de navegação: docs/03 cita o limite e a janela de servidor.ts", () => {

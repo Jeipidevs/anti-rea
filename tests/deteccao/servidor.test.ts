@@ -7,10 +7,35 @@ describe("ferramentaConhecida", () => {
   it("classifica ferramentas por agente", () => {
     expect(ferramentaConhecida("Wget/1.21")?.gravidade).toBe("copia");
     expect(ferramentaConhecida("Mozilla/5.0 (compatible; HTTrack 3.0x)")?.motivo).toMatch(/httrack/i);
-    expect(ferramentaConhecida("sqlmap/1.8")?.gravidade).toBe("varredura");
+    expect(ferramentaConhecida("sqlmap/1.8")?.gravidade).toBe("ataque");
     expect(ferramentaConhecida(undefined)?.motivo).toBe("sem agente");
     expect(ferramentaConhecida("")?.motivo).toBe("sem agente");
     expect(ferramentaConhecida("Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/130 Safari/537.36")).toBeNull();
+  });
+  it("scanner apontado para o site é ataque; varredura da internet inteira (masscan, zgrab) segue varredura", () => {
+    const apontados: Array<[string, string]> = [
+      ["sqlmap/1.8.4#stable (https://sqlmap.org)", "sqlmap"],
+      ["Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:Port Check)", "nikto"],
+      ["Nuclei - Open-source project (github.com/projectdiscovery/nuclei)", "nuclei"],
+      ["DirBuster-1.0-RC1 (http://www.owasp.org/index.php/Category:OWASP_DirBuster_Project)", "dirbuster"],
+      ["gobuster/3.6", "gobuster"],
+      ["ffuf/2.1.0", "ffuf"],
+      ["Fuzz Faster U Fool v2.1.0", "ffuf"],
+      ["WPScan v3.8.25 (https://wpscan.com/wordpress-security-scanner)", "wpscan"],
+      ["feroxbuster/2.10.4", "feroxbuster"],
+      ["Wfuzz/3.1.0", "wfuzz"],
+      ["Mozilla/5.0 [en] (X11, U; OpenVAS-VT 22.4.1)", "openvas"],
+      ["Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0; w3af.org)", "w3af"],
+      ["Arachni/v1.6.1.3", "arachni"],
+      ["commix/v3.9-stable (https://commixproject.com)", "commix"],
+    ];
+    for (const [agente, motivo] of apontados) {
+      expect(ferramentaConhecida(agente), agente).toEqual({ motivo, gravidade: "ataque" });
+    }
+    expect(ferramentaConhecida("masscan/1.3 (https://github.com/robertdavidgraham/masscan)")).toEqual({ motivo: "masscan", gravidade: "varredura" });
+    expect(ferramentaConhecida("Mozilla/5.0 zgrab/0.x")).toEqual({ motivo: "zgrab", gravidade: "varredura" });
+    // Scanner que embrulha um cliente de HTTP conhecido continua ataque.
+    expect(ferramentaConhecida("nuclei/3.3 Go-http-client/1.1")?.gravidade).toBe("ataque");
   });
   it("cobre java/ e headlesschrome", () => {
     expect(ferramentaConhecida("Java/17.0.1")?.motivo).toBe("java/");

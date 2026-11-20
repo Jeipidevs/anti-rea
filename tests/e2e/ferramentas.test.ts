@@ -1,5 +1,6 @@
 // Ponta a ponta com ferramentas de verdade contra o site de exemplo (tests/e2e/site-exemplo) atrás
 // do porteiro. Cada caso pego termina em "recebeu a sombra, 403 ou 404, e o registro tem o evento".
+// O scanner (sqlmap, nikto) entra só pelo agente: nenhuma ferramenta de ataque é instalada.
 // curl, wget e httrack rodam pelo child_process e o caso pula quando o binário falta. O navegador é
 // o Chrome do sistema (channel "chrome") ou, sem ele, o Chromium do Playwright; sem nenhum, falha no
 // CI e pula com o motivo fora dele.
@@ -234,6 +235,29 @@ describe.skipIf(!HTTRACK)("httrack", () => {
     }
     expect(t.site.pedidos).toEqual([]);
     await conferirPego(t, { motivo: "httrack", gravidade: "copia", destino: "sombra" });
+  }, 60_000);
+});
+
+// ---------- scanner (só o agente: nenhuma ferramenta de ataque é instalada) ----------
+
+describe("scanner apontado para o site", () => {
+  it("agente do sqlmap e do nikto: sombra, nada chega ao site, evento de ataque e aviso 'Ataque barrado'", async () => {
+    const t = await montar();
+    const agentes: Array<[string, string]> = [
+      ["sqlmap/1.8.4#stable (https://sqlmap.org)", "sqlmap"],
+      ["Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:Port Check)", "nikto"],
+    ];
+    for (const [agente, motivo] of agentes) {
+      const r = await pedir(t.porta, "/produtos?id=1%27%20OR%20%271%27=%271", { headers: { "user-agent": agente, accept: "*/*" } });
+      expect(r.status, agente).toBe(200);
+      expect(r.texto, agente).toContain(SOMBRA);
+      expect(r.texto, agente).not.toContain(DO_SITE);
+      await conferirPego(t, { motivo, gravidade: "ataque", destino: "sombra" });
+    }
+    expect(t.site.pedidos).toEqual([]);
+    // Configuração padrão (scans: panel): o ataque avisa mesmo assim; os dois IPs iguais viram um aviso só.
+    await esperar(() => t.avisos.length === 1);
+    expect(t.avisos[0]!.split("\n")[0]).toBe("Ataque barrado");
   }, 60_000);
 });
 

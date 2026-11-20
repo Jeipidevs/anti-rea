@@ -12,6 +12,7 @@
 | **Mapa de código (source map)** | Arquivo que liga o código comprimido ao código original. Se ficar público, entrega o original |
 | **Bundle** | O pacote de JavaScript que o site manda para o navegador |
 | **Varredura** | Robô testando caminhos conhecidos atrás de falha (`/.env`, `/wp-login.php`) |
+| **Ataque (direcionado)** | Scanner apontado para o seu site (sqlmap, nikto e afins). Vira aviso na hora, como "Ataque barrado" |
 | **Webhook** | Endereço que recebe um aviso automático de outro sistema |
 | **DNS reverso** | Perguntar "de quem é este IP?" para confirmar que um robô é mesmo do Google, por exemplo |
 | **Upstream** | Onde o seu site real roda, para onde o porteiro repassa os pedidos |

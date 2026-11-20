@@ -12,12 +12,13 @@ Cada tentativa barrada pode virar um aviso com: site, página, IP, motivo, horá
 |---|---|
 | REA, navegador automatizado, F12 aberto | Aviso na hora |
 | Robô copiador (wget, HTTrack e afins) | Aviso na hora |
+| Scanner apontado para o site (sqlmap, nikto, nuclei, dirbuster, gobuster, ffuf, wpscan, feroxbuster, wfuzz, openvas, w3af, arachni, commix) | Aviso na hora, com o título "Ataque barrado" |
 | Pedido de mapa de código | Aviso na hora |
 | Arquivo sensível (`.env`, `.git`, backup) pedido por quem já passou pela verificação | Aviso na hora |
 | Robô que diz ser o Google ou a Meta e não é | Aviso na hora |
 | Link de dono errado | Aviso na hora |
 | Pedido direto sem passe a arquivo (`/app.js`) ou a outro formato (`application/json`) | Só no registro, e o pedido leva 403 |
-| Varredura genérica (`/phpmyadmin`, `/.env` vindo de robô da internet) | Só no registro |
+| Varredura genérica (`/phpmyadmin`, `/.env` vindo de robô da internet, masscan e zgrab varrendo a internet inteira) | Só no registro |
 | Robô oficial que não deu para conferir (DNS ou lista da Meta fora do ar) | Só no registro |
 
 Varredura genérica acontece o dia inteiro em qualquer site público. Se virasse aviso, seu celular
@@ -75,7 +76,8 @@ O ANTI-REA manda um `POST` com JSON e assina o corpo com o segredo (cabeçalho
 `X-Anti-Rea-Signature: sha256=<HMAC-SHA256 do corpo em hex>`), para você conferir que veio dele.
 
 O aviso de uma tentativa leva o evento (`quando`, `ip`, `dominio`, `caminho`, `agente`, `motivo`,
-`gravidade`, `destino`). O resumo diário e o aviso agrupado do teto levam
+`gravidade`, `destino`). A `gravidade` é `copia` (tentativa de cópia), `ataque` (scanner apontado para
+o site) ou `varredura` (varredura genérica). O resumo diário e o aviso agrupado do teto levam
 `{"tipo":"resumo","texto":"...","quando":"<data ISO>"}`.
 
 ## Sem canal configurado

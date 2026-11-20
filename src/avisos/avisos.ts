@@ -57,6 +57,7 @@ export function canaisDoAmbiente(
 
 const TITULO: Record<Evento["gravidade"], string> = {
   copia: "Tentativa de cópia barrada",
+  ataque: "Ataque barrado",
   varredura: "Varredura barrada",
 };
 
@@ -126,8 +127,8 @@ type Excesso = { tentativas: number; ips: Set<string>; ipsAlemDoTeto: number; de
 
 /**
  * Decide o que vira aviso e despacha para os canais.
- * - `copia` sempre avisa; `varredura` avisa só com scans "alert", entra no resumo com "dailySummary"
- *   e com "panel" não faz nada aqui (o registro é de quem chama).
+ * - `copia` e `ataque` sempre avisam; `varredura` avisa só com scans "alert", entra no resumo com
+ *   "dailySummary" e com "panel" não faz nada aqui (o registro é de quem chama).
  * - Por IP, o primeiro aviso de cada janela `groupByIpMs` sai na hora; os seguintes só contam, e a
  *   contagem fica guardada até o próximo aviso daquele IP, por mais tarde que ele venha.
  * - Teto global (TETO_AVISOS por TETO_JANELA_MS, todos os IPs): o aviso que passaria do teto não sai e
