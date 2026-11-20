@@ -7,7 +7,7 @@ import { COLETOR, COLETOR_SEM_PAUSA } from "../../src/deteccao/navegador/desafio
 import { scriptGuarda } from "../../src/deteccao/navegador/guarda.js";
 
 /** Intervalo escolhido pela medição (docs/_medicoes/2026-11-guarda.md). */
-const INTERVALO = 1000;
+const INTERVALO = 500;
 const INTERVALO_MAX = 1500;
 const PAUSA = 6000;
 
@@ -20,6 +20,11 @@ type Opcoes = {
   pegarNa?: number;
   visivel?: boolean;
   status?: number;
+  /**
+   * `"ocupado"`: página sem tempo ocioso (animação a cada quadro, aparelho fraco); o
+   * `requestIdleCallback` só dispara quando vence o `timeout` dele. Padrão: dispara na hora.
+   */
+  ocioso?: "livre" | "ocupado";
 };
 
 function montarGuarda(o: Opcoes = {}) {
@@ -61,8 +66,14 @@ function montarGuarda(o: Opcoes = {}) {
       return id;
     },
     clearInterval: (id: number) => cancelados.add(id),
-    requestIdleCallback: (fn: (d: object) => void) => {
-      agenda.push({ quando: relogio.t, id: ++seq, fn: () => fn({ didTimeout: false, timeRemaining: () => 50 }) });
+    requestIdleCallback: (fn: (d: object) => void, opcoes?: { timeout?: number }) => {
+      if (o.ocioso === "ocupado") {
+        // Sem timeout o navegador esperaria para sempre numa página sem folga.
+        const quando = relogio.t + (opcoes?.timeout ?? Number.POSITIVE_INFINITY);
+        agenda.push({ quando, id: ++seq, fn: () => fn({ didTimeout: true, timeRemaining: () => 0 }) });
+      } else {
+        agenda.push({ quando: relogio.t, id: ++seq, fn: () => fn({ didTimeout: false, timeRemaining: () => 50 }) });
+      }
       return seq;
     },
     fetch: (url: string, init: { body: string }) => {
@@ -114,7 +125,7 @@ describe("guarda: intervalo", () => {
     g.rodarAte(0);
     expect(g.chamadas.map((c) => c.t)).toEqual([0]);
     g.rodarAte(10_100);
-    expect(g.chamadas).toHaveLength(11);
+    expect(g.chamadas).toHaveLength(10_000 / INTERVALO + 1);
     for (const d of g.intervalos()) {
       expect(d).toBeGreaterThanOrEqual(INTERVALO);
       expect(d).toBeLessThanOrEqual(INTERVALO + 3);
@@ -132,10 +143,33 @@ describe("guarda: intervalo", () => {
   });
 });
 
+describe("guarda: página ocupada (sem tempo ocioso)", () => {
+  // Achado da revisão: setTimeout(intervalo) seguido de requestIdleCallback com timeout = intervalo
+  // somava as duas esperas; numa página que anima a cada quadro a volta vinha a cada ~2 s.
+  const FOLGA = 200;
+
+  it(`a espera pelo tempo ocioso não soma ao intervalo: voltas a cada ${INTERVALO} ms, no máximo ${FOLGA} ms depois`, () => {
+    const g = montarGuarda({ custo: 3, ocioso: "ocupado" });
+    g.rodarAte(60_000);
+    const d = g.intervalos();
+    expect(g.chamadas.length).toBeGreaterThanOrEqual(60_000 / INTERVALO - 2);
+    for (const x of d) expect(x).toBeLessThanOrEqual(INTERVALO + FOLGA);
+    // Ritmo fixo: a média fica no intervalo, sem escorregar a cada volta.
+    const media = d.reduce((a, b) => a + b, 0) / d.length;
+    expect(Math.abs(media - INTERVALO)).toBeLessThan(10);
+  });
+
+  it(`com o recuo em aparelho lento, o teto continua ${INTERVALO_MAX} ms mais a folga`, () => {
+    const g = montarGuarda({ custo: 20, ocioso: "ocupado" });
+    g.rodarAte(60_000);
+    for (const x of g.intervalos()) expect(x).toBeLessThanOrEqual(INTERVALO_MAX + FOLGA);
+  });
+});
+
 describe("guarda: só com a aba visível", () => {
   it("aba escondida para de vigiar; ao voltar a ficar visível roda na hora e retoma o ritmo", () => {
     const g = montarGuarda();
-    g.rodarAte(2_500);
+    g.rodarAte(2 * INTERVALO + 100);
     expect(g.chamadas).toHaveLength(3);
     g.mudarVisibilidade("hidden");
     g.rodarAte(60_000);
@@ -144,8 +178,8 @@ describe("guarda: só com a aba visível", () => {
     expect(g.chamadas).toHaveLength(4);
     expect(g.chamadas[3]!.t).toBe(60_000);
     g.rodarAte(70_100);
-    // Uma corrente só: 10 voltas em 10 s, sem voltas dobradas.
-    expect(g.chamadas).toHaveLength(14);
+    // Uma corrente só: uma volta por intervalo em 10 s, sem voltas dobradas.
+    expect(g.chamadas).toHaveLength(4 + 10_000 / INTERVALO);
     for (const d of g.intervalos().slice(3)) expect(d).toBeGreaterThanOrEqual(INTERVALO);
   });
 
@@ -165,8 +199,8 @@ describe("guarda: só com a aba visível", () => {
       g.mudarVisibilidade("visible");
     }
     const depoisDoPisca = g.chamadas.length;
-    g.rodarAte(10_600);
-    expect(g.chamadas.length - depoisDoPisca).toBe(10);
+    g.rodarAte(10_500 + INTERVALO / 10);
+    expect(g.chamadas.length - depoisDoPisca).toBe(10_000 / INTERVALO);
   });
 });
 
@@ -175,19 +209,22 @@ describe("guarda: recuo em aparelho lento", () => {
     const g = montarGuarda({ custo: 20 });
     g.rodarAte(60_000);
     const d = g.intervalos();
-    // Primeira volta fora da conta; a média sai depois de mais 5 voltas.
+    // Primeira volta fora da conta; a média sai depois de mais 5 voltas; a cada 5 voltas acima do
+    // teto o intervalo dobra de novo, até o teto.
     expect(d.slice(0, 5).every((x) => x < INTERVALO + 30)).toBe(true);
-    expect(d.slice(6).length).toBeGreaterThan(10);
-    for (const x of d.slice(6)) {
+    expect(d.slice(5, 10).every((x) => x >= 2 * INTERVALO && x < 2 * INTERVALO + 30)).toBe(true);
+    expect(d.slice(11).length).toBeGreaterThan(10);
+    for (const x of d.slice(11)) {
       expect(x).toBeGreaterThanOrEqual(INTERVALO_MAX);
       expect(x).toBeLessThanOrEqual(INTERVALO_MAX + 20);
     }
   });
 
   it("custo abaixo do teto não muda o intervalo", () => {
-    const g = montarGuarda({ custo: 8 });
+    const custo = INTERVALO * 0.01 * 0.8;
+    const g = montarGuarda({ custo });
     g.rodarAte(60_000);
-    for (const x of g.intervalos()) expect(x).toBeLessThanOrEqual(INTERVALO + 8);
+    for (const x of g.intervalos()) expect(x).toBeLessThanOrEqual(INTERVALO + custo);
   });
 
   it("a primeira volta (mais cara, o navegador ainda compila) não conta", () => {
@@ -202,7 +239,7 @@ describe("guarda: recuo em aparelho lento", () => {
     const g = montarGuarda({ custo: (_n, pausa) => (pausa ? 400 : 3) });
     g.rodarAte(60_000);
     const depoisDeVoltaSemPausa = g.intervalos().filter((_, i) => !g.chamadas[i]!.pausa);
-    expect(depoisDeVoltaSemPausa.length).toBeGreaterThan(40);
+    expect(depoisDeVoltaSemPausa.length).toBeGreaterThan(60_000 / INTERVALO - 20);
     for (const x of depoisDeVoltaSemPausa) expect(x).toBeLessThanOrEqual(INTERVALO + 3);
   });
 });

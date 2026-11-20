@@ -1,6 +1,6 @@
 // Latência da guarda (Task 13) num Chrome do sistema, com o porteiro na frente do site de exemplo.
 // - Um cliente CDP próprio liga o Runtime.enable por 500 ms entre duas voltas da guarda antiga
-//   (de 0,7 s a 1,2 s depois da carga): a guarda de 1 s pega; a de 1,5 s não via nada ali.
+//   (de 0,7 s a 1,2 s depois da carga): a guarda atual (0,5 s) pega; a de 1,5 s não via nada ali.
 // - O REA de verdade (quando o CLI `rea` existe) ligado um pouco mais que um intervalo é pego.
 // - O Chrome do sistema sem automação navegando pelo site não gera nenhum evento (30 s por padrão;
 //   ANTI_REA_E2E_NAVEGAR_MS muda, por exemplo 120000 para os 2 minutos da medição).

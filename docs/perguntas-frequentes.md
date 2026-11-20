@@ -22,26 +22,30 @@ Para você e sua equipe, o caminho é o [link de dono](07-modo-dono.md).
 São do ANTI-REA. Enquanto confere o navegador, ele imprime duas tabelas de 1000 linhas com
 `console.table` e mede o tempo: com um cliente de depuração remota ligado, montar essas tabelas fica
 dezenas de vezes mais lento. Com `devtoolsIsCaught: true` (o padrão), a conferência se repete a
-cada 1 s na página do site enquanto a aba está visível, então as tabelas vão se acumulando no
+cada 0,5 s na página do site enquanto a aba está visível, então as tabelas vão se acumulando no
 console de quem o deixa aberto. Não é erro do seu site. Só acontece em navegador baseado no Chrome
 (Chrome, Edge, Brave, Opera), e nunca com o passe de dono.
 
 **A conferência contínua deixa o site lento?**
-Medimos: cada volta custa uns 3 ms, uma vez por segundo, só com a aba visível. Num computador com a
-CPU 6 vezes mais lenta (como um celular fraco) dá 0,8% de CPU, e a memória que a guarda prende na
-página fica em 0,2 MB depois de 10 minutos. Em aparelho ainda mais lento a guarda percebe o próprio custo e
-passa a conferir a cada 1,5 s. Os números estão em [docs/_medicoes](_medicoes/2026-11-guarda.md).
+Medimos: cada volta custa uns 2,3 ms, duas vezes por segundo, só com a aba visível. Num computador
+com a CPU 6 vezes mais lenta (como um celular fraco) dá 0,7% de CPU. A memória da aba (o processo
+inteiro, não só o JavaScript) fica uns 2 MB acima da mesma página sem a guarda e para de crescer
+depois de uns 3 minutos: o Chrome guarda as mensagens do console até um teto, e as da guarda são
+curtas. Em aparelho ainda mais lento a guarda percebe o próprio custo e passa a conferir a cada 1 s
+e depois a cada 1,5 s. Os números estão em [docs/_medicoes](_medicoes/2026-11-guarda.md).
 
 **O ANTI-REA sempre pega o REA?**
 Nem sempre, e a gente prefere dizer isso. Ele pega o navegador que o próprio REA abre (sem tela), a
 busca direta sem passe (leva 403), o pedido do mapa de código (leva a sombra) e, com
-`devtoolsIsCaught: true` (o padrão), o REA que fica ligado a uma aba visível por mais de 1 s (1,5 s
-em aparelho muito lento): a página vira sombra, o aviso chega e o REA sai sem nada. Com `devtoolsIsCaught: false` a aba que já
-passou pela verificação não é mais conferida, e o REA ligado a ela não é pego. A inspeção curta (a
-padrão do REA, de meio segundo) numa aba que já passou pela verificação foi pega 6 em 10 vezes na
-nossa medição; nas outras 4 ela terminou entre duas conferências e levou o que aquela aba já tinha
-carregado: a página e os scripts compilados. O mapa e o código-fonte original não saem. Veja os
-[limites conhecidos](#limites-conhecidos).
+`devtoolsIsCaught: true` (o padrão), o REA ligado a uma **aba visível** enquanto passa uma
+conferência da guarda: a página vira sombra e o aviso chega. As conferências vêm a cada 0,5 s numa
+página parada e, na nossa medição, a no máximo uns 0,6 s numa página que anima a cada quadro; em
+aparelho muito lento a guarda recua para 1 s e depois 1,5 s. Com `devtoolsIsCaught: false` a aba
+que já passou pela verificação não é mais conferida, e o REA ligado a ela não é pego. A inspeção
+curta (a padrão do REA, de meio segundo) numa aba que já passou pela verificação foi pega 20 em 20
+vezes na nossa medição; em 2 delas o REA já tinha lido a página antes da conferência e saiu com o
+que aquela aba tinha carregado: a página e os scripts compilados. O mapa e o código-fonte original
+não saem. Veja os [limites conhecidos](#limites-conhecidos).
 
 **Atrapalha SEO ou anúncios?**
 Não. Veja [Robôs oficiais](08-robos-oficiais.md).
@@ -105,13 +109,15 @@ do arquivo (`.png`, `.jpg` e afins). Se o `og:image` do seu site aponta para um 
 extensão, como `/api/og?titulo=...`, o robô recebe a tela de verificação no lugar da imagem e a
 prévia sai sem foto. Ponha esse caminho em [`exempt`](03-configurar.md).
 
-**Uma inspeção curta do REA numa aba que já passou pode escapar.** A guarda confere a aba uma vez
-por segundo. Se o REA se liga, olha e se desliga entre duas conferências, ninguém percebe: ele leva
-o que a aba já tinha carregado (a página e os scripts compilados), nunca o mapa nem o código-fonte
-original. Na medição, a inspeção padrão do REA (meio segundo) escapou 4 vezes em 10, tanto o
-`inspect-web-page` quanto o `analyze-web-bundle`; com a conferência antiga, a cada 1,5 s, escapava 8
-em 10. Pegar sempre pediria conferir a cada meio segundo, o que custa 1,5% de CPU num aparelho 6
-vezes mais lento, acima do teto de 1% que o projeto se impôs. Os números estão em
+**Uma inspeção curta do REA numa aba que já passou pode levar a página.** A guarda confere a aba a
+cada 0,5 s (até uns 0,6 s numa página muito ocupada, até 1,65 s num aparelho muito lento). O REA
+que se liga, olha e se desliga entre duas conferências não é percebido, e o que lê antes da
+conferência seguinte ele leva: o que a aba já tinha carregado (a página e os scripts compilados),
+nunca o mapa nem o código-fonte original. Na medição, a inspeção padrão do REA (meio segundo) foi
+pega 10 em 10 vezes com o `inspect-web-page` e 10 em 10 com o `analyze-web-bundle`, mas em 2 das 10
+do `inspect-web-page` ele saiu com a página antes de a aba virar sombra. Com a conferência a cada
+1,5 s, de antes, escapava 8 em 10. Conferir mais rápido (a cada 0,25 s) custaria 1,4% de CPU num
+aparelho 6 vezes mais lento, acima do teto de 1% que o projeto se impôs. Os números estão em
 [docs/_medicoes](_medicoes/2026-11-guarda.md).
 
 **A guarda só confere a aba visível.** Com a aba em segundo plano ou a janela minimizada, a guarda

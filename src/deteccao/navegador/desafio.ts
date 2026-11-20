@@ -15,6 +15,12 @@ const VALIDADE_NONCE_MS = 120_000;
  *   guarda os argumentos do console mesmo com o DevTools fechado, e uma tabela nova por volta
  *   retinha uns 7,5 MB na página (docs/_medicoes/2026-11-guarda.md). A detecção não muda: com a
  *   mesma tabela já impressa várias vezes, o `Runtime.enable` ainda deu `cdp` em todas as chamadas.
+ * - A tabela impressa é um objeto simples com as linhas em 0..999, não uma lista: o V8 transforma
+ *   cada mensagem do console em texto mesmo com o DevTools fechado e guarda até 10 MiB por página
+ *   (contando o texto a 2 bytes por caractere); o Chrome guarda outra cópia e manda o texto ao
+ *   processo principal. Lista vira "[object Object]," 1000 vezes (16 mil caracteres por chamada);
+ *   objeto simples vira "[object Object]". A prévia linha por linha, que só existe com
+ *   `Runtime.enable`, custa o mesmo. A base (cópia em JSON) continua sobre a lista.
  *
  * - Pausa (`sondarPausa`): `debugger;` só para quando o domínio Debugger está ligado
  *   (F12 aberto). Exige duas pausas seguidas de mais de 50 ms, para relógio arredondado
@@ -22,7 +28,8 @@ const VALIDADE_NONCE_MS = 120_000;
  * - Runtime (automação por CDP, como o REA): com `Runtime.enable` o Chrome monta a prévia
  *   de cada linha de `console.table`, que passa a custar dezenas de vezes o tempo de
  *   copiar as mesmas linhas em JSON (medido no Chrome 157: razão de 70 a 134 com CDP,
- *   de 0,5 a 3,1 sem). Limiar: 20 vezes. Só roda em Blink e com `console.table` nativo
+ *   de 0,5 a 3,1 sem; com a tabela como objeto, na Task 13: no mínimo 40 com CDP, no
+ *   máximo 0,25 sem). Limiar: 20 vezes. Só roda em Blink e com `console.table` nativo
  *   (ferramenta do site que embrulha o console poderia encarecer a chamada). Com a
  *   janela encolhida mais de 160 px (F12 acoplado com pausas desligadas) conta como F12.
  * - O getter em `Error.stack` passado a `console.debug` não serve mais: no Chrome 157
@@ -55,18 +62,19 @@ ${pausa}
   try {
     var nativo = /\\[native code\\]/.test(Function.prototype.toString.call(console.table));
     if ((temChrome || !!n.userAgentData) && nativo) {
-      var linhas = memo && memo.linhas;
-      if (!linhas) {
+      var linhas = memo && memo.linhas, tabela = memo && memo.tabela;
+      if (!linhas || !tabela) {
         linhas = [];
-        for (var i = 0; i < 1000; i++) linhas.push({ a: i, b: "x" + i, c: i % 7 });
-        if (memo) memo.linhas = linhas;
+        tabela = {};
+        for (var i = 0; i < 1000; i++) { linhas.push({ a: i, b: "x" + i, c: i % 7 }); tabela[i] = linhas[i]; }
+        if (memo) { memo.linhas = linhas; memo.tabela = tabela; }
       }
       var t0 = agora(), voltas = 0;
       do { JSON.parse(JSON.stringify(linhas)); voltas++; } while (agora() - t0 < 2 && voltas < 200);
       var base = Math.max((agora() - t0) / voltas, 0.1);
-      var tabela = Infinity;
-      for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(linhas); tabela = Math.min(tabela, agora() - t1); }
-      runtime = tabela > 2 && tabela > 20 * base;
+      var custo = Infinity;
+      for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(tabela); custo = Math.min(custo, agora() - t1); }
+      runtime = custo > 2 && custo > 20 * base;
     }
   } catch (x) {}
   return {

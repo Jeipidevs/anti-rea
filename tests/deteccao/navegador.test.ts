@@ -255,10 +255,26 @@ describe("coletor com memo (Task 13)", () => {
     const codigo = `var c = (${COLETOR}); var memo = {}; [c("", false, memo), c("", false, memo), c("", false)]`;
     rodar(codigo, { ua: UA_DESKTOP_LINUX, chrome: {}, plugins: 5, tabela: (x) => tabelas.push(x) });
     expect(tabelas).toHaveLength(6);
-    expect((tabelas[0] as unknown[]).length).toBe(1000);
+    expect(Object.keys(tabelas[0] as object)).toHaveLength(1000);
     expect(tabelas[2]).toBe(tabelas[0]);
     expect(tabelas[3]).toBe(tabelas[0]);
     expect(tabelas[4]).not.toBe(tabelas[0]);
+  });
+
+  it("a tabela é um objeto simples: o texto que o Chrome guarda dela é curto", () => {
+    // Mesmo com o DevTools fechado, o V8 transforma cada argumento do console em texto e guarda a
+    // mensagem (até 10 MiB por página). Lista de 1000 linhas vira "[object Object]," 1000 vezes
+    // (16 mil caracteres); objeto simples vira "[object Object]". A prévia linha por linha, que só
+    // existe com Runtime.enable e é o que a sonda mede, continua igual (tests/e2e/coletor-cdp.test.ts).
+    const tabelas: unknown[] = [];
+    rodar(`(${COLETOR})("", false, {})`, { ua: UA_DESKTOP_LINUX, chrome: {}, plugins: 5, tabela: (x) => tabelas.push(x) });
+    expect(tabelas).toHaveLength(2);
+    const t = tabelas[0] as Record<string, unknown>;
+    expect(Array.isArray(t)).toBe(false);
+    expect(Object.prototype.toString.call(t)).toBe("[object Object]");
+    expect(String(t)).toBe("[object Object]");
+    expect(Object.keys(t)).toHaveLength(1000);
+    expect(t[999]).toEqual({ a: 999, b: "x999", c: 5 });
   });
 });
 
@@ -286,8 +302,8 @@ describe("sonda de pausa opcional", () => {
 
   it("sem a sonda, a coleta continua igual", () => {
     const html = paginaDesafio({ nonce: n, previa: {}, idioma: "pt-BR", sondarPausa: false });
-    expect(html).toContain("console.table(linhas)");
-    expect(scriptGuarda({ sondarPausa: false })).toContain("console.table(linhas)");
+    expect(html).toContain("console.table(tabela)");
+    expect(scriptGuarda({ sondarPausa: false })).toContain("console.table(tabela)");
   });
 });
 

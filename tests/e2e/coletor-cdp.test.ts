@@ -233,6 +233,127 @@ describe.skipIf(!CHROME)("guarda num Chrome de verdade", () => {
   }, 30_000);
 });
 
+/**
+ * Abre a página num Chrome sem tela e sem cliente de depuração, com o log do Chrome no stderr, e
+ * devolve as linhas CONSOLE (o texto de cada mensagem do console que o Chrome guarda e repassa).
+ */
+async function linhasDoConsole(pagina: string, ms: number): Promise<string[]> {
+  const srv = await servidor(pagina);
+  const perfil = mkdtempSync(join(tmpdir(), "anti-rea-e2e-"));
+  const args = ["--headless=new", `--user-data-dir=${perfil}`, "--no-first-run", "--no-default-browser-check", "--enable-logging=stderr", "--v=0"];
+  const p = spawn(CHROME!, [...argsDoChrome(args), srv.url], { stdio: ["ignore", "ignore", "pipe"] });
+  let saida = "";
+  p.stderr!.on("data", (d) => (saida += d));
+  try {
+    await new Promise((ok) => setTimeout(ok, ms));
+    return saida.split("\n").filter((l) => l.includes(":CONSOLE"));
+  } finally {
+    p.kill("SIGKILL");
+    srv.fechar();
+    await new Promise((ok) => setTimeout(ok, 300));
+    rmSync(perfil, { recursive: true, force: true });
+  }
+}
+
+/** Página que anima a cada quadro gastando 40 ms (canvas pesado, celular fraco): sem tempo ocioso. */
+const PAGINA_OCUPADA = `<!doctype html><meta charset="utf-8"><body><p>site</p><script>
+function quadro() { var t = performance.now(); while (performance.now() - t < 40) {} requestAnimationFrame(quadro); }
+requestAnimationFrame(quadro);
+</script><script>${scriptGuarda()}</script>`;
+
+/**
+ * Abre a página com um cliente CDP conectado e sem domínio ligado, liga o Runtime.enable só de
+ * `de` a `ate` ms depois da entrega da página e desliga. Devolve o aviso da guarda, ou null.
+ */
+async function janelaDeRuntime(pagina: string, de: number, ate: number): Promise<{ corpo: Medida; ms: number } | null> {
+  let entregue = 0;
+  let entregar!: (r: { corpo: Medida; ms: number }) => void;
+  const aviso = new Promise<{ corpo: Medida; ms: number }>((r) => (entregar = r));
+  const s = http.createServer((req, res) => {
+    let corpo = "";
+    req.on("data", (d) => (corpo += d));
+    req.on("end", () => {
+      if (req.method === "POST") {
+        res.statusCode = 200;
+        res.end();
+        if (req.url === "/.anti-rea/pego") entregar({ corpo: JSON.parse(corpo), ms: Date.now() - entregue });
+        return;
+      }
+      entregue = Date.now();
+      res.setHeader("content-type", "text/html; charset=utf-8");
+      res.end(pagina);
+    });
+  });
+  await new Promise<void>((ok) => s.listen(0, "127.0.0.1", ok));
+  const { port } = s.address() as { port: number };
+  const perfil = mkdtempSync(join(tmpdir(), "anti-rea-e2e-"));
+  const args = ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${perfil}`, "--no-first-run", "--no-default-browser-check"];
+  const p = spawn(CHROME!, [...argsDoChrome(args), "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  let ws: WebSocket | undefined;
+  try {
+    const porta = await limite(
+      new Promise<string>((ok) => {
+        let buf = "";
+        p.stderr!.on("data", (d) => {
+          buf += d;
+          const m = buf.match(/ws:\/\/127\.0\.0\.1:(\d+)\//);
+          if (m) ok(m[1]!);
+        });
+      }),
+      15_000,
+      "porta de depuração",
+    );
+    const alvos = (await (await fetch(`http://127.0.0.1:${porta}/json/list`)).json()) as Array<{ type: string; webSocketDebuggerUrl: string }>;
+    const cliente = new WebSocket(alvos.find((a) => a.type === "page")!.webSocketDebuggerUrl);
+    ws = cliente;
+    await limite(new Promise((ok) => cliente.addEventListener("open", ok)), 5_000, "websocket");
+    let id = 0;
+    const mandar = (method: string) => cliente.send(JSON.stringify({ id: ++id, method, params: method === "Page.navigate" ? { url: `http://127.0.0.1:${port}/` } : {} }));
+    mandar("Page.navigate");
+    await limite(
+      (async () => {
+        while (!entregue) await new Promise((ok) => setTimeout(ok, 10));
+      })(),
+      10_000,
+      "página entregue",
+    );
+    await new Promise((ok) => setTimeout(ok, Math.max(0, entregue + de - Date.now())));
+    mandar("Runtime.enable");
+    await new Promise((ok) => setTimeout(ok, Math.max(0, entregue + ate - Date.now())));
+    mandar("Runtime.disable");
+    return await Promise.race([aviso, new Promise<null>((ok) => setTimeout(() => ok(null), 3_000))]);
+  } finally {
+    ws?.close();
+    p.kill("SIGKILL");
+    s.close();
+    await new Promise((ok) => setTimeout(ok, 300));
+    rmSync(perfil, { recursive: true, force: true });
+  }
+}
+
+describe.skipIf(!CHROME)("guarda numa página ocupada num Chrome de verdade", () => {
+  it("Runtime.enable por 800 ms (1,3 s a 2,1 s depois da carga) numa página que anima a cada quadro é pego", async () => {
+    // A guarda de 1 s esperava o intervalo e depois até mais 1 s pelo tempo ocioso: numa página sem
+    // folga conferia em ~1 s e ~3 s e não via essa janela. Com ritmo fixo de 0,5 s (no máximo
+    // ~0,65 s entre voltas numa página assim), vê.
+    for (let i = 0; i < 2; i++) {
+      const r = await janelaDeRuntime(PAGINA_OCUPADA, 1_300, 2_100);
+      expect(r?.corpo.cdp).toBe(true);
+    }
+  }, 60_000);
+});
+
+describe.skipIf(!CHROME)("texto que o Chrome guarda do console da guarda", () => {
+  it("sem depuração, cada console.table vira texto curto (antes: 16 mil caracteres por chamada)", async () => {
+    // O V8 guarda as mensagens do console (com o texto, a 2 bytes por caractere) até 10 MiB por
+    // página, mesmo com o DevTools fechado; o Chrome guarda outra cópia e manda o texto ao processo
+    // principal. A tabela como lista dava "[object Object]," 1000 vezes por chamada.
+    const linhas = await linhasDoConsole(PAGINA_GUARDA, 4_500);
+    expect(linhas.length).toBeGreaterThanOrEqual(4);
+    for (const l of linhas) expect(l.length).toBeLessThan(400);
+  }, 30_000);
+});
+
 describe.skipIf(!CHROME)("sonda de pausa desligada num Chrome de verdade", () => {
   it("guarda sem a sonda: com o Debugger ligado (F12) não para nem avisa", async () => {
     expect(await abrir(PAGINA_GUARDA_SEM_PAUSA, ["Debugger.enable"], 7_000)).toBeNull();

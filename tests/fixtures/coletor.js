@@ -15,18 +15,19 @@ function (nonce, sondarPausa, memo) {
   try {
     var nativo = /\[native code\]/.test(Function.prototype.toString.call(console.table));
     if ((temChrome || !!n.userAgentData) && nativo) {
-      var linhas = memo && memo.linhas;
-      if (!linhas) {
+      var linhas = memo && memo.linhas, tabela = memo && memo.tabela;
+      if (!linhas || !tabela) {
         linhas = [];
-        for (var i = 0; i < 1000; i++) linhas.push({ a: i, b: "x" + i, c: i % 7 });
-        if (memo) memo.linhas = linhas;
+        tabela = {};
+        for (var i = 0; i < 1000; i++) { linhas.push({ a: i, b: "x" + i, c: i % 7 }); tabela[i] = linhas[i]; }
+        if (memo) { memo.linhas = linhas; memo.tabela = tabela; }
       }
       var t0 = agora(), voltas = 0;
       do { JSON.parse(JSON.stringify(linhas)); voltas++; } while (agora() - t0 < 2 && voltas < 200);
       var base = Math.max((agora() - t0) / voltas, 0.1);
-      var tabela = Infinity;
-      for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(linhas); tabela = Math.min(tabela, agora() - t1); }
-      runtime = tabela > 2 && tabela > 20 * base;
+      var custo = Infinity;
+      for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(tabela); custo = Math.min(custo, agora() - t1); }
+      runtime = custo > 2 && custo > 20 * base;
     }
   } catch (x) {}
   return {

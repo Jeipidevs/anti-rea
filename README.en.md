@@ -35,10 +35,11 @@ Works with any site (Next.js, WordPress, Laravel, plain HTML). No changes to you
    Link-preview bots (WhatsApp, Telegram and others) get the check page, which carries your title,
    description and image.
 4. **Caught visitors** get the shadow page. You get an alert (WhatsApp, Telegram or webhook).
-   With the default settings, a REA session that stays attached to a tab for more than 1 s is
-   caught too. REA's default short inspection was caught 6 times out of 10 in our measurements; the
-   other 4 took the page and the scripts that tab already loaded (details in the
-   [Portuguese FAQ](docs/perguntas-frequentes.md)).
+   With the default settings, a REA session attached to a visible tab is caught too: the guard
+   checks every 0.5 s (up to about 0.6 s on a very busy page, up to 1.5 s on a very slow device) and
+   does not check hidden tabs. REA's default short inspection was caught 20 times out of 20 in our
+   measurements, but in 2 of them it had already read the page and the scripts that tab loaded
+   (details in the [Portuguese FAQ](docs/perguntas-frequentes.md)).
 
 It also locks source maps, `.env`, `.git` and backups for everyone. A **self-scan** that shows what a
 curious visitor can see of your site comes next.
