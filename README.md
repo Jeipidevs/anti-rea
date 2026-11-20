@@ -4,7 +4,7 @@
 
 <br>
 
-[![Status](https://img.shields.io/badge/status-em%20constru%C3%A7%C3%A3o-FFC24B?style=for-the-badge)](#roteiro)
+[![Versão 0.1](https://img.shields.io/badge/vers%C3%A3o-0.1-FFC24B?style=for-the-badge)](#roteiro)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-7C6CFF?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](#)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#instalar-em-3-passos)
@@ -17,8 +17,8 @@
 <br>
 
 > [!NOTE]
-> **O ANTI-REA está em construção.** Esta página descreve como a ferramenta vai funcionar. Acompanhe o
-> [roteiro](#roteiro) para ver o que já está pronto. Nada aqui promete o que ainda não roda.
+> **Versão 0.1: o porteiro funciona. O exame do próprio site e o painel vêm a seguir.**
+> Acompanhe o [roteiro](#roteiro) para ver o que já está pronto. Nada aqui promete o que ainda não roda.
 
 ## Em uma frase
 
@@ -41,7 +41,9 @@ Confere cada visitante antes de deixar entrar. Em menos de um segundo, só na pr
 <td width="33%" valign="top">
 <img src="assets/icones/sombra.svg" width="48" alt=""><br>
 <b>Página sombra</b><br>
-Robô, REA e quem abre o F12 veem só a mensagem sarcástica. O site real nunca chega até eles.
+Robô copiador, navegador automatizado e quem abre o F12 veem só a mensagem sarcástica. Com a
+configuração padrão, o REA que fica ligado a uma aba mais de 1,5 s também cai
+(<a href="docs/perguntas-frequentes.md">o que ele ainda leva</a>).
 </td>
 <td width="33%" valign="top">
 <img src="assets/icones/aviso.svg" width="48" alt=""><br>
@@ -58,12 +60,13 @@ Mapas de código, <code>.env</code>, <code>.git</code> e backups ficam bloqueado
 <td width="33%" valign="top">
 <img src="assets/icones/exame.svg" width="48" alt=""><br>
 <b>Exame do seu site</b><br>
-Mostra o que um curioso consegue ver do seu site antes que alguém de fora descubra.
+Vai mostrar o que um curioso consegue ver do seu site antes que alguém de fora descubra. Vem a seguir.
 </td>
 <td width="33%" valign="top">
 <img src="assets/icones/painel.svg" width="48" alt=""><br>
 <b>Painel de registro</b><br>
-Lista de todas as tentativas, guardada na sua máquina, para conferir quando quiser.
+Hoje as tentativas ficam num registro (JSONL) na sua máquina. A tela para ler esse registro vem a
+seguir.
 </td>
 </tr>
 </table>
@@ -75,8 +78,10 @@ Lista de todas as tentativas, guardada na sua máquina, para conferir quando qui
 1. **Todo visitante passa pelo porteiro.** Ele olha quem está pedindo e o que está pedindo.
 2. **Na primeira visita, o navegador é verificado** por menos de um segundo. Quem passa ganha um
    passe e navega livre por dias.
-3. **Robôs oficiais** (Google, Meta, prévia de link do WhatsApp) são confirmados pelo endereço
-   oficial deles e passam direto. Seu anúncio e sua busca continuam funcionando.
+3. **Robôs oficiais** (Google, Bing, Apple e Meta) são confirmados pelo endereço oficial deles e
+   passam direto. Seu anúncio e sua busca continuam funcionando. Robôs de prévia de link (WhatsApp,
+   Telegram e outros) recebem a tela de verificação, que já leva o título, a descrição e a imagem
+   do site.
 4. **Quem é pego** recebe a página sombra no mesmo endereço, sem redirecionar. Você recebe o aviso.
 
 Quer entender cada parte com calma? Leia [O que é o ANTI-REA](docs/01-o-que-e.md).
@@ -86,8 +91,8 @@ Quer entender cada parte com calma? Leia [O que é o ANTI-REA](docs/01-o-que-e.m
 <img src="assets/diagramas/o-que-protege.svg" alt="Diagrama: no navegador ficam JavaScript, mapas de código, chamadas de API e arquivos esquecidos; no servidor ficam regras, banco, senhas e integrações" width="100%">
 
 A lógica que roda no servidor nunca vai para o navegador. Ferramentas como o REA só alcançam o que o
-site entrega para a tela. O ANTI-REA **barra quem tenta analisar** essa parte e o **exame avisa** se
-algo do servidor vazou para ela.
+site entrega para a tela. O ANTI-REA **barra quem tenta analisar** essa parte, e o **exame** (que vem a
+seguir) vai avisar se algo do servidor vazou para ela.
 
 > [!IMPORTANT]
 > Nenhuma ferramenta impede 100% a cópia do que o navegador recebe. Uma pessoa paciente, com um
@@ -97,6 +102,10 @@ algo do servidor vazou para ela.
 ## Instalar em 3 passos
 
 <img src="assets/telas/assistente.svg" alt="Terminal com o assistente de instalação perguntando endereço do site, domínio, canal de aviso e caminhos isentos" width="100%">
+
+> [!NOTE]
+> O pacote `anti-rea` ainda não está no npm nem a imagem no GHCR: os dois saem junto com a primeira
+> versão publicada. Até lá, rode a partir deste repositório, como explica [Instalar](docs/02-instalar.md).
 
 **1. Rode o assistente.** Ele pergunta o endereço do seu site e onde você quer os avisos, e escreve
 a configuração sozinho.
@@ -113,7 +122,9 @@ npx anti-rea start
 
 **3. Aponte o seu domínio para o porteiro** em vez do site. Pronto.
 
-Prefere Docker? Use este `docker-compose.yml`:
+Prefere Docker? Use este `docker-compose.yml`. A imagem `ghcr.io/jeipidevs/anti-rea` sai junto com a
+primeira versão publicada; até lá, construa a sua a partir deste repositório com
+`docker build -t anti-rea .` e troque a linha `image:` por `image: anti-rea`.
 
 ```yaml
 services:
@@ -144,10 +155,14 @@ Vem com uma mensagem padrão em português e inglês. Troque pelo seu texto, sua
 </div>
 
 Só tentativa de cópia e ataque direcionado viram aviso. A varredura automática que todo site recebe
-o dia inteiro fica no painel, com um resumo diário opcional. Seu celular não vira sirene.
+o dia inteiro fica só no registro, com um resumo diário opcional. Durante um ataque de muitos IPs, os
+avisos param em 6 a cada 5 minutos e o resto chega agrupado. Seu celular não vira sirene.
 Configurar: [Avisos](docs/05-avisos.md).
 
 ## O exame do seu site
+
+> [!NOTE]
+> O exame ainda não existe na versão 0.1. Esta seção mostra como ele vai funcionar.
 
 <img src="assets/telas/exame.svg" alt="Terminal com o exame apontando mapa de código público, arquivo sensível, API sem login e chave aparente" width="100%">
 
@@ -155,8 +170,8 @@ Configurar: [Avisos](docs/05-avisos.md).
 npx anti-rea exame https://seusite.com.br
 ```
 
-O exame usa a mesma lógica das ferramentas de engenharia reversa, só que a seu favor. Ele só roda em
-site que você prova ser seu, e só faz leitura: nunca altera nada. Detalhes em [Exame](docs/06-exame.md).
+O exame vai usar a mesma lógica das ferramentas de engenharia reversa, só que a seu favor. Ele só vai
+rodar em site que você prova ser seu, e só vai fazer leitura: nunca altera nada. Detalhes em [Exame](docs/06-exame.md).
 
 ## Perguntas rápidas
 
@@ -171,8 +186,9 @@ Quem navega normal, não. Quem abre as ferramentas de desenvolvedor (F12) cai, p
 <details>
 <summary><b>Vai atrapalhar o Google ou meus anúncios?</b></summary>
 
-Não. Google, Meta, Bing, a prévia do WhatsApp e outros robôs oficiais são confirmados pelo endereço
-oficial de cada um e passam direto. Veja [Robôs oficiais](docs/08-robos-oficiais.md).
+Não. Google, Bing, Apple e Meta são confirmados pelo endereço oficial de cada um e passam direto. A
+prévia do WhatsApp e de outros apps recebe o título, a descrição e a imagem do site. O DuckDuckGo não
+tem como ser conferido e vê só essa prévia. Veja [Robôs oficiais](docs/08-robos-oficiais.md).
 </details>
 
 <details>
@@ -199,12 +215,12 @@ Mais perguntas: [Perguntas frequentes](docs/perguntas-frequentes.md) · Termos d
 ## Roteiro
 
 - [x] Projeto, marca e documentação
-- [ ] Porteiro (proxy reverso) com regras no servidor
-- [ ] Verificação do navegador na primeira visita
-- [ ] Confirmação de robôs oficiais
-- [ ] Página sombra configurável
-- [ ] Avisos: WhatsApp (Evolution API), Telegram e webhook
-- [ ] Assistente `npx anti-rea init`
+- [x] Porteiro (proxy reverso) com regras no servidor
+- [x] Verificação do navegador na primeira visita
+- [x] Confirmação de robôs oficiais
+- [x] Página sombra configurável
+- [x] Avisos: WhatsApp (Evolution API), Telegram e webhook
+- [x] Assistente `npx anti-rea init`
 - [ ] Imagem Docker publicada
 - [ ] Exame do próprio site
 - [ ] Painel de registro
@@ -213,7 +229,8 @@ Mais perguntas: [Perguntas frequentes](docs/perguntas-frequentes.md) · Termos d
 
 - O ANTI-REA **defende**. A página sombra nunca roda nada contra a máquina de quem tentou e nunca
   coleta além do que chega na requisição.
-- O exame só roda em site que você prova controlar. Ele não serve para varrer site dos outros.
+- O exame (que vem a seguir) só vai rodar em site que você prova controlar. Ele não serve para
+  varrer site dos outros.
 - **IP é dado pessoal** pela LGPD (e pelo GDPR). Se você usar o ANTI-REA, cite a coleta na política
   de privacidade do seu site. O registro apaga sozinho depois do prazo que você escolher.
 

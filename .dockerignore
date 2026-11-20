@@ -1,0 +1,19 @@
+# Fora da imagem: dependências e build locais, git, trabalho interno, registro com IPs,
+# vídeo, testes, documentação, imagens do README e segredos.
+node_modules
+dist
+.git
+.github
+.superpowers
+registro
+video
+tests
+docs
+assets
+examples
+*.md
+.env
+.env.*
+.playwright-mcp
+.DS_Store
+*.log

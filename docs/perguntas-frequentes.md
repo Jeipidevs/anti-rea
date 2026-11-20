@@ -8,8 +8,40 @@ O ANTI-REA barra as ferramentas automáticas, denuncia a tentativa e engana quem
 Navegando normal, não. Abrindo o F12, sim, por padrão (`devtoolsIsCaught`). Sua equipe usa o
 [link de dono](07-modo-dono.md).
 
+**Abri o F12 numa janela separada e caí na sombra. Por quê?**
+F12 numa janela separada, com as pausas desligadas (o botão "Desativar pontos de interrupção" do
+painel de fontes), conta como depuração remota: o navegador fica igual a um cliente como o REA, e o
+ANTI-REA não tem como separar os dois. O motivo registrado é "depuração remota ativa", e isso vale
+mesmo com `devtoolsIsCaught: false`. Com `devtoolsIsCaught: false` a sonda de pausa nem roda e a
+página do site não leva a conferência contínua: aí só a tela de verificação confere, e qualquer F12
+em janela separada aberto nessa hora conta como depuração remota. F12 encaixado na janela segue o
+`devtoolsIsCaught`.
+Para você e sua equipe, o caminho é o [link de dono](07-modo-dono.md).
+
+**Por que aparecem duas tabelas no console?**
+São do ANTI-REA. Enquanto confere o navegador, ele imprime duas tabelas de 1000 linhas com
+`console.table` e mede o tempo: com um cliente de depuração remota ligado, montar essas tabelas fica
+dezenas de vezes mais lento. Com `devtoolsIsCaught: true` (o padrão), a conferência se repete a
+cada 1,5 s na página do site, então as tabelas vão se acumulando no console de quem o deixa aberto. Não é erro do seu site. Só acontece em
+navegador baseado no Chrome (Chrome, Edge, Brave, Opera), e nunca com o passe de dono.
+
+**O ANTI-REA sempre pega o REA?**
+Nem sempre, e a gente prefere dizer isso. Ele pega o navegador que o próprio REA abre (sem tela), a
+busca direta sem passe (leva 403), o pedido do mapa de código (leva a sombra) e, com
+`devtoolsIsCaught: true` (o padrão), o REA que fica ligado a uma aba mais de 1,5 s: a página vira
+sombra, o aviso chega e o REA sai sem nada. Com `devtoolsIsCaught: false` a aba que já passou pela
+verificação não é mais conferida, e o REA ligado a ela não é pego. Uma
+inspeção curta (a padrão do REA, de meio segundo) numa aba que já passou pela verificação pode
+terminar entre duas conferências e levar o que aquela aba já carregou: a página e os scripts
+compilados. O mapa e o código-fonte original não saem.
+
 **Atrapalha SEO ou anúncios?**
 Não. Veja [Robôs oficiais](08-robos-oficiais.md).
+
+**O DuckDuckGo vê o meu site?**
+Só a prévia: título, descrição e imagem. O DuckDuckGo não publica um nome de DNS reverso, então não
+tem como ser conferido, e aceitar o nome dele deixaria qualquer copiador entrar dizendo ser o
+DuckDuckBot. Ele recebe a tela de verificação com a prévia, nunca a sombra, e indexa só essa prévia.
 
 **Deixa o site lento?**
 Só a primeira visita tem a verificação de menos de 1 segundo.

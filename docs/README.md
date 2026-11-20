@@ -8,8 +8,8 @@ Escrita para quem nunca mexeu com segurança. Uma ideia por página, com imagem 
 </div>
 
 > [!NOTE]
-> O ANTI-REA está em construção. Os comandos daqui descrevem como a ferramenta vai funcionar.
-> O [roteiro](../README.md#roteiro) mostra o que já roda.
+> Versão 0.1: o porteiro funciona. O exame do próprio site e o painel vêm a seguir: as páginas deles
+> descrevem como vão funcionar. O [roteiro](../README.md#roteiro) mostra o que já roda.
 
 ## Comece por aqui
 

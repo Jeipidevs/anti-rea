@@ -33,7 +33,7 @@ sobe, fica guardada por 24 horas e é renovada em segundo plano.
 WhatsApp, Telegram, Slack, LinkedIn, X (Twitter), Discord, Skype, Pinterest e o DuckDuckBot não
 têm como ser conferidos: a prévia do WhatsApp sai do celular de quem manda o link, e o DuckDuckGo
 não publica um nome de DNS reverso. Esses recebem a tela de verificação, que já leva o título, a
-descrição e a imagem do seu site. Nunca a sombra, e nunca o site.
+descrição e a imagem do seu site. Nunca a sombra, e do site só as imagens.
 
 Com isso o DuckDuckGo indexa só a prévia da página.
 

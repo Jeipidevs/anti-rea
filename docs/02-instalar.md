@@ -1,7 +1,8 @@
 # Instalar
 
 > [!NOTE]
-> Em construção. Os comandos abaixo são o desenho final da instalação.
+> Versão 0.1: o porteiro funciona. O pacote no npm e a imagem no GHCR saem junto com a primeira
+> versão publicada. Até lá, use o [jeito a partir do repositório](#antes-da-primeira-versão-publicada).
 
 ## Antes de começar
 
@@ -9,7 +10,7 @@ Você precisa de duas coisas:
 
 1. **Onde o seu site roda hoje.** Por exemplo `http://localhost:3000` ou `http://meu-site:80` dentro
    da sua VPS. O porteiro vai buscar o site real ali.
-2. **Node.js 20 ou mais novo**, ou **Docker**. Um dos dois basta.
+2. **Node.js 22 ou mais novo**, ou **Docker**. Um dos dois basta.
 
 ## Jeito 1: assistente (o mais fácil)
 
@@ -48,8 +49,33 @@ services:
       - ./registro:/app/registro
 ```
 
+A imagem roda com um usuário sem poder de administrador (uid 1000). Crie a pasta do registro
+antes e dê a ela esse dono, senão o porteiro não consegue gravar as tentativas:
+
 ```bash
+mkdir -p registro && sudo chown 1000:1000 registro
 docker compose up -d
+```
+
+## Antes da primeira versão publicada
+
+Enquanto o pacote não está no npm, baixe o repositório e compile uma vez:
+
+```bash
+git clone https://github.com/Jeipidevs/anti-rea.git
+cd anti-rea
+npm ci
+npm run build
+```
+
+Depois, na pasta onde a configuração vai morar, troque `npx anti-rea` por
+`node <pasta do anti-rea>/dist/cli/index.js` nos comandos acima (`init`, `start` e `dono`).
+
+Para o Docker, construa a imagem na pasta do repositório e use `image: anti-rea` no
+`docker-compose.yml`:
+
+```bash
+docker build -t anti-rea .
 ```
 
 ## Último passo: apontar o domínio para o porteiro

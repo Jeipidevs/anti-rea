@@ -12,11 +12,18 @@ Cada tentativa barrada pode virar um aviso com: site, página, IP, motivo, horá
 |---|---|
 | REA, navegador automatizado, F12 aberto | Aviso na hora |
 | Robô copiador (wget, HTTrack e afins) | Aviso na hora |
-| Pedido de mapa de código ou arquivo sensível | Aviso na hora |
-| Varredura genérica (`/wp-login.php`, `/.env` vindo de robô da internet) | Só no painel |
+| Pedido de mapa de código | Aviso na hora |
+| Arquivo sensível (`.env`, `.git`, backup) pedido por quem já passou pela verificação | Aviso na hora |
+| Robô que diz ser o Google ou a Meta e não é | Aviso na hora |
+| Link de dono errado | Aviso na hora |
+| Pedido direto sem passe, fora da navegação (API ou arquivo buscado por programa) | Só no registro, e o pedido leva 403 |
+| Varredura genérica (`/phpmyadmin`, `/.env` vindo de robô da internet) | Só no registro |
+| Robô oficial que não deu para conferir (DNS ou lista da Meta fora do ar) | Só no registro |
 
 Varredura genérica acontece o dia inteiro em qualquer site público. Se virasse aviso, seu celular
-não pararia. Quer um resumo diário dela? Use `scans: dailySummary`.
+não pararia. Quer um resumo diário dela? Use `scans: dailySummary` (sai às 08:00, no fuso do
+servidor). Quer cada uma na hora? Use `scans: alert`. O padrão, `scans: panel`, só guarda no
+registro; a tela para ler o registro vem a seguir.
 
 Tentativas repetidas do mesmo IP viram **um aviso só**, com a contagem (`groupByIp`).
 
@@ -73,4 +80,5 @@ O aviso de uma tentativa leva o evento (`quando`, `ip`, `dominio`, `caminho`, `a
 
 ## Sem canal configurado
 
-O porteiro funciona mesmo assim. Ele avisa no terminal o que falta e guarda tudo no painel.
+O porteiro funciona mesmo assim. Ele avisa no terminal o que falta e guarda tudo no registro (a
+pasta `registro`, um arquivo JSONL por dia).
