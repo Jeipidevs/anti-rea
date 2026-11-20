@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { Config } from "../config/carregar.js";
-import { caminhoDeVarredura, caminhoTrancado } from "../deteccao/servidor/caminhos.js";
+import { MOTIVO_SENSIVEL, caminhoDeVarredura, caminhoTrancado } from "../deteccao/servidor/caminhos.js";
 import { ferramentaConhecida, type Sinal } from "../deteccao/servidor/ferramentas.js";
 import type { Ritmo } from "../deteccao/servidor/ritmo.js";
 import { codigoDeDono, type Passe } from "../passe/passe.js";
@@ -15,7 +15,7 @@ import {
   ehMidia,
   ehNavegacao,
   ehPreCarga,
-  ehQuadro,
+  foraDoDocumento,
   normalizarCaminho,
   semFormato,
   temExtensao,
@@ -152,12 +152,13 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   const cookies = lerCookies(p.cookie);
   const passe = passeDoPedido(cookies, ctx.segredo, ctx.versaoDono, ctx.agora);
 
-  // 3: arquivo trancado. Com passe de visitante, procurar arquivo sensível é cópia. Com passe de dono
-  // continua trancado, mas sem evento: o F12 do dono busca os mapas de código sozinho.
+  // 3: arquivo trancado. Com passe de visitante, procurar segredo (.env, .git) é cópia; backup não sobe,
+  // porque pode ser um download do próprio site (fica trancado e registrado, sem aviso de cópia). Com
+  // passe de dono continua trancado, mas sem evento: o F12 do dono busca os mapas de código sozinho.
   const trancado = caminhoTrancado(caminho);
   if (trancado) {
     if (passe?.tipo === "dono") return { acao: "recusar", status: 404 };
-    const deDentro = passe?.tipo === "visitante" && trancado.gravidade === "varredura";
+    const deDentro = passe?.tipo === "visitante" && trancado.motivo === MOTIVO_SENSIVEL;
     return sombra(deDentro ? { ...trancado, gravidade: "copia" } : trancado, 404);
   }
 
@@ -210,7 +211,7 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   // 8: ritmo de navegação.
   const navegacao = ehNavegacao(p.metodo, p.accept);
   const chave = chaveDoRitmo(p, passe, ctx);
-  if (navegacao && chave && !ehPreCarga(p.proposito) && !ehQuadro(p.destinoFetch) && ctx.ritmo.registrar(chave, ctx.agora)) {
+  if (navegacao && chave && !ehPreCarga(p.proposito) && !foraDoDocumento(p.destinoFetch) && ctx.ritmo.registrar(chave, ctx.agora)) {
     return sombra(RAPIDO_DEMAIS);
   }
 

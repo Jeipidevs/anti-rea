@@ -53,6 +53,9 @@ const DO_PORTEIRO = new Set([
   ...["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-real-ip"],
   ...["forwarded", "true-client-ip", "x-client-ip", "x-original-url", "x-rewrite-url"],
   ...["x-forwarded-port", "x-forwarded-prefix", "x-forwarded-server"],
+  // Lidos como IP verdadeiro por frameworks e trechos comuns (Rails, o HTTP_CLIENT_IP do PHP).
+  ...["client-ip", "x-cluster-client-ip", "fastly-client-ip", "x-forwarded", "forwarded-for"],
+  ...["x-originating-ip", "x-remote-ip", "x-remote-addr"],
 ]);
 // Não contam ao mundo o que roda atrás.
 const SOMEM_DA_RESPOSTA = new Set(["server", "x-powered-by"]);

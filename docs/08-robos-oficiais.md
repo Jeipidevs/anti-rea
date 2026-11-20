@@ -38,9 +38,9 @@ sobe, fica guardada por 24 horas e é renovada em segundo plano.
 
 ## Prévias e DuckDuckGo
 
-WhatsApp, Telegram, Slack, LinkedIn, X (Twitter), Discord, Skype, Pinterest e o DuckDuckBot não
-têm como ser conferidos: a prévia do WhatsApp sai do celular de quem manda o link, e o DuckDuckGo
-não publica um nome de DNS reverso. Esses recebem a tela de verificação, que já leva o título, a
+WhatsApp, Telegram, Slack, LinkedIn, X (Twitter), Discord, Skype, Pinterest, Mattermost, Zulip e o
+DuckDuckBot não têm como ser conferidos: a prévia do WhatsApp sai do celular de quem manda o link, e
+o DuckDuckGo não publica um nome de DNS reverso. Esses recebem a tela de verificação, que já leva o título, a
 descrição e a imagem do seu site. Nunca a sombra, e do site só as imagens. Para montar a prévia, o
 porteiro busca a página no site e espera até 5 s por ela quando o pedido vem de um desses robôs.
 

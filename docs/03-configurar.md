@@ -26,9 +26,10 @@ O `trustProxy` diz de onde sai o IP de cada visitante:
 
 O site recebe do porteiro o IP já resolvido em `X-Forwarded-For` e em `X-Real-IP`, mais
 `X-Forwarded-Proto` e `X-Forwarded-Host`, todos escritos por ele. Os cabeçalhos de IP e de endereço
-que o visitante mandar (`X-Real-IP`, `True-Client-IP`, `X-Client-IP`, `X-Forwarded-Port`,
-`X-Forwarded-Prefix`, `X-Forwarded-Server`, `X-Original-URL`, `X-Rewrite-URL` e `Forwarded`) não chegam
-ao site. O `CF-Connecting-IP` só segue com `trustProxy: cloudflare`.
+que o visitante mandar (`X-Real-IP`, `True-Client-IP`, `X-Client-IP`, `Client-IP`,
+`X-Cluster-Client-IP`, `Fastly-Client-IP`, `X-Originating-IP`, `X-Remote-IP`, `X-Remote-Addr`,
+`X-Forwarded`, `Forwarded-For`, `X-Forwarded-Port`, `X-Forwarded-Prefix`, `X-Forwarded-Server`,
+`X-Original-URL`, `X-Rewrite-URL` e `Forwarded`) não chegam ao site. O `CF-Connecting-IP` só segue com `trustProxy: cloudflare`.
 
 Com `true` ou `cloudflare`, a porta do porteiro só pode ser alcançada pelo proxy, e com a Cloudflare o
 servidor só aceita conexões dos endereços dela. Se não, qualquer um escolhe o próprio IP com um
@@ -100,11 +101,12 @@ Mais de 30 navegações em 10 s com o mesmo passe vão à página sombra, como "
 - sem passe, só com `firstVisit: false`, pelo IP (IP interno fica de fora). Com a verificação ligada,
   quem não tem passe só recebe a tela de verificação e não conta;
 - pré-carga e pré-renderização (o navegador busca a página antes de você clicar: `Sec-Purpose`,
-  `Purpose`, `X-Purpose`, `X-Sec-Purpose` ou `X-Moz` com `prefetch`, `prerender` ou `preview`) e página
-  aberta dentro de um `iframe` não contam.
+  `Purpose`, `X-Purpose`, `X-Sec-Purpose` ou `X-Moz` com `prefetch`, `prerender` ou `preview`), página
+  aberta dentro de um `iframe` e pedido feito por script da própria página (`fetch`, Turbo Frames,
+  htmx: o navegador manda `Sec-Fetch-Dest` diferente de `document`) não contam.
 
-Um copiador que finge pré-carga ou troca de passe a cada pedido escapa desse limite, mas não da
-verificação nem da guarda.
+Um copiador que finge pré-carga ou pedido de script, ou troca de passe a cada pedido, escapa desse
+limite, mas não da verificação nem da guarda.
 
 Os cookies do porteiro (o passe, o passe de dono e a marca de quem foi pego) saem com
 `SameSite=None; Secure` quando o pedido chega por HTTPS (direto ou pelo `X-Forwarded-Proto` do proxy
@@ -132,9 +134,10 @@ Só na raiz do site: os compactados chamados `site`, `www`, `web`, `html`, `publ
 `wwwroot`, `db`, `database` ou `dump` (por exemplo `/site.zip` e `/www.tar.gz`; `/downloads/site.zip`
 passa).
 
-Mapa de código pedido é sempre tentativa de cópia, com aviso. Os outros, pedidos por quem já passou
-pela verificação, também; pedidos por robô da internet sem passe ficam como varredura, só no
-registro. Com o [passe de dono](07-modo-dono.md) o arquivo continua trancado, mas sai um 404 simples,
+Mapa de código pedido é sempre tentativa de cópia, com aviso. Os segredos (`.env`, `.git`, configuração
+e chaves), pedidos por quem já passou pela verificação, também. Cópias e backups (os sufixos e os
+compactados) ficam como varredura, só no registro, mesmo com passe: podem ser um download do próprio
+site. Pedidos por robô da internet sem passe também ficam como varredura. Com o [passe de dono](07-modo-dono.md) o arquivo continua trancado, mas sai um 404 simples,
 sem registro e sem aviso: é o F12 do dono buscando os mapas de código sozinho.
 
 Se o seu site serve de propósito um arquivo com um desses nomes (um `backup.zip` para download, por

@@ -138,8 +138,20 @@ describe("decidir: arquivos trancados", () => {
     expect(await decidir(pedido({ caminho: "/api/webhook/.env", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
     expect(await decidir(pedido({ caminho: "/backend/.env", cookie: passeVisitante() }), ctx())).toEqual(sombra("arquivo sensível", "copia", 404));
     expect(await decidir(pedido({ caminho: "/uploads/backup-2026.tar.gz", cookie: passeVisitante() }), ctx())).toEqual(
-      sombra("arquivo sensível", "copia", 404),
+      sombra("arquivo de backup", "varredura", 404),
     );
+  });
+
+  it("backup pedido com passe de visitante fica trancado, mas não vira cópia: pode ser um download do site", async () => {
+    for (const caminho of ["/downloads/backup-manager.zip", "/docs/x.save", "/exemplos/schema.sql", "/a.bak"]) {
+      expect(await decidir(pedido({ caminho, cookie: passeVisitante() }), ctx()), caminho).toEqual(
+        sombra("arquivo de backup", "varredura", 404),
+      );
+    }
+    // Segredo continua sendo cópia com passe: navegador nenhum pede .git ou wp-config.php.bak sozinho.
+    for (const caminho of ["/.git/config", "/wp-config.php.bak"]) {
+      expect(await decidir(pedido({ caminho, cookie: passeVisitante() }), ctx()), caminho).toEqual(sombra("arquivo sensível", "copia", 404));
+    }
   });
 
   it("caminho normalizado não escapa: barras dobradas, %xx, ponto-ponto, query e barra invertida", async () => {
@@ -388,6 +400,18 @@ describe("decidir: ritmo", () => {
     expect(await decidir(pedido({ cookie }), c)).toEqual(RAPIDO);
   });
 
+  it("pedido feito por script da página (fetch, Turbo Frames, htmx) não conta; sem Sec-Fetch-Dest vale o Accept", async () => {
+    const c = ctx();
+    const cookie = passeVisitante();
+    // Página com 8 Turbo Frames aberta 4 vezes em 10 s: os quadros chegam com Accept text/html.
+    for (let i = 0; i < 60; i++) {
+      expect(await decidir(pedido({ cookie, destinoFetch: i % 2 ? "empty" : "Empty" }), c), String(i)).toEqual(repassar(true));
+    }
+    // Navegador antigo, sem Sec-Fetch-Dest: conta pelo Accept, como antes.
+    for (let i = 0; i < 30; i++) expect(await decidir(pedido({ cookie }), c)).toEqual(repassar(true));
+    expect(await decidir(pedido({ cookie, destinoFetch: "document" }), c)).toEqual(RAPIDO);
+  });
+
   it("só navegação conta: imagens não gastam o ritmo", async () => {
     const c = ctx();
     const cookie = passeVisitante();
@@ -553,7 +577,7 @@ describe("decidir: caminhos públicos padrão", () => {
   });
 
   it("o caminho trancado vale antes", async () => {
-    expect(await decidir(pedido({ caminho: "/robots.txt.bak", accept: "*/*" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+    expect(await decidir(pedido({ caminho: "/robots.txt.bak", accept: "*/*" }), ctx())).toEqual(sombra("arquivo de backup", "varredura", 404));
     expect(await decidir(pedido({ caminho: "/.well-known/.git/config", accept: "*/*" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
     expect(await decidir(pedido({ caminho: "/.well-known/app.js.map", accept: "*/*" }), ctx())).toEqual(sombra("mapa de código", "copia", 404));
   });

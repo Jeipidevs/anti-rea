@@ -61,15 +61,22 @@ function backupCompactado(segmentos: string[]): boolean {
   return segmentos.length === 1 && (NOMES_DE_SITE as readonly string[]).includes(nome);
 }
 
+/** Segredo: configuração, credencial ou repositório. Navegador nenhum pede isso sozinho. */
+export const MOTIVO_SENSIVEL = "arquivo sensível";
+/** Cópia de editor, dump ou compactado com nome de backup: pode ser um download do próprio site. */
+export const MOTIVO_BACKUP = "arquivo de backup";
+
 export function caminhoTrancado(caminho: string): Sinal | null {
   const p = normalizar(caminho);
   if (p.endsWith(".map")) return { motivo: "mapa de código", gravidade: "copia" };
   const segmentos = p.split("/").slice(1);
-  const trancado =
-    segmentos.some((s) => SEGMENTOS.has(s) || COMECOS_TRANCADOS.some((c) => s.startsWith(c))) ||
-    SUFIXOS_TRANCADOS.some((s) => p.endsWith(s)) ||
-    backupCompactado(segmentos);
-  return trancado ? { motivo: "arquivo sensível", gravidade: "varredura" } : null;
+  if (segmentos.some((s) => SEGMENTOS.has(s) || COMECOS_TRANCADOS.some((c) => s.startsWith(c)))) {
+    return { motivo: MOTIVO_SENSIVEL, gravidade: "varredura" };
+  }
+  if (SUFIXOS_TRANCADOS.some((s) => p.endsWith(s)) || backupCompactado(segmentos)) {
+    return { motivo: MOTIVO_BACKUP, gravidade: "varredura" };
+  }
+  return null;
 }
 
 export function caminhoDeVarredura(caminho: string): Sinal | null {

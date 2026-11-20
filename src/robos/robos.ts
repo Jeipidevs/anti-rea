@@ -50,6 +50,8 @@ const TABELA: Linha[] = [
       "Discordbot",
       "SkypeUriPreview",
       "Pinterestbot",
+      "Mattermost-Bot",
+      "ZulipURLPreview",
       "DuckDuckBot",
     ],
   },

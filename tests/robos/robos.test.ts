@@ -51,6 +51,8 @@ describe("roboDeclarado", () => {
       ["Mozilla/5.0 (compatible; Discordbot/2.0)", "Discordbot", "previa"],
       ["Mozilla/5.0 SkypeUriPreview Preview/0.5", "SkypeUriPreview", "previa"],
       ["Pinterestbot/1.0", "Pinterestbot", "previa"],
+      ["Mattermost-Bot/1.1", "Mattermost-Bot", "previa"],
+      ["Mozilla/5.0 (compatible; ZulipURLPreview/9.0; +https://zulip.com/)", "ZulipURLPreview", "previa"],
     ];
     for (const [agente, nome, classe] of casos) {
       expect(roboDeclarado(agente), agente).toEqual({ nome, classe });

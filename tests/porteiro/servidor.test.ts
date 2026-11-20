@@ -200,6 +200,15 @@ describe("porteiro: repasse", () => {
       "x-forwarded-server": "mentira.example",
       "x-original-url": "/admin/.env",
       "x-rewrite-url": "/admin/.env",
+      // Lidos como IP verdadeiro por frameworks e trechos comuns (Rails, o HTTP_CLIENT_IP do PHP).
+      "client-ip": "198.51.100.7",
+      "x-cluster-client-ip": "198.51.100.7",
+      "fastly-client-ip": "198.51.100.7",
+      "x-forwarded": "for=198.51.100.7",
+      "forwarded-for": "198.51.100.7",
+      "x-originating-ip": "198.51.100.7",
+      "x-remote-ip": "198.51.100.7",
+      "x-remote-addr": "198.51.100.7",
     };
     const t = await montar();
     const passe = await t.passe();

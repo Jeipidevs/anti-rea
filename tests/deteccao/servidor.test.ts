@@ -121,9 +121,13 @@ describe("caminhoTrancado", () => {
       "/dump.tar.gz",
       "/SITE.ZIP",
     ];
-    for (const caminho of trancados) {
-      expect(caminhoTrancado(caminho), caminho).toEqual({ motivo: "arquivo sensível", gravidade: "varredura" });
-    }
+    // Até o primeiro sufixo, segredo (configuração, credencial, repositório); dali em diante, cópia e backup,
+    // que pode ser um download do próprio site e por isso tem motivo próprio.
+    const inicioDosBackups = trancados.indexOf("/index.php~");
+    trancados.forEach((caminho, i) => {
+      const motivo = i < inicioDosBackups ? "arquivo sensível" : "arquivo de backup";
+      expect(caminhoTrancado(caminho), caminho).toEqual({ motivo, gravidade: "varredura" });
+    });
   });
 
   it("não tranca o que só parece: nome de site fora da raiz, compactado comum e wp-config.php em si", () => {

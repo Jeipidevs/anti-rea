@@ -166,9 +166,14 @@ export function ehPreCarga(proposito: string | undefined): boolean {
   return /prefetch|prerender|preview/i.test(proposito ?? "");
 }
 
-/** Página aberta dentro de outra (Sec-Fetch-Dest iframe ou frame). */
-export function ehQuadro(destinoFetch: string | undefined): boolean {
-  return /^\s*i?frame\s*$/i.test(destinoFetch ?? "");
+/**
+ * Sec-Fetch-Dest presente e diferente de `document`: página dentro de outra (iframe, frame) ou pedido
+ * feito por script da própria página (`empty`: fetch, XHR, Turbo Frames, htmx). Sem o cabeçalho, de
+ * navegador antigo, não diz nada e vale o Accept.
+ */
+export function foraDoDocumento(destinoFetch: string | undefined): boolean {
+  const destino = (destinoFetch ?? "").trim().toLowerCase();
+  return destino !== "" && destino !== "document";
 }
 
 const EXTENSOES_MIDIA = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "woff", "woff2"]);
