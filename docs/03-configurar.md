@@ -25,21 +25,6 @@ que o visitante mandar (`X-Real-IP`, `True-Client-IP`, `X-Client-IP`, `X-Forward
 `X-Forwarded-Prefix`, `X-Forwarded-Server`, `X-Original-URL`, `X-Rewrite-URL` e `Forwarded`) não chegam
 ao site. O `CF-Connecting-IP` só segue com `trustProxy: cloudflare`.
 
-Se o site estiver fora do ar, o visitante recebe a página "Site temporariamente indisponível" (com
-o código 502). Se o site aceitar o pedido e não começar a responder em 60 s, o visitante recebe a
-mesma página, com o código 504. Página que leva mais de 60 s para começar a responder (um relatório
-pesado, uma conexão de espera longa) não funciona atrás do porteiro. Nos dois casos o porteiro
-escreve uma linha no log, no máximo uma por minuto:
-
-```
-[anti-rea] falha no site http://localhost:3000: ECONNREFUSED. O visitante recebeu a página de indisponível (no máximo uma linha destas por minuto).
-```
-
-A página HTML que o site manda comprimida (gzip, deflate ou br) chega comprimida ao visitante: o
-porteiro abre a página, põe a guarda e comprime de novo do mesmo jeito (o br com qualidade 4),
-pedaço por pedaço, sem esperar a página inteira. O `Content-Encoding` e o `Vary` do site ficam como
-vieram.
-
 Com `true` ou `cloudflare`, a porta do porteiro só pode ser alcançada pelo proxy, e com a Cloudflare o
 servidor só aceita conexões dos endereços dela. Se não, qualquer um escolhe o próprio IP com um
 cabeçalho. Veja [Instalar](02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).
@@ -50,6 +35,25 @@ Na dúvida, o porteiro deixa passar: pedido sem passe vindo de IP interno (`10.x
 e fica registrado como "robô não confirmado".
 Quando chega um pedido de IP interno com `X-Forwarded-For` e o `trustProxy` está `false`, o porteiro
 escreve uma vez no log `pedido de IP interno com X-Forwarded-For: ligue trustProxy`.
+
+### Site fora do ar ou lento
+
+Se o site estiver fora do ar, o visitante recebe a página "Site temporariamente indisponível" (com
+o código 502). Se o site aceitar o pedido e não começar a responder em 60 s, o visitante recebe a
+mesma página, com o código 504. Página que leva mais de 60 s para começar a responder (um relatório
+pesado, uma conexão de espera longa) não funciona atrás do porteiro. Nos dois casos o porteiro
+escreve uma linha no log, no máximo uma por minuto:
+
+```
+[anti-rea] falha no site http://localhost:3000: ECONNREFUSED. O visitante recebeu a página de indisponível (no máximo uma linha destas por minuto).
+```
+
+### Página comprimida
+
+A página HTML que o site manda comprimida (gzip, deflate ou br) chega comprimida ao visitante: o
+porteiro abre a página, põe a guarda e comprime de novo do mesmo jeito (o br com qualidade 4),
+pedaço por pedaço, sem esperar a página inteira. O `Content-Encoding` e o `Vary` do site ficam como
+vieram.
 
 ## A verificação da primeira visita
 

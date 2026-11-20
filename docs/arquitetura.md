@@ -30,7 +30,7 @@ src/
                          cortar o pedido em andamento
     decidir.ts           a lista de regras, em ordem: a primeira que casar vence
     pedido.ts            leitura do caminho (normalizado e ao pé da letra), domínio, navegação,
-                         mídia e caminhos públicos padrão
+                         mídia, caminhos públicos padrão e o caminho do registro (query sem valores)
     ip.ts                IP real do visitante (trustProxy), HTTPS e IP interno
     passes.ts            cookies do porteiro: passe de visitante, passe de dono, marca de pego
     rotas.ts             rotas internas: /.anti-rea/verificar, /.anti-rea/pego e /.anti-rea/guarda.js

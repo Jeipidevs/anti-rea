@@ -82,9 +82,9 @@ como na seção do [nginx](#com-nginx-na-frente): a porta do porteiro só pode s
 O `restart: unless-stopped` religa o porteiro sozinho se ele cair ou se a máquina reiniciar: com ele
 parado, o site fica fora do ar.
 
-Ao parar (`docker compose down`, `docker compose up -d` com mudança, ou `Ctrl+C` fora do Docker), o
-porteiro deixa de aceitar conexões, espera até 8 s os pedidos em andamento terminarem (o Docker
-encerra o processo em 10 s), fecha o que sobrar e manda os avisos que estavam pendentes.
+Ao parar (`docker compose down`, ou `Ctrl+C` fora do Docker), o porteiro deixa de aceitar conexões,
+espera até 8 s os pedidos em andamento terminarem (o Docker encerra o processo em 10 s), fecha o que
+sobrar e manda os avisos que estavam pendentes.
 
 A imagem roda com um usuário sem poder de administrador (uid 1000). Crie a pasta do registro
 antes e dê a ela esse dono, senão o porteiro sobe mas não consegue gravar as tentativas (o
