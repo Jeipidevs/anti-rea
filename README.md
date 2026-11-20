@@ -138,6 +138,10 @@ services:
       - ./registro:/app/registro
 ```
 
+No Docker, o assistente e o comando `dono` rodam com Node ou pela própria imagem (veja
+[Instalar](docs/02-instalar.md#jeito-2-docker)). Depois de mudar o `.env`, rode `docker compose up -d`:
+o `docker compose restart` não relê o `.env`.
+
 Passo a passo com imagem para cada tipo de hospedagem (VPS, EasyPanel, Coolify, nginx, Cloudflare):
 [Instalar](docs/02-instalar.md).
 

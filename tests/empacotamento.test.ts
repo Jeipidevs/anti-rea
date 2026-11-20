@@ -138,3 +138,31 @@ describe("Perguntas frequentes", () => {
     expect(avisos).not.toContain("/wp-login.php");
   });
 });
+
+describe("Docker: assistente e troca do link de dono", () => {
+  // O env_file do compose só é lido quando o contêiner é criado: `docker compose restart` mantém o
+  // ANTI_REA_OWNER_VERSION antigo e o link velho continua valendo. O contêiner também não tem
+  // /app/.env, então init e dono rodam no host (Node) ou pela imagem com a pasta montada.
+  const comImagem = 'docker run --rm -it --user "$(id -u):$(id -g)" -v "$PWD":/work -w /work';
+
+  it("docs/02-instalar.md não diz que o Docker basta e mostra init e dono pela imagem", () => {
+    const instalar = ler("docs/02-instalar.md");
+    expect(instalar).not.toContain("Um dos dois basta");
+    expect(instalar).toContain(`${comImagem} ghcr.io/jeipidevs/anti-rea:latest node /app/dist/cli/index.js init`);
+    expect(instalar).toMatch(/node \/app\/dist\/cli\/index\.js dono --novo/);
+  });
+
+  it("docs/02 e docs/07 mandam recriar o contêiner com up -d depois do dono --novo, não restart", () => {
+    for (const arquivo of ["docs/02-instalar.md", "docs/07-modo-dono.md"]) {
+      const texto = ler(arquivo);
+      expect(texto, arquivo).toMatch(/dono --novo[\s\S]*docker compose up -d/);
+      expect(texto, arquivo).toContain("não relê o `.env`");
+    }
+  });
+
+  it("README.md avisa do up -d junto do docker-compose.yml", () => {
+    const r = ler("README.md");
+    expect(r).toContain("docker compose up -d");
+    expect(r).toContain("não relê o `.env`");
+  });
+});

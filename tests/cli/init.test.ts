@@ -137,6 +137,14 @@ describe("dono", () => {
     expect(mostrarDono(config, false, {})).toContain(linkDeDono("seusite.com.br", SEGREDO, 2));
   });
 
+  it("--novo lembra que no Docker o contêiner precisa ser recriado (o restart não relê o .env)", () => {
+    escreverInstalacao(dir, respostas, () => SEGREDO);
+    const linhas = mostrarDono(join(dir, "anti-rea.config.yml"), true, {});
+    expect(linhas).toContain(
+      "No Docker, rode docker compose up -d: ele recria o contêiner. O docker compose restart não relê o .env.",
+    );
+  });
+
   it("--novo com a versão repetida no .env deixa uma linha só e a versão nova vale de fato", () => {
     escreverInstalacao(dir, respostas, () => SEGREDO);
     const config = join(dir, "anti-rea.config.yml");

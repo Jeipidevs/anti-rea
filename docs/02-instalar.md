@@ -10,7 +10,8 @@ Você precisa de duas coisas:
 
 1. **Onde o seu site roda hoje.** Por exemplo `http://localhost:3000` ou `http://meu-site:80` dentro
    da sua VPS. O porteiro vai buscar o site real ali.
-2. **Node.js 22 ou mais novo**, ou **Docker**. Um dos dois basta.
+2. **Node.js 22 ou mais novo**, ou **Docker**. Só com Docker, o assistente e o comando `dono` rodam
+   pela própria imagem, como mostra o [Jeito 2](#jeito-2-docker).
 
 ## Jeito 1: assistente (o mais fácil)
 
@@ -35,7 +36,19 @@ npx anti-rea start
 
 ## Jeito 2: Docker
 
-Crie a configuração com o assistente (passo acima) e use este `docker-compose.yml`:
+Crie a configuração com o assistente. O assistente e o comando `dono` rodam fora do porteiro: o
+contêiner do porteiro não tem o `.env` dentro (ele chega pelo `env_file`) e não grava na pasta da
+instalação. Com Node no servidor, use `npx anti-rea init` (passo acima). Sem Node, rode o assistente
+pela imagem, na pasta onde a configuração vai morar:
+
+```bash
+docker run --rm -it --user "$(id -u):$(id -g)" -v "$PWD":/work -w /work ghcr.io/jeipidevs/anti-rea:latest node /app/dist/cli/index.js init
+```
+
+Ele cria `anti-rea.config.yml` e `.env` nessa pasta. No `upstream`, use o endereço do site visto de
+dentro do contêiner (o nome do serviço e a porta), não `localhost`.
+
+Depois, use este `docker-compose.yml` na mesma pasta:
 
 ```yaml
 services:
@@ -57,6 +70,20 @@ mkdir -p registro && sudo chown 1000:1000 registro
 docker compose up -d
 ```
 
+### Trocar o link de dono no Docker
+
+O `env_file` só é lido quando o contêiner é criado. Depois de mexer no `.env` (por exemplo com
+`dono --novo`), rode `docker compose up -d`, que recria o contêiner com o `.env` novo. O
+`docker compose restart` não relê o `.env`: o link antigo continuaria valendo. Sem Node no servidor:
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/work -w /work ghcr.io/jeipidevs/anti-rea:latest node /app/dist/cli/index.js dono --novo
+docker compose up -d
+```
+
+Para só ver o link de novo, tire o `--novo` e pule o `up -d`. Qualquer outra mudança no `.env`
+(a senha de um canal, por exemplo) também pede `docker compose up -d`.
+
 ## Antes da primeira versão publicada
 
 Enquanto o pacote não está no npm, baixe o repositório e compile uma vez:
@@ -71,8 +98,9 @@ npm run build
 Depois, na pasta onde a configuração vai morar, troque `npx anti-rea` por
 `node <pasta do anti-rea>/dist/cli/index.js` nos comandos acima (`init`, `start` e `dono`).
 
-Para o Docker, construa a imagem na pasta do repositório e use `image: anti-rea` no
-`docker-compose.yml`:
+Para o Docker, construa a imagem na pasta do repositório e use `anti-rea` no lugar de
+`ghcr.io/jeipidevs/anti-rea:latest`, no `docker-compose.yml` (`image: anti-rea`) e nos comandos
+`docker run` acima:
 
 ```bash
 docker build -t anti-rea .

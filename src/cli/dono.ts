@@ -81,6 +81,7 @@ export function mostrarDono(config: string, novo: boolean, env: NodeJS.ProcessEn
       linhas.push("Atenção: ANTI_REA_OWNER_VERSION também está no ambiente e vale mais que o .env. Troque lá também.");
     }
     linhas.push("Reinicie o porteiro (anti-rea start) para o link novo valer.");
+    linhas.push("No Docker, rode docker compose up -d: ele recria o contêiner. O docker compose restart não relê o .env.");
   } else {
     linhas.push("Seu link de dono (guarde, ele libera você):");
   }
