@@ -98,7 +98,14 @@ describe("porteiro: primeira visita e verificação", () => {
     const t = await montar();
     const status = await new Promise<number>((resolver, rejeitar) => {
       const r = http.request(
-        { host: "127.0.0.1", port: t.porteiro.porta, path: "/.anti-rea/verificar", method: "POST", agent: false },
+        {
+          host: "127.0.0.1",
+          port: t.porteiro.porta,
+          path: "/.anti-rea/verificar",
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          agent: false,
+        },
         (res) => {
           res.resume();
           resolver(res.statusCode!);

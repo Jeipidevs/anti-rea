@@ -15,7 +15,7 @@ import {
   lerCookies,
   passeDoPedido,
 } from "./passes.js";
-import { enviar, responderJson, responderTexto, responderVazio } from "./respostas.js";
+import { enviar, responderJson, responderRecusa, responderTexto, responderVazio } from "./respostas.js";
 
 // Rotas internas sob /.anti-rea/: verificar (POST), pego (POST) e guarda.js.
 
@@ -92,6 +92,57 @@ function responderGrande(res: ServerResponse): void {
   responderTexto(res, 413, "Corpo grande demais.", { connection: "close" });
 }
 
+/** Nome do host sem porta, em minúsculas; null quando não é um host válido. */
+function nomeDoHost(host: string): string | null {
+  try {
+    return new URL(`http://${host}`).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * O POST veio de uma página do próprio site? Sec-Fetch-Site, quando vem, precisa ser same-origin; Origin,
+ * quando vem, precisa ter o mesmo host do pedido. Os cookies do porteiro saem com SameSite=None em HTTPS,
+ * então o passe acompanha o POST que outro site dispara: sem esta conferência, um formulário de terceiro
+ * mandaria o visitante para a sombra e acusaria o IP dele no aviso.
+ */
+function doProprioSite(req: IncomingMessage): boolean {
+  const site = req.headers["sec-fetch-site"];
+  if (site !== undefined && site !== "same-origin") return false;
+  const origem = req.headers.origin;
+  if (origem === undefined) return true;
+  let hostDaOrigem: string;
+  try {
+    hostDaOrigem = new URL(origem).hostname.toLowerCase();
+  } catch {
+    return false; // "null" (iframe isolado, arquivo local) e lixo
+  }
+  const host = req.headers.host;
+  return host !== undefined && hostDaOrigem !== "" && nomeDoHost(host) === hostDaOrigem;
+}
+
+/** O corpo é JSON pelo cabeçalho? Formulário não manda application/json, e fetch de outra origem com ele pede pré-voo. */
+function corpoJson(req: IncomingMessage): boolean {
+  return /^\s*application\/json\s*(?:;|$)/i.test(req.headers["content-type"] ?? "");
+}
+
+/**
+ * Confere de onde veio e o tipo do corpo, antes de ler qualquer coisa. Outra origem: 403; corpo que não
+ * é JSON: 415. Nos dois casos já respondeu, sem evento, e devolve false.
+ */
+function pedidoAceito(req: IncomingMessage, res: ServerResponse): boolean {
+  if (!doProprioSite(req)) {
+    responderRecusa(res);
+    return false;
+  }
+  if (!corpoJson(req)) {
+    responderTexto(res, 415, "Use application/json.");
+    return false;
+  }
+  return true;
+}
+
 /** Lê e valida os sinais; quando não dá, já respondeu (413 ou 400) e devolve null. */
 async function sinaisDoCorpo(req: IncomingMessage, res: ServerResponse): Promise<SinaisNavegador | null> {
   const corpo = await lerCorpo(req, MAX_CORPO);
@@ -106,11 +157,12 @@ async function sinaisDoCorpo(req: IncomingMessage, res: ServerResponse): Promise
 }
 
 /**
- * POST /.anti-rea/verificar. Nonce inválido: 400. Pego: marca de pego (1 h), evento, aviso e
- * {"ok":false}. Limpo: passe de visitante e {"ok":true}.
+ * POST /.anti-rea/verificar. De outra origem: 403; corpo que não é JSON: 415. Nonce inválido: 400.
+ * Pego: marca de pego (1 h), evento, aviso e {"ok":false}. Limpo: passe de visitante e {"ok":true}.
  */
 export async function rotaVerificar(req: IncomingMessage, res: ServerResponse, c: ContextoRota): Promise<void> {
   if (req.method !== "POST") return responderVazio(res, 405, { allow: "POST" });
+  if (!pedidoAceito(req, res)) return;
   const sinais = await sinaisDoCorpo(req, res);
   if (!sinais) return;
   if (!conferirNonce(c.segredo, sinais.nonce, c.agora)) return responderTexto(res, 400, "Pedido inválido.");
@@ -126,13 +178,15 @@ export async function rotaVerificar(req: IncomingMessage, res: ServerResponse, c
 }
 
 /**
- * POST /.anti-rea/pego, chamado pela guarda. Sem passe de visitante válido: 204 e nada mais (um
- * POST de outro site não carrega o cookie). Com passe e sinal que pega: revoga, marca de pego,
- * evento, aviso e 204 (a guarda recarrega). Com passe e sinais que não pegam (F12 com
- * devtoolsIsCaught false): 200 {"ok":true}, sem recarga.
+ * POST /.anti-rea/pego, chamado pela guarda. De outra origem: 403; corpo que não é JSON: 415 (com
+ * SameSite=None o passe vai junto no POST de outro site, então só a origem e o tipo separam a guarda de
+ * um formulário de terceiro). Sem passe de visitante válido: 204 e nada mais. Com passe e sinal que
+ * pega: revoga, marca de pego, evento, aviso e 204 (a guarda recarrega). Com passe e sinais que não
+ * pegam (F12 com devtoolsIsCaught false): 200 {"ok":true}, sem recarga.
  */
 export async function rotaPego(req: IncomingMessage, res: ServerResponse, c: ContextoRota): Promise<void> {
   if (req.method !== "POST") return responderVazio(res, 405, { allow: "POST" });
+  if (!pedidoAceito(req, res)) return;
   const passe = passeDoPedido(lerCookies(req.headers.cookie), c.segredo, c.versaoDono, c.agora);
   if (passe?.tipo !== "visitante") return responderVazio(res, 204);
   const sinais = await sinaisDoCorpo(req, res);

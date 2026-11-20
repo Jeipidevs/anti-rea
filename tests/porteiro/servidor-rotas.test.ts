@@ -93,6 +93,67 @@ describe("porteiro: guarda e pego", () => {
   });
 });
 
+describe("porteiro: rotas internas só aceitam o próprio site", () => {
+  // Formulário enctype=text/plain enviado sozinho por outro site: o corpo vira JSON válido.
+  const CORPO_DE_FORMULARIO = (extra: Record<string, unknown>) =>
+    `${JSON.stringify({ ...SINAIS_LIMPOS, webdriver: true, ...extra, nonce: "=" }).slice(0, -1)}}\r\n`;
+
+  it("pego de outro site (form text/plain com Sec-Fetch-Site cross-site): 403, nada revogado, sem evento", async () => {
+    const t = await montar();
+    const passe = await t.passe();
+    const r = await t.post("/.anti-rea/pego", CORPO_DE_FORMULARIO({}), {
+      cookie: passe,
+      "content-type": "text/plain",
+      origin: "https://site-malicioso.example",
+      "sec-fetch-site": "cross-site",
+    });
+    expect(r.status).toBe(403);
+    expect(r.headers["set-cookie"]).toBeUndefined();
+    expect(t.eventos()).toEqual([]);
+    expect((await t.get("/", { accept: HTML, cookie: passe })).texto).toContain("Olá do site real");
+  });
+
+  it("pego e verificar: Origin de outro host é 403 mesmo sem Sec-Fetch-Site; cross-site é 403 mesmo com JSON", async () => {
+    const t = await montar();
+    const passe = await t.passe();
+    const sinais = JSON.stringify({ ...SINAIS_LIMPOS, cdp: true, nonce: "" });
+    const outroHost = { cookie: passe, host: "seusite.com.br", origin: "https://site-malicioso.example" };
+    expect((await t.post("/.anti-rea/pego", sinais, outroHost)).status).toBe(403);
+    expect((await t.post("/.anti-rea/pego", sinais, { cookie: passe, "sec-fetch-site": "same-site" })).status).toBe(403);
+    expect((await t.post("/.anti-rea/verificar", sinais, { "sec-fetch-site": "cross-site" })).status).toBe(403);
+    expect((await t.post("/.anti-rea/verificar", sinais, { host: "seusite.com.br", origin: "null" })).status).toBe(403);
+    expect(t.eventos()).toEqual([]);
+    // O próprio site (mesma origem, Origin com o mesmo host) continua valendo.
+    const doSite = await t.post("/.anti-rea/pego", sinais, {
+      cookie: passe,
+      host: "seusite.com.br",
+      origin: "https://seusite.com.br",
+      "sec-fetch-site": "same-origin",
+    });
+    expect(doSite.status).toBe(204);
+  });
+
+  it("verificar com nonce de verdade vindo de formulário de outro site não marca ninguém como pego", async () => {
+    const t = await montar();
+    const desafio = await t.get("/", { accept: HTML });
+    const nonce = /\("(\d+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)",(?:true|false)\)/.exec(desafio.texto)![1]!;
+    const corpo = CORPO_DE_FORMULARIO({ nonce });
+    // Sem Sec-Fetch-Site nem Origin (navegador antigo, ou HTTP): o tipo text/plain basta para recusar.
+    const r = await t.post("/.anti-rea/verificar", corpo.replace('"nonce":"="', `"nonce":"${nonce}"`), { "content-type": "text/plain" });
+    expect(r.status).toBe(415);
+    expect(r.headers["set-cookie"]).toBeUndefined();
+    expect(t.eventos()).toEqual([]);
+  });
+
+  it("content-type com charset e maiúsculas vale como JSON", async () => {
+    const t = await montar();
+    const passe = await t.passe();
+    const sinais = JSON.stringify({ ...SINAIS_LIMPOS, nonce: "" });
+    const r = await t.post("/.anti-rea/pego", sinais, { cookie: passe, "content-type": "Application/JSON; charset=utf-8" });
+    expect(r.status).toBe(200);
+  });
+});
+
 describe("porteiro: robôs oficiais", () => {
   const GOOGLEBOT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 
