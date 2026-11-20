@@ -30,6 +30,7 @@ describe("porteiro: pré-voo CORS", () => {
     expect(pagina.status).toBe(200);
     expect(pagina.headers["access-control-allow-origin"]).toBe("*");
     expect(pagina.headers["content-length"]).toBe("0");
+    expect(pagina.headers["content-encoding"]).toBeUndefined();
     expect(pagina.corpo).toHaveLength(0);
     const vazio = await preVoo("/pre-voo-204");
     expect(vazio.status).toBe(204);

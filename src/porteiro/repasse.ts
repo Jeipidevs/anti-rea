@@ -171,8 +171,10 @@ function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boole
   const status = resposta.statusCode ?? 502;
   const cabecalhos = cabecalhosParaOVisitante(resposta, opcoes);
   if (opcoes.soCabecalhos) {
-    // Pré-voo: o navegador nunca usa o corpo. 204 e 304 não levam Content-Length; o resto leva 0.
+    // Pré-voo: o navegador nunca usa o corpo. 204 e 304 não levam Content-Length; o resto leva 0, e
+    // sem corpo não há codificação a declarar.
     delete cabecalhos["content-length"];
+    delete cabecalhos["content-encoding"];
     if (status !== 204 && status !== 304) cabecalhos["content-length"] = "0";
     res.writeHead(status, resposta.statusMessage, cabecalhos);
     res.end();

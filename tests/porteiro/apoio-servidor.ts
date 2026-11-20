@@ -133,9 +133,9 @@ async function subirSite() {
           res.writeHead(200, { "content-type": "application/json" });
           return res.end(JSON.stringify({ bytes: registro.bytes }));
         case "/pre-voo": {
-          // Site que responde OPTIONS com a página inteira (PHP, app.all do Express).
-          const corpo = Buffer.from(PAGINA);
-          res.writeHead(200, { ...html, "content-length": corpo.length, "access-control-allow-origin": "*" });
+          // Site que responde OPTIONS com a página inteira (PHP, app.all do Express), comprimida.
+          const corpo = gzipSync(Buffer.from(PAGINA));
+          res.writeHead(200, { ...html, "content-encoding": "gzip", "content-length": corpo.length, "access-control-allow-origin": "*" });
           return res.end(corpo);
         }
         case "/pre-voo-204":
