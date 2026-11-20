@@ -251,7 +251,7 @@ export async function perguntar(): Promise<RespostasInit> {
     ],
   });
   const isentos = await input({
-    message: "Caminhos de máquina (webhook, API)?",
+    message: "Caminhos de máquina (ex.: /api/webhook/*)?",
     default: "",
     validate: (v) =>
       lerIsentos(v).every((c) => c.startsWith("/")) || "Separe por vírgula, cada caminho começando com /, ou deixe vazio",
