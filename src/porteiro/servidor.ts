@@ -97,6 +97,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
   const guarda = scriptGuarda({ sondarPausa: cfg.check.devtoolsIsCaught });
   const dominios = new Set(cfg.domains.map((d) => d.toLowerCase()));
   const { segredo, versaoDono } = deps;
+  /** Só atrás da Cloudflare o CF-Connecting-IP é dela e segue para o site. */
+  const cloudflare = cfg.trustProxy === "cloudflare";
   let proxyAvisado = false;
 
   /** Uma linha no stderr, uma vez só, quando há um proxy na frente e o trustProxy está desligado. */
@@ -231,8 +233,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
           req,
           res,
           destino,
-          { caminho, ip: p.ip, https },
-          { injetarGuarda: d.injetarGuarda, cookiesNovos, privada: !d.publico },
+          { caminho, ip: p.ip, https, cloudflare },
+          { injetarGuarda: d.injetarGuarda, cookiesNovos, privada: !d.publico, soCabecalhos: d.soCabecalhos === true },
         );
       }
     }
@@ -257,7 +259,7 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
       recusarUpgrade(socket, "403 Forbidden", "Acesso negado.");
       return;
     }
-    const origem = { caminho, ip: ipReal(req, cfg.trustProxy), https: pedidoHttps(req, cfg.trustProxy) };
+    const origem = { caminho, ip: ipReal(req, cfg.trustProxy), https: pedidoHttps(req, cfg.trustProxy), cloudflare };
     repassarUpgrade(req, socket, cabeca, destino, origem, tuneis);
   }
 

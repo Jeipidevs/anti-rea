@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { codigoDeDono } from "../../src/passe/passe.js";
 import { cookieDoPorteiro } from "../../src/porteiro/passes.js";
-import { HTML, SEGREDO, SINAIS_LIMPOS, cookieDe, limparTudo, linhaCookie, montar, pedir } from "./apoio-servidor.js";
+import { CHROME, HTML, SEGREDO, SINAIS_LIMPOS, cookieDe, limparTudo, linhaCookie, montar, pedir } from "./apoio-servidor.js";
 
 // Pedidos que o navegador ou uma integração fazem sem cookie, e cookies que precisam chegar de outro site.
 
@@ -17,6 +17,34 @@ describe("porteiro: pré-voo CORS", () => {
     expect(r.status).toBe(200);
     expect(t.site.recebidos.map((p) => `${p.metodo} ${p.url}`)).toEqual(["OPTIONS /app.js"]);
     expect(t.eventos()).toEqual([]);
+  });
+
+  it("o pré-voo leva só o status e os cabeçalhos do site, nunca o corpo", async () => {
+    const t = await montar();
+    const preVoo = (caminho: string, agente = CHROME) =>
+      pedir(t.porteiro.porta, caminho, {
+        metodo: "OPTIONS",
+        headers: { "user-agent": agente, origin: "https://outro.exemplo", "access-control-request-method": "GET" },
+      });
+    const pagina = await preVoo("/pre-voo");
+    expect(pagina.status).toBe(200);
+    expect(pagina.headers["access-control-allow-origin"]).toBe("*");
+    expect(pagina.headers["content-length"]).toBe("0");
+    expect(pagina.corpo).toHaveLength(0);
+    const vazio = await preVoo("/pre-voo-204");
+    expect(vazio.status).toBe(204);
+    expect(vazio.headers["access-control-allow-methods"]).toBe("GET, POST");
+    expect(vazio.headers["content-length"]).toBeUndefined();
+    const naoMudou = await preVoo("/pre-voo-304");
+    expect(naoMudou.status).toBe(304);
+    expect(naoMudou.headers["content-length"]).toBeUndefined();
+    expect(t.eventos()).toEqual([]);
+    // Ferramenta conhecida não chega ao site nem pelo pré-voo.
+    const curl = await preVoo("/pre-voo", "curl/8.4.0");
+    expect(curl.texto).toContain("Pegamos você");
+    expect(curl.texto).not.toContain("Olá do site real");
+    expect(t.site.recebidos.map((p) => p.url)).toEqual(["/pre-voo", "/pre-voo-204", "/pre-voo-304"]);
+    expect(t.eventos().at(-1)).toMatchObject({ motivo: "curl", gravidade: "copia", destino: "sombra" });
   });
 
   it("sem o cabeçalho continua recusado, e caminho trancado continua na sombra", async () => {

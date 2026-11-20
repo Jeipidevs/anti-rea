@@ -205,6 +205,38 @@ describe("porteiro: repasse", () => {
     expect(soPasse.cookie).toBeUndefined();
   });
 
+  it("cabeçalhos de IP e de endereço vindos do visitante não chegam ao site; X-Real-IP é o IP resolvido", async () => {
+    const FORJADOS = {
+      "x-real-ip": "198.51.100.7",
+      "true-client-ip": "198.51.100.7",
+      "x-client-ip": "198.51.100.7",
+      "cf-connecting-ip": "198.51.100.7",
+      "x-forwarded-port": "443",
+      "x-forwarded-prefix": "/admin",
+      "x-forwarded-server": "mentira.example",
+      "x-original-url": "/admin/.env",
+      "x-rewrite-url": "/admin/.env",
+    };
+    const t = await montar();
+    const passe = await t.passe();
+    const recebido = JSON.parse((await t.get("/eco", { ...FORJADOS, cookie: passe })).texto) as Record<string, string>;
+    expect(recebido["x-real-ip"]).toBe("127.0.0.1");
+    for (const nome of Object.keys(FORJADOS).filter((n) => n !== "x-real-ip")) expect(recebido[nome], nome).toBeUndefined();
+
+    // Atrás da Cloudflare, o CF-Connecting-IP é dela e segue para o site; X-Real-IP sai dele.
+    const cf = await montar({ trustProxy: "cloudflare" });
+    const passeCf = await cf.passe();
+    const doCf = JSON.parse((await cf.get("/eco", { ...FORJADOS, "cf-connecting-ip": "203.0.113.9", cookie: passeCf })).texto) as Record<
+      string,
+      string
+    >;
+    expect(doCf["cf-connecting-ip"]).toBe("203.0.113.9");
+    expect(doCf["x-real-ip"]).toBe("203.0.113.9");
+    expect(doCf["x-forwarded-for"]).toBe("203.0.113.9");
+    expect(doCf["true-client-ip"]).toBeUndefined();
+    expect(doCf["x-original-url"]).toBeUndefined();
+  });
+
   it("POST de 5 MB vai em fluxo e chega inteiro ao site", async () => {
     const t = await montar();
     const passe = await t.passe();

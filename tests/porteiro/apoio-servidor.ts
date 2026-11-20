@@ -132,6 +132,18 @@ async function subirSite() {
         case "/api/webhook/x":
           res.writeHead(200, { "content-type": "application/json" });
           return res.end(JSON.stringify({ bytes: registro.bytes }));
+        case "/pre-voo": {
+          // Site que responde OPTIONS com a página inteira (PHP, app.all do Express).
+          const corpo = Buffer.from(PAGINA);
+          res.writeHead(200, { ...html, "content-length": corpo.length, "access-control-allow-origin": "*" });
+          return res.end(corpo);
+        }
+        case "/pre-voo-204":
+          res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST" });
+          return res.end();
+        case "/pre-voo-304":
+          res.writeHead(304, { etag: '"x"' });
+          return res.end();
         case "/eco":
           res.writeHead(200, { "content-type": "application/json" });
           return res.end(JSON.stringify(req.headers));

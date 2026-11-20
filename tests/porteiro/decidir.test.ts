@@ -413,12 +413,23 @@ describe("decidir: passe de visitante e primeira visita", () => {
 });
 
 describe("decidir: pré-voo CORS", () => {
-  it("OPTIONS com Access-Control-Request-Method passa sem passe, sem guarda e sem registro", async () => {
+  const PRE_VOO: Decisao = { acao: "repassar", injetarGuarda: false, soCabecalhos: true };
+
+  it("OPTIONS com Access-Control-Request-Method passa sem passe, sem guarda, sem registro e sem o corpo do site", async () => {
     const preVoo = (parcial: Partial<Pedido> = {}) =>
       pedido({ metodo: "OPTIONS", caminho: "/api/dados", accept: "*/*", corsMetodo: "POST", ...parcial });
-    expect(await decidir(preVoo(), ctx())).toEqual(repassar(false));
-    expect(await decidir(preVoo({ metodo: "options" }), ctx())).toEqual(repassar(false));
-    expect(await decidir(preVoo({ cookie: marcaPego() }), ctx())).toEqual(repassar(false));
+    expect(await decidir(preVoo(), ctx())).toEqual(PRE_VOO);
+    expect(await decidir(preVoo({ metodo: "options" }), ctx())).toEqual(PRE_VOO);
+    expect(await decidir(preVoo({ cookie: marcaPego() }), ctx())).toEqual(PRE_VOO);
+    expect(await decidir(preVoo({ caminho: "/api/webhook/x" }), ctx())).toEqual({ ...PRE_VOO, publico: true });
+  });
+
+  it("ferramenta conhecida no pré-voo vai à sombra antes da regra (curl não leva a página por OPTIONS)", async () => {
+    const preVoo = (agente: string | undefined, caminho = "/pagina-de-produto") =>
+      pedido({ metodo: "OPTIONS", caminho, agente, accept: "*/*", corsMetodo: "GET" });
+    expect(await decidir(preVoo("curl/8.4.0"), ctx())).toEqual(sombra("curl", "copia", 200));
+    expect(await decidir(preVoo(undefined), ctx())).toEqual(sombra("sem agente", "copia", 200));
+    expect(await decidir(preVoo("python-requests/2.32", "/api/webhook/x"), ctx())).toEqual(sombra("python-requests", "copia", 200));
   });
 
   it("caminho trancado continua valendo e OPTIONS sem o cabeçalho continua recusado", async () => {

@@ -19,6 +19,12 @@ O `trustProxy` diz de onde sai o IP de cada visitante:
   acrescenta.
 - `cloudflare`: o `CF-Connecting-IP`, que a Cloudflare manda.
 
+O site recebe do porteiro o IP já resolvido em `X-Forwarded-For` e em `X-Real-IP`, mais
+`X-Forwarded-Proto` e `X-Forwarded-Host`, todos escritos por ele. Os cabeçalhos de IP e de endereço
+que o visitante mandar (`X-Real-IP`, `True-Client-IP`, `X-Client-IP`, `X-Forwarded-Port`,
+`X-Forwarded-Prefix`, `X-Forwarded-Server`, `X-Original-URL`, `X-Rewrite-URL` e `Forwarded`) não chegam
+ao site. O `CF-Connecting-IP` só segue com `trustProxy: cloudflare`.
+
 Com `true` ou `cloudflare`, a porta do porteiro só pode ser alcançada pelo proxy, e com a Cloudflare o
 servidor só aceita conexões dos endereços dela. Se não, qualquer um escolhe o próprio IP com um
 cabeçalho. Veja [Instalar](02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).
@@ -159,7 +165,10 @@ contam, e `/.well-known/../app.js` recebe 400. Arquivo trancado continua trancad
 
 Também passa sem passe e sem registro o pré-voo CORS (`OPTIONS` com o cabeçalho
 `Access-Control-Request-Method`): o navegador nunca manda cookie nele, e é o site que decide se aceita
-a outra origem. Um `OPTIONS` sem esse cabeçalho segue as regras comuns.
+a outra origem. Da resposta do site, o porteiro repassa só o status e os cabeçalhos, nunca o corpo: o
+navegador não usa o corpo do pré-voo, e um site que responde `OPTIONS` com a página inteira a
+entregaria a quem não roda JavaScript. Ferramenta conhecida (curl, wget e afins) cai na sombra também
+no pré-voo. Um `OPTIONS` sem esse cabeçalho segue as regras comuns.
 
 ## WebSocket
 

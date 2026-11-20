@@ -38,12 +38,13 @@ export type RotaInterna = "verificar" | "guarda" | "pego";
  * - `repassar.publico`: a resposta é a mesma para qualquer um (isento, público padrão ou mídia), então a CDN
  *   pode guardar. Sem ele, a resposta dependeu de passe ou de robô e não pode ir para cache
  *   compartilhado.
+ * - `repassar.soCabecalhos`: pré-voo CORS; ao visitante vão só o status e os cabeçalhos do site.
  * - `recusar` 400: caminho ambíguo; 403: sem passe; 404: caminho sob /.anti-rea/ que não é rota do
  *   porteiro, ou arquivo trancado pedido com passe de dono (sem evento e sem aviso: o F12 do dono busca
  *   os mapas de código sozinho).
  */
 export type Decisao =
-  | { acao: "repassar"; injetarGuarda: boolean; emitirPasse?: true; registrar?: Sinal; publico?: true }
+  | { acao: "repassar"; injetarGuarda: boolean; emitirPasse?: true; registrar?: Sinal; publico?: true; soCabecalhos?: true }
   | { acao: "sombra"; sinal: Sinal; status: 200 | 404 }
   | { acao: "verificar" }
   | { acao: "recusar"; status: 400 | 403 | 404 }
@@ -149,8 +150,13 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   // Ponto-ponto em alguma leitura: o site poderia resolver outro arquivo que não o conferido aqui.
   if (caminhoAmbiguo(p.caminho)) return { acao: "recusar", status: 400 };
 
-  // Pré-voo CORS: o navegador nunca manda cookie nele e o site só responde se aceita a origem.
-  if (p.metodo.toUpperCase() === "OPTIONS" && p.corsMetodo !== undefined) return repassar(false);
+  // Pré-voo CORS: o navegador nunca manda cookie nele e o site só responde se aceita a origem. Vai só
+  // com status e cabeçalhos: site que responde OPTIONS com a página a entregaria a quem não roda
+  // JavaScript. Ferramenta conhecida vem antes: navegador de verdade nunca se apresenta assim.
+  if (p.metodo.toUpperCase() === "OPTIONS" && p.corsMetodo !== undefined) {
+    const ferramenta = ferramentaConhecida(p.agente);
+    return ferramenta ? sombra(ferramenta) : { acao: "repassar", injetarGuarda: false, soCabecalhos: true };
+  }
 
   // robots.txt, sitemaps, manifesto do PWA, /.well-known/: o navegador e as integrações pedem sem cookie.
   if (caminhoPublico(p.caminho)) return repassar(false);

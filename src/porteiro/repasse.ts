@@ -17,8 +17,11 @@ export type Destino = {
   agente: http.Agent;
 };
 
-/** O que o repasse precisa saber do pedido, já resolvido pelo servidor. */
-export type Origem = { caminho: string; ip: string; https: boolean };
+/**
+ * O que o repasse precisa saber do pedido, já resolvido pelo servidor. `cloudflare`: trustProxy
+ * "cloudflare", o único modo em que o CF-Connecting-IP do pedido é da Cloudflare e segue para o site.
+ */
+export type Origem = { caminho: string; ip: string; https: boolean; cloudflare: boolean };
 
 const TEMPO_PREVIA_MS = 5_000;
 const MAX_PREVIA = 512 * 1024;
@@ -38,8 +41,13 @@ const SALTO = new Set([
   // O porteiro já respondeu o 100-continue ao visitante.
   "expect",
 ]);
-// O porteiro escreve estes do zero: o que o visitante mandar seria mentira.
-const DO_PORTEIRO = new Set(["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "forwarded"]);
+// O que o visitante mandar nestes nomes seria mentira e nunca chega ao site. A primeira linha o porteiro
+// escreve de novo; as outras, que o site ou o framework dele leriam como IP ou endereço verdadeiro, somem.
+const DO_PORTEIRO = new Set([
+  ...["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "x-real-ip"],
+  ...["forwarded", "true-client-ip", "x-client-ip", "x-original-url", "x-rewrite-url"],
+  ...["x-forwarded-port", "x-forwarded-prefix", "x-forwarded-server"],
+]);
 // Não contam ao mundo o que roda atrás.
 const SOMEM_DA_RESPOSTA = new Set(["server", "x-powered-by"]);
 // Nomear estes no Connection não os tira: sem eles o corpo chegaria ao site sem enquadramento.
@@ -69,8 +77,9 @@ function listadosNoConnection(valor: string | string[] | undefined): Set<string>
 }
 
 /**
- * Cabeçalhos do pedido para o site: sem os de salto, sem os cookies do porteiro, com X-Forwarded-*
- * escritos pelo porteiro (o IP é o real, já resolvido) e o Host original. Corpo que veio em chunked
+ * Cabeçalhos do pedido para o site: sem os de salto, sem os cookies do porteiro, sem os de IP e de
+ * endereço vindos do visitante (CF-Connecting-IP só fica atrás da Cloudflare), com X-Forwarded-* e
+ * X-Real-IP escritos pelo porteiro (o IP é o real, já resolvido) e o Host original. Corpo que veio em chunked
  * vai em chunked: o Node não enquadra sozinho o corpo de GET, HEAD, DELETE e OPTIONS, e o corpo
  * cru viraria um segundo pedido no site.
  */
@@ -84,13 +93,16 @@ export function cabecalhosParaOSite(
   for (const [nome, valor] of Object.entries(req.headers)) {
     if (valor === undefined || SALTO.has(nome) || DO_PORTEIRO.has(nome)) continue;
     if (doConnection.has(nome) && !NUNCA_DE_SALTO.has(nome)) continue;
-    if (nome === "cookie") continue;
+    if (nome === "cookie" || (nome === "cf-connecting-ip" && !origem.cloudflare)) continue;
     saida[nome] = valor;
   }
   if (!opcoes.upgrade && req.headers["transfer-encoding"] !== undefined) saida["transfer-encoding"] = "chunked";
   const cookie = cookiesParaOSite(req.headers.cookie);
   if (cookie) saida.cookie = cookie;
-  if (origem.ip) saida["x-forwarded-for"] = origem.ip;
+  if (origem.ip) {
+    saida["x-forwarded-for"] = origem.ip;
+    saida["x-real-ip"] = origem.ip;
+  }
   saida["x-forwarded-proto"] = origem.https ? "https" : "http";
   if (req.headers.host) saida["x-forwarded-host"] = req.headers.host;
   if (opcoes.soCodificacoesConhecidas) {
@@ -158,6 +170,16 @@ function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boole
   }
   const status = resposta.statusCode ?? 502;
   const cabecalhos = cabecalhosParaOVisitante(resposta, opcoes);
+  if (opcoes.soCabecalhos) {
+    // Pré-voo: o navegador nunca usa o corpo. 204 e 304 não levam Content-Length; o resto leva 0.
+    delete cabecalhos["content-length"];
+    if (status !== 204 && status !== 304) cabecalhos["content-length"] = "0";
+    res.writeHead(status, resposta.statusMessage, cabecalhos);
+    res.end();
+    resposta.on("error", () => {});
+    resposta.destroy();
+    return;
+  }
   const podeInjetar = injetar && status === 200 && ehHtml(resposta);
   const abrir = podeInjetar ? descompressor(resposta.headers["content-encoding"]) : undefined;
   const aoTerminar = (erro: Error | null) => {
@@ -178,8 +200,9 @@ function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boole
 /**
  * `privada`: a resposta dependeu de passe ou de robô e não vai para cache compartilhado.
  * `cookiesNovos`: cookies do porteiro, postos só se o site responder 200.
+ * `soCabecalhos`: pré-voo CORS; vão só o status e os cabeçalhos do site, sem o corpo.
  */
-export type OpcoesRepasse = { injetarGuarda: boolean; cookiesNovos: string[]; privada: boolean };
+export type OpcoesRepasse = { injetarGuarda: boolean; cookiesNovos: string[]; privada: boolean; soCabecalhos?: boolean };
 
 /**
  * Repassa o pedido ao site com o corpo em fluxo. Site fora do ar ou falha de conexão: 502 simples
