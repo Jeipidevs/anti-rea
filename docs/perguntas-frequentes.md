@@ -139,7 +139,8 @@ padrão). Com o passe e pedindo com `Accept: */*`, os pedidos dele não contam c
 [ritmo de navegação](03-configurar.md#ritmo-de-navegação) não o segura. Continuam valendo os
 arquivos trancados e a conferência do nome da ferramenta; a guarda não roda, porque ele não executa
 JavaScript. Na próxima versão, o ritmo vai contar todo pedido cuja resposta do site é uma
-página HTML, e não só o que pede HTML.
+página HTML, e não só o que pede HTML, menos o que o navegador marca como pedido de script ou de
+quadro (`Sec-Fetch-Dest` diferente de `document`).
 
 **Imagem de prévia gerada na hora, sem extensão, precisa ir em `exempt`.** Robô de prévia de link
 (WhatsApp, Telegram, LinkedIn) recebe as imagens, fontes e ícones que ele reconhece pela extensão

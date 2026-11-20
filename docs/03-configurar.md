@@ -87,9 +87,9 @@ navegador (resposta 200) entrega um passe, mesmo com `devtoolsIsCaught: false`: 
 WebSocket do site conectar.
 
 Sem passe, só a navegação (o navegador pedindo uma página, com `Accept` de HTML) recebe a tela de
-verificação. Leitor de prévia que não diz o formato (sem `Accept`, como o do Mattermost, ou com o
-curinga `*/*`, como o do Zulip) também recebe a tela, com a prévia, quando o caminho não tem extensão
-de arquivo. Arquivo (`/app.js`) e outro formato (`application/json`) sem passe levam 403.
+verificação. Leitor de prévia que não está na [lista de robôs](08-robos-oficiais.md#prévias-e-duckduckgo)
+e não diz o formato (sem `Accept` ou com o curinga `*/*`) também recebe a tela, com a prévia, quando o
+caminho não tem extensão de arquivo. Arquivo (`/app.js`) e outro formato (`application/json`) sem passe levam 403.
 
 ### Ritmo de navegação
 
@@ -102,8 +102,9 @@ Mais de 30 navegações em 10 s com o mesmo passe vão à página sombra, como "
   quem não tem passe só recebe a tela de verificação e não conta;
 - pré-carga e pré-renderização (o navegador busca a página antes de você clicar: `Sec-Purpose`,
   `Purpose`, `X-Purpose`, `X-Sec-Purpose` ou `X-Moz` com `prefetch`, `prerender` ou `preview`), página
-  aberta dentro de um `iframe` e pedido feito por script da própria página (`fetch`, Turbo Frames,
-  htmx: o navegador manda `Sec-Fetch-Dest` diferente de `document`) não contam.
+  aberta dentro de um `iframe` e, em HTTPS, pedido feito por script da própria página (`fetch`, Turbo
+  Frames, htmx: o navegador manda `Sec-Fetch-Dest` diferente de `document`) não contam. Em HTTP sem
+  nada na frente o navegador não manda esse cabeçalho, e o pedido de script que aceita HTML conta.
 
 Um copiador que finge pré-carga ou pedido de script, ou troca de passe a cada pedido, escapa desse
 limite, mas não da verificação nem da guarda.

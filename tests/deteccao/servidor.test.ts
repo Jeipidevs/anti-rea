@@ -130,6 +130,31 @@ describe("caminhoTrancado", () => {
     });
   });
 
+  it("cópia de segredo continua segredo: .env~, .htpasswd.bak, wp-config.php~ e o arquivo de troca do vim", () => {
+    const copias = [
+      "/.env~",
+      "/app/.env.bak",
+      "/.env.bak~",
+      "/..env.swp",
+      "/.envrc.swo",
+      "/wp-config.php~",
+      "/blog/.wp-config.php.swp",
+      "/.htpasswd.bak",
+      "/admin/.htaccess.old",
+      "/.npmrc.save",
+      "/.git-credentials.orig",
+      "/.git~",
+      "/.ssh.bak",
+    ];
+    for (const caminho of copias) {
+      expect(caminhoTrancado(caminho), caminho).toEqual({ motivo: "arquivo sensível", gravidade: "varredura" });
+    }
+    // Só o nome inteiro conta: o que apenas começa parecido segue backup.
+    for (const caminho of ["/.environment.bak", "/index.php~", "/.index.php.swo", "/my-wp-config.php~", "/.gitignore.bak"]) {
+      expect(caminhoTrancado(caminho)?.motivo, caminho).not.toBe("arquivo sensível");
+    }
+  });
+
   it("não tranca o que só parece: nome de site fora da raiz, compactado comum e wp-config.php em si", () => {
     const livres = [
       "/downloads/site.zip",

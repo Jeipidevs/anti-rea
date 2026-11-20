@@ -39,8 +39,10 @@ describe("assistente: perguntas e a tela assistente.svg", () => {
     try {
       const ultima = (await rodarInit(pasta, false)).at(-1)!;
       expect(ultima).not.toContain("npx anti-rea");
-      expect(ultima).toContain("start no lugar de init");
+      expect(ultima).toContain("troque init por start");
       expect(ultima).toContain("docker compose up -d");
+      // Quem rodou init --forcar não pode levar o --forcar para o start, que não o aceita.
+      expect((await rodarInit(pasta, true)).at(-1)!).toContain("troque init --forcar por start");
     } finally {
       rmSync(pasta, { recursive: true, force: true });
     }

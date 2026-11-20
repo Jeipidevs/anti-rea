@@ -470,10 +470,10 @@ describe("decidir: passe de visitante e primeira visita", () => {
   });
 
   it("GET sem passe, sem extensão e sem dizer o formato (Accept ausente ou */*) recebe a tela de verificação", async () => {
-    // Leitor de prévia que não pede HTML: Mattermost (sem Accept) e Zulip (*/*).
+    // Leitor de prévia fora da lista de robôs que não pede HTML (sem Accept ou com o curinga).
     for (const accept of [undefined, "", "*/*", " */* ", "*/*;q=0.8"]) {
       for (const caminho of ["/", "/produtos", "/blog/post-1", "/.well-known", "/feed/"]) {
-        expect(await decidir(pedido({ caminho, accept, agente: "Mattermost-Bot/1.1" }), ctx()), `${caminho} ${accept}`).toEqual({ acao: "verificar" });
+        expect(await decidir(pedido({ caminho, accept, agente: "Rocket.Chat/6.0" }), ctx()), `${caminho} ${accept}`).toEqual({ acao: "verificar" });
       }
     }
     // Arquivo com extensão, outro formato pedido e outro método seguem recusados.

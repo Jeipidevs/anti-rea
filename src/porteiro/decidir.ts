@@ -229,8 +229,8 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   }
   if (navegacao) return { acao: "verificar" };
   if (ehMidia(caminho)) return repassar(false);
-  // Leitor de prévia que não diz o formato (Mattermost sem Accept, Zulip com o curinga): caminho sem
-  // extensão é página, e a tela de verificação leva a prévia. Arquivo com extensão segue recusado.
+  // Leitor de prévia fora da lista de robôs que não diz o formato (sem Accept ou com o curinga): caminho
+  // sem extensão é página, e a tela de verificação leva a prévia. Arquivo com extensão segue recusado.
   if (p.metodo.toUpperCase() === "GET" && semFormato(p.accept) && !temExtensao(caminho)) return { acao: "verificar" };
   return { acao: "recusar", status: 403 };
 }

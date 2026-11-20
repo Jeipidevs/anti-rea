@@ -66,11 +66,37 @@ export const MOTIVO_SENSIVEL = "arquivo sensível";
 /** Cópia de editor, dump ou compactado com nome de backup: pode ser um download do próprio site. */
 export const MOTIVO_BACKUP = "arquivo de backup";
 
+/** Sufixos que o editor ou o backup acrescentam ao nome de um arquivo. */
+const SUFIXOS_DE_COPIA = [".bak", ".old", ".orig", ".save", "~", ".swp", ".swo"] as const;
+
+function ehSegredo(segmento: string): boolean {
+  return SEGMENTOS.has(segmento) || COMECOS_TRANCADOS.some((c) => segmento.startsWith(c));
+}
+
+/**
+ * Cópia de segredo (`.env~`, `.htpasswd.bak`, `wp-config.php~`, o `.wp-config.php.swp` do vim): sem os
+ * sufixos de cópia, e sem o ponto que o vim põe na frente, o nome é de segredo ou é `wp-config.php`.
+ */
+function copiaDeSegredo(segmento: string): boolean {
+  let nome = segmento;
+  for (let tirou = true; tirou; ) {
+    tirou = false;
+    for (const s of SUFIXOS_DE_COPIA) {
+      if (nome.length > s.length && nome.endsWith(s)) {
+        nome = nome.slice(0, -s.length);
+        tirou = true;
+      }
+    }
+  }
+  if (nome === segmento) return false;
+  return [nome, nome.replace(/^\./, "")].some((n) => ehSegredo(n) || n === "wp-config.php");
+}
+
 export function caminhoTrancado(caminho: string): Sinal | null {
   const p = normalizar(caminho);
   if (p.endsWith(".map")) return { motivo: "mapa de código", gravidade: "copia" };
   const segmentos = p.split("/").slice(1);
-  if (segmentos.some((s) => SEGMENTOS.has(s) || COMECOS_TRANCADOS.some((c) => s.startsWith(c)))) {
+  if (segmentos.some((s) => ehSegredo(s) || copiaDeSegredo(s))) {
     return { motivo: MOTIVO_SENSIVEL, gravidade: "varredura" };
   }
   if (SUFIXOS_TRANCADOS.some((s) => p.endsWith(s)) || backupCompactado(segmentos)) {

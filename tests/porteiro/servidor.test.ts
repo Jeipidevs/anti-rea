@@ -368,7 +368,8 @@ describe("porteiro: ritmo de navegação", () => {
 
   it("leitor de prévia sem Accept ou com o curinga recebe a tela de verificação com a prévia, não 403", async () => {
     const t = await montar();
-    for (const headers of [{ "user-agent": "Mattermost-Bot/1.1" }, { "user-agent": "ZulipURLPreview/1.0", accept: "*/*" }]) {
+    // Fora da lista de robôs de prévia: vale a regra do pedido sem formato.
+    for (const headers of [{ "user-agent": "Rocket.Chat/6.0" }, { "user-agent": "Rocket.Chat/6.0", accept: "*/*" }]) {
       const r = await t.get("/", headers);
       expect(r.status).toBe(200);
       expect(r.texto).toContain('<meta property="og:title" content="Loja de Teste">');
