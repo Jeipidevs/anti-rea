@@ -6,7 +6,8 @@ import { subirPorteiro } from "./start.js";
 const AJUDA = `ANTI-REA: porteiro contra engenharia reversa e cópia de sites.
 
 Uso:
-  anti-rea init [--forcar]                                   assistente: cria anti-rea.config.yml e .env
+  anti-rea init [--forcar]                                   assistente: cria anti-rea.config.yml e o .env
+                                                             (.env que já existe só ganha as ANTI_REA_ que faltam)
   anti-rea start [--config caminho] [--porta 8080] [--registro pasta]
                                                              sobe o porteiro
   anti-rea dono [--config caminho] [--novo]                  mostra o link de dono (--novo troca o link)`;

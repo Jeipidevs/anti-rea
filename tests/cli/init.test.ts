@@ -63,20 +63,66 @@ describe("escreverInstalacao", () => {
     expect(statSync(join(dir, ".env")).mode & 0o777).toBe(0o600);
   });
 
-  it("recusa sobrescrever sem forcar e sobrescreve com forcar", () => {
+  it("recusa sem forcar quando a config existe; com forcar troca a config e mantém o .env", () => {
     escreverInstalacao(dir, respostas, () => SEGREDO);
-    expect(() => escreverInstalacao(dir, respostas)).toThrow(/já existe/);
+    expect(() => escreverInstalacao(dir, respostas)).toThrow(/anti-rea\.config\.yml já existe/);
     expect(ler(".env")).toContain(SEGREDO);
 
     const { linkDono } = escreverInstalacao(dir, { ...respostas, canal: "webhook" }, () => "t".repeat(43), { forcar: true });
-    expect(linkDono).toContain(codigoDeDono("t".repeat(43), 1));
-    expect(ler(".env")).toMatch(/ANTI_REA_WEBHOOK_URL=\n/);
+    // O segredo que já estava no .env continua valendo, e o link de dono não muda.
+    expect(linkDono).toBe(linkDeDono("seusite.com.br", SEGREDO, 1));
+    expect(ler(".env")).not.toContain("t".repeat(43));
+    expect(ler(".env").match(/ANTI_REA_SECRET=/g)).toHaveLength(1);
+    expect(ler(".env")).toMatch(/ANTI_REA_TELEGRAM_TOKEN=\n/);
+    expect(ler(".env")).toMatch(/# ANTI-REA\nANTI_REA_WEBHOOK_URL=\nANTI_REA_WEBHOOK_SECRET=\n$/);
+    expect(carregarConfig(join(dir, "anti-rea.config.yml")).alerts.channels).toEqual(["webhook"]);
     expect(statSync(join(dir, ".env")).mode & 0o777).toBe(0o600);
   });
 
-  it("recusa quando só o .env já existe, sem escrever a config", () => {
-    writeFileSync(join(dir, ".env"), "ANTI_REA_SECRET=antigo\n");
-    expect(() => escreverInstalacao(dir, respostas)).toThrow(/\.env já existe/);
+  it(".env do site com outras variáveis recebe as do porteiro e mantém as do site", () => {
+    const doSite = "# Banco\nDATABASE_URL=postgres://u:p@db/app\nNEXT_PUBLIC_X=1\nANTI_REA_TELEGRAM_CHAT=-100200\n";
+    writeFileSync(join(dir, ".env"), doSite, { mode: 0o640 });
+    const { linkDono } = escreverInstalacao(dir, respostas, () => SEGREDO);
+
+    expect(linkDono).toBe(linkDeDono("seusite.com.br", SEGREDO, 1));
+    expect(ler(".env")).toBe(
+      `${doSite}\n# ANTI-REA\nANTI_REA_SECRET=${SEGREDO}\nANTI_REA_OWNER_VERSION=1\nANTI_REA_TELEGRAM_TOKEN=\n`,
+    );
+    // O modo do arquivo do site fica como estava.
+    expect(statSync(join(dir, ".env")).mode & 0o777).toBe(0o640);
+    expect(carregarConfig(join(dir, "anti-rea.config.yml")).domains).toEqual(["seusite.com.br"]);
+  });
+
+  it("mantém o segredo e a versão de dono que já estão no .env", () => {
+    writeFileSync(join(dir, ".env"), "APP=1\nANTI_REA_SECRET=antigo-segredo\nANTI_REA_OWNER_VERSION=3");
+    const { linkDono } = escreverInstalacao(dir, { ...respostas, canal: "nenhum" }, () => SEGREDO);
+    expect(linkDono).toBe(linkDeDono("seusite.com.br", "antigo-segredo", 3));
+    expect(ler(".env")).toBe("APP=1\nANTI_REA_SECRET=antigo-segredo\nANTI_REA_OWNER_VERSION=3");
+  });
+
+  it("rodar duas vezes não duplica as variáveis do porteiro", () => {
+    writeFileSync(join(dir, ".env"), "APP=1\r\n");
+    const primeiro = escreverInstalacao(dir, respostas, () => SEGREDO);
+    const depois = ler(".env");
+    expect(depois).toBe(
+      `APP=1\r\n\r\n# ANTI-REA\r\nANTI_REA_SECRET=${SEGREDO}\r\nANTI_REA_OWNER_VERSION=1\r\n` +
+        "ANTI_REA_TELEGRAM_TOKEN=\r\nANTI_REA_TELEGRAM_CHAT=\r\n",
+    );
+    const segundo = escreverInstalacao(dir, respostas, () => "t".repeat(43), { forcar: true });
+    expect(segundo.linkDono).toBe(primeiro.linkDono);
+    expect(ler(".env")).toBe(depois);
+  });
+
+  it("segredo vazio no .env ganha um valor; versão inválida recusa sem escrever nada", () => {
+    writeFileSync(join(dir, ".env"), "ANTI_REA_SECRET=\nANTI_REA_OWNER_VERSION=1\n");
+    const { linkDono } = escreverInstalacao(dir, { ...respostas, canal: "nenhum" }, () => SEGREDO);
+    expect(linkDono).toBe(linkDeDono("seusite.com.br", SEGREDO, 1));
+    expect(ambienteComEnv(join(dir, "anti-rea.config.yml"), {}).ANTI_REA_SECRET).toBe(SEGREDO);
+
+    rmSync(join(dir, "anti-rea.config.yml"));
+    writeFileSync(join(dir, ".env"), "ANTI_REA_SECRET=x\nANTI_REA_OWNER_VERSION=dois\n");
+    expect(() => escreverInstalacao(dir, respostas, () => SEGREDO)).toThrow(/ANTI_REA_OWNER_VERSION/);
+    expect(ler(".env")).toBe("ANTI_REA_SECRET=x\nANTI_REA_OWNER_VERSION=dois\n");
     expect(() => statSync(join(dir, "anti-rea.config.yml"))).toThrow();
   });
 

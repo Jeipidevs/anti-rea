@@ -26,6 +26,12 @@ Responda as perguntas. No fim ele cria dois arquivos:
 - `anti-rea.config.yml`: a configuração, com um comentário em português em cada linha.
 - `.env`: as senhas dos canais de aviso. **Nunca suba esse arquivo para o GitHub.**
 
+Se a pasta já tem um `.env` (o do seu site, por exemplo), o assistente não mexe no que está lá: só
+acrescenta no fim, sob a linha `# ANTI-REA`, as variáveis `ANTI_REA_` que faltam. As `ANTI_REA_` que
+já existem ficam como estão, inclusive o segredo, então o link de dono continua o mesmo. Rodar de
+novo não repete nada. O assistente só recusa quando `anti-rea.config.yml` já existe; para trocar a
+configuração, use `npx anti-rea init --forcar` (o `.env` continua sendo só completado).
+
 Ele também mostra o seu [link de dono](07-modo-dono.md). Guarde num lugar seguro.
 
 Depois, ligue:
