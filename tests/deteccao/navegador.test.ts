@@ -344,7 +344,7 @@ describe("sonda de CDP confirmada na hora", () => {
     expect(s.cdp).toBe(true);
   });
 
-  it("uma volta só, lenta, não encerra a base: o laço faz no mínimo 2 voltas e vale a mais rápida", () => {
+  it("uma volta só, lenta, não encerra a base: o laço faz no mínimo 3 voltas e vale a mais rápida", () => {
     // O caso da CI: a primeira ida e volta levou 5 ms (pausa do processador), passou dos 2 ms e a base
     // era só ela. Com CDP de verdade, a razão caía para 2 e a coleta deixava passar.
     let agora = 0;
@@ -362,6 +362,45 @@ describe("sonda de CDP confirmada na hora", () => {
       },
     }).resultado as SinaisNavegador;
     expect(s.cdp).toBe(true);
+  });
+
+  it("duas voltas seguidas interrompidas também não sobem a base: valem no mínimo 3 voltas", () => {
+    // CPU emulada 6 vezes mais lenta: o Chrome pausa em fatias e uma volta em cinco leva de 9 a 19 ms.
+    let agora = 0;
+    let voltas = 0;
+    const s = rodar(`(${COLETOR})("", false, {})`, {
+      ua: UA_DESKTOP_LINUX,
+      chrome: {},
+      plugins: 5,
+      relogio: () => agora,
+      copiar: () => {
+        agora += voltas++ < 2 ? 16 : 2;
+      },
+      tabela: () => {
+        agora += 240;
+      },
+    }).resultado as SinaisNavegador;
+    expect(s.cdp).toBe(true);
+  });
+
+  it("sem CDP a base nem é medida: o console.table barato encerra a medição (sem custo de CPU a mais)", () => {
+    let agora = 0;
+    let copias = 0;
+    const s = rodar(`(${COLETOR})("", false, {})`, {
+      ua: UA_DESKTOP_LINUX,
+      chrome: {},
+      plugins: 5,
+      relogio: () => agora,
+      copiar: () => {
+        copias++;
+        agora += 0.3;
+      },
+      tabela: () => {
+        agora += 0.1;
+      },
+    }).resultado as SinaisNavegador;
+    expect(s.cdp).toBe(false);
+    expect(copias).toBe(0);
   });
 
   it("sem CDP a base mais rápida não acusa nada: o console.table barato fica abaixo do piso de 2 ms", () => {

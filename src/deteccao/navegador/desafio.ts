@@ -31,10 +31,13 @@ const VALIDADE_NONCE_MS = 120_000;
  *   de 0,5 a 3,1 sem; com a tabela como objeto, em docs/_medicoes/2026-11-guarda.md: no
  *   mínimo 40 com CDP, no máximo 0,25 sem). Limiar: 20 vezes. Só roda em Blink e com
  *   `console.table` nativo (ferramenta do site que embrulha o console poderia encarecer a
- *   chamada). A base é a ida e volta em JSON mais rápida em 2 ms, com no mínimo 2 voltas: uma
- *   volta interrompida (pausa do processador, de 14 a 16 ms medidos) passava sozinha dos 2 ms,
- *   virava a base e a razão caía abaixo de 20 mesmo com CDP. Medição positiva só vale se uma
- *   segunda, feita na hora (base nova e duas
+ *   chamada). Primeiro o custo (a menor de duas chamadas): até 2 ms é negativo na hora, sem
+ *   medir a base (o caso de quase todo visitante, sem gasto a mais). Só com o custo alto vem a
+ *   base: a ida e volta em JSON mais rápida em 2 ms, com no mínimo 3 voltas. Uma volta
+ *   interrompida (pausa do processador, de 9 a 19 ms medidos com a CPU emulada 6 vezes mais
+ *   lenta) passava sozinha dos 2 ms, virava a base e a razão caía abaixo de 20 mesmo com CDP;
+ *   na CI, a média de poucas voltas perdia 3 de 16 primeiras medições. Medição positiva só vale
+ *   se uma segunda, feita na hora (base nova e duas
  *   chamadas de `console.table`), também der positiva: coleta de lixo ou preempção no meio
  *   de uma medição num celular ocupado não revoga o passe de ninguém, e com CDP de verdade
  *   toda medição dá positiva. Sem CDP, a primeira dá negativa e nada se repete. Com a janela
@@ -77,12 +80,12 @@ ${pausa}
         if (memo) { memo.linhas = linhas; memo.tabela = tabela; }
       }
       var medir = function () {
-        var t0 = agora(), voltas = 0, base = Infinity;
-        do { var tv = agora(); JSON.parse(JSON.stringify(linhas)); base = Math.min(base, agora() - tv); voltas++; } while ((voltas < 2 || agora() - t0 < 2) && voltas < 200);
-        base = Math.max(base, 0.1);
         var custo = Infinity;
         for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(tabela); custo = Math.min(custo, agora() - t1); }
-        return custo > 2 && custo > 20 * base;
+        if (custo <= 2) return false;
+        var t0 = agora(), voltas = 0, base = Infinity;
+        do { var tv = agora(); JSON.parse(JSON.stringify(linhas)); base = Math.min(base, agora() - tv); voltas++; } while ((voltas < 3 || agora() - t0 < 2) && voltas < 200);
+        return custo > 20 * Math.max(base, 0.1);
       };
       runtime = medir() && medir();
     }
