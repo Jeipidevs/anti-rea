@@ -20,6 +20,19 @@ não pararia. Quer um resumo diário dela? Use `scans: dailySummary`.
 
 Tentativas repetidas do mesmo IP viram **um aviso só**, com a contagem (`groupByIp`).
 
+### Teto de avisos durante um ataque
+
+Saem no máximo **6 avisos a cada 5 minutos**, somando todos os IPs. Um ataque vindo de muitos IPs
+ao mesmo tempo não inunda o seu WhatsApp nem derruba a instância da Evolution. O que passar do teto
+vira um aviso agrupado único, enviado assim que o teto abre vaga (o porteiro confere a cada minuto):
+
+```text
+Muitas tentativas ao mesmo tempo: 14 tentativas de 14 IPs desde 10:05 (agrupadas).
+```
+
+Tudo continua no registro, com o detalhe de cada pedido. O resumo diário das varreduras não entra
+no teto.
+
 ## WhatsApp (pela Evolution API)
 
 Você precisa de uma instância da [Evolution API](https://github.com/EvolutionAPI/evolution-api)
@@ -52,7 +65,11 @@ ANTI_REA_WEBHOOK_SECRET=um-segredo-longo
 ```
 
 O ANTI-REA manda um `POST` com JSON e assina o corpo com o segredo (cabeçalho
-`X-Anti-Rea-Signature`), para você conferir que veio dele.
+`X-Anti-Rea-Signature: sha256=<HMAC-SHA256 do corpo em hex>`), para você conferir que veio dele.
+
+O aviso de uma tentativa leva o evento (`quando`, `ip`, `dominio`, `caminho`, `agente`, `motivo`,
+`gravidade`, `destino`). O resumo diário e o aviso agrupado do teto levam
+`{"tipo":"resumo","texto":"...","quando":"<data ISO>"}`.
 
 ## Sem canal configurado
 

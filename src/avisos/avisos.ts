@@ -4,8 +4,11 @@ import { canalTelegram } from "./canais/telegram.js";
 import { canalWebhook } from "./canais/webhook.js";
 import { canalWhatsapp } from "./canais/whatsapp.js";
 
-/** Um destino de aviso. `enviar` lança em falha; quem chama (Avisos) contém o erro. */
-export type Canal = { nome: string; enviar(texto: string, evento: Evento): Promise<void> };
+/**
+ * Um destino de aviso. `enviar` lança em falha; quem chama (Avisos) contém o erro. Sem `evento`, o
+ * texto não é de um pedido só (resumo do dia ou aviso agrupado do teto global).
+ */
+export type Canal = { nome: string; enviar(texto: string, evento?: Evento): Promise<void> };
 
 type Definicao = { variaveis: readonly string[]; criar(valores: string[], fetchFn: typeof fetch): Canal };
 
@@ -63,28 +66,34 @@ const DESTINO: Record<Evento["destino"], string> = {
   registrado: "só registrado",
 };
 
+const doisDigitos = (n: number) => String(n).padStart(2, "0");
+
+/** hh:mm no fuso do servidor. */
+function horaLocal(d: Date): string {
+  return `${doisDigitos(d.getHours())}:${doisDigitos(d.getMinutes())}`;
+}
+
 /** dd/mm/aaaa hh:mm no fuso do servidor; data inválida sai como veio. */
 function dataLocal(quando: string): string {
   const d = new Date(quando);
   if (Number.isNaN(d.getTime())) return quando;
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${doisDigitos(d.getDate())}/${doisDigitos(d.getMonth() + 1)}/${d.getFullYear()} ${horaLocal(d)}`;
 }
 
-/** Caracteres mantidos de cada campo que vem do pedido antes das reticências. */
-const MAX_CAMPO = 300;
+/** Tamanho máximo de cada campo que vem do pedido, já contando as reticências do corte. */
+const MAX_CAMPO = 200;
 
 // C0, DEL, C1, separadores de linha e parágrafo do Unicode e marcas de direção (bidi).
 const CONTROLE = /[\u0000-\u001F\u007F-\u009F\u061C\u200E\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/g;
 
 /**
- * Campo vindo do pedido (logo, do visitante): caractere de controle ou bidi vira espaço, para não criar
- * linha falsa nem inverter o texto. Campo acima de MAX_CAMPO caracteres é cortado ali, com reticências e
- * sem partir emoji, para o aviso caber no limite dos canais (Telegram recusa texto acima de 4096).
+ * Campo vindo do pedido (logo, do visitante): caractere de controle ou bidi sai, para não criar linha
+ * falsa nem inverter o texto. Campo acima de MAX_CAMPO caracteres fica com MAX_CAMPO, o último sendo as
+ * reticências, sem partir emoji, para o aviso caber no limite dos canais (Telegram recusa acima de 4096).
  */
 function campo(valor: string): string {
-  const pontos = Array.from(valor.replace(CONTROLE, " "));
-  return pontos.length > MAX_CAMPO ? `${pontos.slice(0, MAX_CAMPO).join("")}\u2026` : pontos.join("");
+  const pontos = Array.from(valor.replace(CONTROLE, ""));
+  return pontos.length > MAX_CAMPO ? `${pontos.slice(0, MAX_CAMPO - 1).join("")}\u2026` : pontos.join("");
 }
 
 /** Texto puro do aviso, uma linha por campo; com repetidos > 0, a linha do agrupamento no fim. */
@@ -107,17 +116,29 @@ type Janela = { inicio: number; repetidos: number };
 /** Teto de IPs guardados para o agrupamento; cheio, sai o IP de janela mais antiga. */
 export const MAX_IPS_AGRUPADOS = 10_000;
 
+/** Teto global: no máximo TETO_AVISOS avisos em qualquer intervalo de TETO_JANELA_MS, somando todos os IPs. */
+export const TETO_AVISOS = 6;
+export const TETO_JANELA_MS = 5 * 60_000;
+
+/** O que passou do teto global e ainda não saiu, como um aviso agrupado. */
+type Excesso = { tentativas: number; ips: Set<string>; ipsAlemDoTeto: number; desde: number };
+
 /**
  * Decide o que vira aviso e despacha para os canais.
  * - `copia` sempre avisa; `varredura` avisa só com scans "alert", entra no resumo com "dailySummary"
  *   e com "panel" não faz nada aqui (o registro é de quem chama).
  * - Por IP, o primeiro aviso de cada janela `groupByIpMs` sai na hora; os seguintes só contam, e a
  *   contagem fica guardada até o próximo aviso daquele IP, por mais tarde que ele venha.
+ * - Teto global (TETO_AVISOS por TETO_JANELA_MS, todos os IPs): o aviso que passaria do teto não sai e
+ *   entra num aviso agrupado único, enviado na próxima vaga (no próximo evento ou em `descarregar`).
  */
 export class Avisos {
   private readonly porIp = new Map<string, Janela>();
   private readonly resumo = new Map<string, number>();
   private ultimaLimpeza = Number.NEGATIVE_INFINITY;
+  /** Instantes dos avisos enviados nos últimos TETO_JANELA_MS (no máximo TETO_AVISOS). */
+  private enviosRecentes: number[] = [];
+  private excesso: Excesso | undefined;
 
   constructor(
     private readonly cfg: Config["alerts"],
@@ -126,11 +147,13 @@ export class Avisos {
   ) {}
 
   async receber(e: Evento): Promise<void> {
+    const agora = this.agora();
+    // O agrupado pendente sai antes de qualquer outro aviso, se o teto já abriu vaga.
+    await this.descarregar(agora);
     if (e.gravidade === "varredura" && this.cfg.scans !== "alert") {
       if (this.cfg.scans === "dailySummary") this.resumo.set(e.motivo, (this.resumo.get(e.motivo) ?? 0) + 1);
       return;
     }
-    const agora = this.agora();
     const janela = this.cfg.groupByIpMs;
     this.limpar(agora, janela);
     const atual = this.porIp.get(e.ip);
@@ -143,7 +166,32 @@ export class Avisos {
     this.porIp.delete(e.ip);
     if (this.porIp.size >= MAX_IPS_AGRUPADOS) this.porIp.delete(this.porIp.keys().next().value!);
     this.porIp.set(e.ip, { inicio: agora, repetidos: 0 });
+    if (!this.ocuparVaga(agora)) {
+      this.acumular(e.ip, 1 + repetidos, agora);
+      return;
+    }
     await this.despachar(textoDoAviso(e, repetidos), e);
+  }
+
+  /**
+   * Manda o aviso agrupado do excesso do teto global, se houver e se o teto tiver vaga. Sem pendência,
+   * não faz nada. O servidor chama a cada 60 s para o agrupado não esperar o próximo evento.
+   */
+  async descarregar(agora: number = this.agora()): Promise<void> {
+    const x = this.excesso;
+    if (!x || !this.ocuparVaga(agora)) return;
+    this.excesso = undefined;
+    const ips = x.ips.size + x.ipsAlemDoTeto;
+    const desde = horaLocal(new Date(x.desde));
+    await this.despachar(
+      `Muitas tentativas ao mesmo tempo: ${x.tentativas} tentativas de ${ips} IPs desde ${desde} (agrupadas).`,
+    );
+  }
+
+  /** Manda o resumo do dia a todos os canais, fora do teto global; sem varreduras contadas, não manda nada. */
+  async enviarResumo(): Promise<void> {
+    if (this.resumo.size === 0) return;
+    await this.despachar(this.resumoDoDia());
   }
 
   /** Texto do resumo das varreduras desde a última chamada, por motivo; zera a contagem. */
@@ -165,7 +213,24 @@ export class Avisos {
     for (const [ip, j] of this.porIp) if (j.repetidos === 0 && agora - j.inicio >= janela) this.porIp.delete(ip);
   }
 
-  private async despachar(texto: string, e: Evento): Promise<void> {
+  /** Reserva uma vaga no teto global para um aviso enviado agora; false quando o teto está cheio. */
+  private ocuparVaga(agora: number): boolean {
+    this.enviosRecentes = this.enviosRecentes.filter((t) => agora - t < TETO_JANELA_MS);
+    if (this.enviosRecentes.length >= TETO_AVISOS) return false;
+    this.enviosRecentes.push(agora);
+    return true;
+  }
+
+  /** Soma ao agrupado pendente; o conjunto de IPs tem o mesmo teto do agrupamento por IP. */
+  private acumular(ip: string, tentativas: number, agora: number): void {
+    const x = (this.excesso ??= { tentativas: 0, ips: new Set(), ipsAlemDoTeto: 0, desde: agora });
+    x.tentativas += tentativas;
+    if (x.ips.has(ip)) return;
+    if (x.ips.size < MAX_IPS_AGRUPADOS) x.ips.add(ip);
+    else x.ipsAlemDoTeto++;
+  }
+
+  private async despachar(texto: string, e?: Evento): Promise<void> {
     await Promise.all(
       this.canais.map(async (canal) => {
         try {

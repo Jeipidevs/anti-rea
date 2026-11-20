@@ -226,3 +226,48 @@ describe("canais reais dentro de Avisos", () => {
     for (const segredo of ["123:abc", "segredo-do-gancho", "token-zap"]) expect(linhas[0]).not.toContain(segredo);
   });
 });
+
+describe("resumo do dia pelos canais reais", () => {
+  async function resumoPor(canal: string) {
+    const { fetchFn, chamadas } = fetchFalso();
+    const { canais } = canaisDoAmbiente(AMBIENTE_COMPLETO, [canal], fetchFn);
+    const a = new Avisos({ channels: [canal], groupByIpMs: 3_600_000, scans: "dailySummary" }, canais, () => 0);
+    await a.receber({ ...EVENTO, gravidade: "varredura", motivo: "varredura: /.env" });
+    expect(chamadas).toHaveLength(0);
+    await a.enviarResumo();
+    return chamadas;
+  }
+  const RESUMO = "Resumo do dia: 1 varredura barrada\nvarredura: /.env: 1";
+
+  it("WhatsApp recebe o texto do resumo", async () => {
+    const chamadas = await resumoPor("whatsapp");
+    expect(chamadas).toHaveLength(1);
+    expect(JSON.parse(String(chamadas[0]!.init.body))).toEqual({ number: "5500000000000", text: RESUMO });
+  });
+
+  it("Telegram recebe o texto do resumo", async () => {
+    const chamadas = await resumoPor("telegram");
+    expect(chamadas).toHaveLength(1);
+    expect(JSON.parse(String(chamadas[0]!.init.body))).toEqual({ chat_id: "-100200", text: RESUMO });
+  });
+
+  it("webhook recebe tipo resumo, texto e quando em ISO, assinado igual", async () => {
+    const chamadas = await resumoPor("webhook");
+    expect(chamadas).toHaveLength(1);
+    const corpo = String(chamadas[0]!.init.body);
+    const json = JSON.parse(corpo) as { tipo: string; texto: string; quando: string };
+    expect(Object.keys(json)).toEqual(["tipo", "texto", "quando"]);
+    expect(json.tipo).toBe("resumo");
+    expect(json.texto).toBe(RESUMO);
+    expect(new Date(json.quando).toISOString()).toBe(json.quando);
+    const esperado = createHmac("sha256", "segredo-do-gancho").update(corpo).digest("hex");
+    expect(cabecalhos(chamadas[0]!.init)).toMatchObject({ "x-anti-rea-signature": `sha256=${esperado}` });
+  });
+
+  it("sem varreduras no dia, nenhum canal é chamado", async () => {
+    const { fetchFn, chamadas } = fetchFalso();
+    const { canais } = canaisDoAmbiente(AMBIENTE_COMPLETO, ["whatsapp", "telegram", "webhook"], fetchFn);
+    await new Avisos({ channels: [], groupByIpMs: 1, scans: "dailySummary" }, canais, () => 0).enviarResumo();
+    expect(chamadas).toHaveLength(0);
+  });
+});
