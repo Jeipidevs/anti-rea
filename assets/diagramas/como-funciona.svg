@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-label="Como o ANTI-REA funciona: o porteiro verifica cada visitante; pessoa vai para o site real, robô cai na página sombra e o dono recebe aviso">
+  <defs>
+    <marker id="seta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5A6088"/></marker>
+    <marker id="setaV" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#3BE8A8"/></marker>
+    <marker id="setaR" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#FF5C7A"/></marker>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#FFFFFF" stroke-opacity="0.035"/></pattern>
+  </defs>
+  <rect width="1280" height="640" rx="28" fill="#0B0C14"/>
+  <rect width="1280" height="640" rx="28" fill="url(#grid)"/>
+  <text x="56" y="64" fill="#EEF0FF" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="800">Como funciona</text>
+  <text x="56" y="96" fill="#8A90B2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17">Todo visitante passa pelo porteiro antes de chegar ao site.</text>
+
+  <!-- coluna 1: quem chega -->
+  <text x="56" y="160" fill="#8A90B2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="2">QUEM CHEGA</text>
+  <g font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="#EEF0FF">
+    <rect x="56" y="180" width="250" height="64" rx="14" fill="#141626" stroke="#262A40"/><circle cx="88" cy="212" r="12" fill="#3BE8A8" fill-opacity="0.2" stroke="#3BE8A8" stroke-width="2"/><text x="112" y="218">Pessoa navegando</text>
+    <rect x="56" y="260" width="250" height="64" rx="14" fill="#141626" stroke="#262A40"/><circle cx="88" cy="292" r="12" fill="#FF5C7A" fill-opacity="0.2" stroke="#FF5C7A" stroke-width="2"/><text x="112" y="298">REA ou robô copiador</text>
+    <rect x="56" y="340" width="250" height="64" rx="14" fill="#141626" stroke="#262A40"/><circle cx="88" cy="372" r="12" fill="#FF5C7A" fill-opacity="0.2" stroke="#FF5C7A" stroke-width="2"/><text x="112" y="378">Navegador com F12</text>
+    <rect x="56" y="420" width="250" height="64" rx="14" fill="#141626" stroke="#262A40"/><circle cx="88" cy="452" r="12" fill="#FFC24B" fill-opacity="0.2" stroke="#FFC24B" stroke-width="2"/><text x="112" y="458">Varredura de ataque</text>
+    <rect x="56" y="500" width="250" height="64" rx="14" fill="#141626" stroke="#262A40"/><circle cx="88" cy="532" r="12" fill="#3BE8A8" fill-opacity="0.2" stroke="#3BE8A8" stroke-width="2"/><text x="112" y="538">Google, Meta, WhatsApp</text>
+  </g>
+  <g fill="none" stroke="#5A6088" stroke-width="2" marker-end="url(#seta)">
+    <path d="M306 212C360 212 360 372 418 372"/><path d="M306 292C360 292 360 372 418 372"/><path d="M306 372H418"/><path d="M306 452C360 452 360 372 418 372"/><path d="M306 532C360 532 360 372 418 372"/>
+  </g>
+
+  <!-- coluna 2: porteiro -->
+  <rect x="424" y="196" width="400" height="352" rx="22" fill="#141626" stroke="#7C6CFF" stroke-width="2"/>
+  <g transform="translate(452 220) scale(0.22)"><rect x="84" y="84" width="140" height="140" rx="26" fill="#7C6CFF"/><rect x="40" y="40" width="140" height="140" rx="26" fill="#0B0C14" stroke="#EEF0FF" stroke-width="18"/><path fill="none" stroke="#EEF0FF" stroke-width="16" stroke-linecap="round" d="M78 122Q104 144 142 108"/></g>
+  <text x="518" y="252" fill="#EEF0FF" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" font-weight="800">Porteiro ANTI-REA</text>
+  <text x="518" y="276" fill="#8A90B2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14">fica na frente de qualquer site</text>
+  <g font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#C9CCE4">
+    <rect x="452" y="304" width="344" height="52" rx="12" fill="#0B0C14"/><text x="472" y="335"><tspan fill="#B3A9FF" font-weight="700">1</tspan>   Lê a requisição: quem é, o que pede</text>
+    <rect x="452" y="366" width="344" height="52" rx="12" fill="#0B0C14"/><text x="472" y="397"><tspan fill="#B3A9FF" font-weight="700">2</tspan>   Verifica o navegador (menos de 1 s)</text>
+    <rect x="452" y="428" width="344" height="52" rx="12" fill="#0B0C14"/><text x="472" y="459"><tspan fill="#B3A9FF" font-weight="700">3</tspan>   Confere robôs oficiais pelo DNS</text>
+    <rect x="452" y="490" width="344" height="40" rx="12" fill="#7C6CFF" fill-opacity="0.16"/><text x="472" y="516" fill="#B3A9FF" font-weight="700">Decide: liberar ou desviar</text>
+  </g>
+
+  <!-- coluna 3: destinos -->
+  <path d="M824 300C880 300 880 230 934 230" fill="none" stroke="#3BE8A8" stroke-width="3" marker-end="url(#setaV)"/>
+  <path d="M824 440C880 440 880 420 934 420" fill="none" stroke="#FF5C7A" stroke-width="3" marker-end="url(#setaR)"/>
+  <rect x="940" y="168" width="284" height="124" rx="18" fill="#3BE8A8" fill-opacity="0.08" stroke="#3BE8A8" stroke-opacity="0.6"/>
+  <text x="964" y="210" fill="#3BE8A8" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="800">Site real</text>
+  <text x="964" y="238" fill="#C9CCE4" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">Pessoa e robôs oficiais</text>
+  <text x="964" y="262" fill="#C9CCE4" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">navegam normal, sem atraso.</text>
+  <rect x="940" y="340" width="284" height="124" rx="18" fill="#FF5C7A" fill-opacity="0.08" stroke="#FF5C7A" stroke-opacity="0.6"/>
+  <text x="964" y="382" fill="#FF8DA2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="800">Página sombra</text>
+  <text x="964" y="410" fill="#C9CCE4" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">Mesmo endereço, só a</text>
+  <text x="964" y="434" fill="#C9CCE4" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">mensagem sarcástica.</text>
+  <path d="M1082 464V500" fill="none" stroke="#FF5C7A" stroke-width="2" stroke-dasharray="4 5"/>
+  <rect x="940" y="504" width="284" height="72" rx="18" fill="#141626" stroke="#262A40"/>
+  <circle cx="976" cy="540" r="16" fill="#3BE8A8" fill-opacity="0.18"/><path d="M968 540l6 6l10-12" fill="none" stroke="#3BE8A8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1004" y="534" fill="#EEF0FF" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="700">Aviso para o dono</text>
+  <text x="1004" y="556" fill="#8A90B2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">WhatsApp, Telegram ou webhook</text>
+</svg>

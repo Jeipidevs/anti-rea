@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 680" role="img" aria-label="Exemplo da página sombra com a mensagem sarcástica">
+  <defs><radialGradient id="g" cx="0.5" cy="0.45" r="0.5"><stop offset="0" stop-color="#7C6CFF" stop-opacity="0.28"/><stop offset="1" stop-color="#7C6CFF" stop-opacity="0"/></radialGradient></defs>
+  <rect width="1280" height="680" rx="24" fill="#07080F"/>
+  <rect x="0" y="0" width="1280" height="56" rx="24" fill="#161829"/><rect x="0" y="30" width="1280" height="26" fill="#161829"/>
+  <circle cx="32" cy="28" r="7" fill="#FF5C7A"/><circle cx="56" cy="28" r="7" fill="#FFC24B"/><circle cx="80" cy="28" r="7" fill="#3BE8A8"/>
+  <rect x="120" y="13" width="760" height="30" rx="15" fill="#0B0C14"/>
+  <text x="142" y="33" fill="#8A90B2" font-family="'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace" font-size="14">https://seusite.com.br/painel</text>
+  <rect x="0" y="56" width="1280" height="624" fill="url(#g)"/>
+  <g transform="translate(588 130) scale(0.42)"><rect x="84" y="84" width="140" height="140" rx="26" fill="#7C6CFF"/><rect x="40" y="40" width="140" height="140" rx="26" fill="#0B0C14" stroke="#EEF0FF" stroke-width="18"/><path fill="none" stroke="#EEF0FF" stroke-width="16" stroke-linecap="round" d="M78 122Q104 144 142 108"/></g>
+  <text x="640" y="320" text-anchor="middle" fill="#EEF0FF" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="48" font-weight="800" letter-spacing="-1">Ops. Pegamos você.</text>
+  <text x="640" y="368" text-anchor="middle" fill="#B3A9FF" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22">Belo esforço com o seu robô. O código que você queria não mora aqui.</text>
+  <text x="640" y="402" text-anchor="middle" fill="#8A90B2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18">Que tal criar o seu? Dá menos trabalho e é mais divertido.</text>
+  <rect x="440" y="446" width="400" height="140" rx="16" fill="#141626" stroke="#262A40"/>
+  <g font-family="'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace" font-size="15">
+    <text x="468" y="482" fill="#8A90B2">tentativa</text><text x="812" y="482" text-anchor="end" fill="#FF8DA2">registrada</text>
+    <text x="468" y="514" fill="#8A90B2">seu IP</text><text x="812" y="514" text-anchor="end" fill="#EEF0FF">203.0.113.42</text>
+    <text x="468" y="546" fill="#8A90B2">dono avisado</text><text x="812" y="546" text-anchor="end" fill="#3BE8A8">agora mesmo</text>
+  </g>
+  <text x="640" y="636" text-anchor="middle" fill="#5A6088" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14">Mensagem padrão. Cada site troca pelo próprio texto.</text>
+</svg>

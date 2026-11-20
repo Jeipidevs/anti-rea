@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" role="img" aria-label="O que o navegador recebe e pode ser analisado, e o que fica no servidor">
+  <rect width="1280" height="560" rx="28" fill="#0B0C14"/>
+  <text x="56" y="64" fill="#EEF0FF" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="800">O que dá para proteger</text>
+  <text x="56" y="96" fill="#8A90B2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17">Seu sistema tem duas metades. O REA só alcança a que vai para o navegador.</text>
+  <rect x="56" y="132" width="560" height="372" rx="22" fill="#FFC24B" fill-opacity="0.06" stroke="#FFC24B" stroke-opacity="0.5"/>
+  <text x="88" y="180" fill="#FFC24B" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" font-weight="800">No navegador</text>
+  <text x="88" y="208" fill="#C9CCE4" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">Tudo que o site entrega para a tela. Dá para analisar.</text>
+  <g font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="#EEF0FF">
+    <rect x="88" y="232" width="496" height="52" rx="12" fill="#141626"/><text x="112" y="264">Código JavaScript da página</text>
+    <rect x="88" y="294" width="496" height="52" rx="12" fill="#141626"/><text x="112" y="326">Mapas de código (source maps)</text>
+    <rect x="88" y="356" width="496" height="52" rx="12" fill="#141626"/><text x="112" y="388">Endereços e formato das chamadas à API</text>
+    <rect x="88" y="418" width="496" height="52" rx="12" fill="#141626"/><text x="112" y="450">Arquivos esquecidos no ar (.env, .git)</text>
+  </g>
+  <rect x="664" y="132" width="560" height="372" rx="22" fill="#3BE8A8" fill-opacity="0.06" stroke="#3BE8A8" stroke-opacity="0.5"/>
+  <text x="696" y="180" fill="#3BE8A8" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" font-weight="800">No servidor</text>
+  <text x="696" y="208" fill="#C9CCE4" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">Nunca sai da sua máquina. O REA não enxerga.</text>
+  <g font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="#EEF0FF">
+    <rect x="696" y="232" width="496" height="52" rx="12" fill="#141626"/><text x="720" y="264">Regras de negócio e cálculos</text>
+    <rect x="696" y="294" width="496" height="52" rx="12" fill="#141626"/><text x="720" y="326">Banco de dados</text>
+    <rect x="696" y="356" width="496" height="52" rx="12" fill="#141626"/><text x="720" y="388">Senhas e chaves secretas</text>
+    <rect x="696" y="418" width="496" height="52" rx="12" fill="#141626"/><text x="720" y="450">Integrações com outros serviços</text>
+  </g>
+  <text x="56" y="536" fill="#B3A9FF" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="16"><tspan font-weight="700">O ANTI-REA</tspan> barra quem tenta analisar a metade amarela e o <tspan font-weight="700">exame</tspan> avisa se algo da verde vazou para a amarela.</text>
+</svg>

@@ -1,0 +1,237 @@
+<div align="center">
+
+<img src="assets/banner.svg" alt="ANTI-REA: quem tenta copiar seu site leva só a sombra" width="100%">
+
+<br>
+
+[![Status](https://img.shields.io/badge/status-em%20constru%C3%A7%C3%A3o-FFC24B?style=for-the-badge)](#roteiro)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-7C6CFF?style=for-the-badge)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](#)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#instalar-em-3-passos)
+[![PRs bem-vindos](https://img.shields.io/badge/PRs-bem--vindos-3BE8A8?style=for-the-badge)](CONTRIBUTING.md)
+
+**[Documentação](docs/README.md)** · **[Instalar](#instalar-em-3-passos)** · **[Perguntas frequentes](docs/perguntas-frequentes.md)** · **[English](README.en.md)**
+
+</div>
+
+<br>
+
+> [!NOTE]
+> **O ANTI-REA está em construção.** Esta página descreve como a ferramenta vai funcionar. Acompanhe o
+> [roteiro](#roteiro) para ver o que já está pronto. Nada aqui promete o que ainda não roda.
+
+## Em uma frase
+
+O ANTI-REA é um **porteiro** que fica na frente do seu site. Gente de verdade entra normal. Quem chega
+com ferramenta de engenharia reversa, robô copiador ou varredura de ataque cai numa **página sombra**
+com uma mensagem sarcástica, no mesmo endereço. E você recebe um **aviso no celular** na hora.
+
+Funciona com qualquer site: Next.js, WordPress, Laravel, HTML simples ou o que você tiver. Não precisa
+mexer em uma linha do seu código.
+
+## O que ele faz
+
+<table>
+<tr>
+<td width="33%" valign="top">
+<img src="assets/icones/porteiro.svg" width="48" alt=""><br>
+<b>Porteiro na frente do site</b><br>
+Confere cada visitante antes de deixar entrar. Em menos de um segundo, só na primeira visita.
+</td>
+<td width="33%" valign="top">
+<img src="assets/icones/sombra.svg" width="48" alt=""><br>
+<b>Página sombra</b><br>
+Robô, REA e quem abre o F12 veem só a mensagem sarcástica. O site real nunca chega até eles.
+</td>
+<td width="33%" valign="top">
+<img src="assets/icones/aviso.svg" width="48" alt=""><br>
+<b>Aviso na hora</b><br>
+WhatsApp, Telegram ou webhook, com IP, página e motivo. Tentativas repetidas vêm agrupadas.
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+<img src="assets/icones/bloqueio.svg" width="48" alt=""><br>
+<b>Arquivos sensíveis trancados</b><br>
+Mapas de código, <code>.env</code>, <code>.git</code> e backups ficam bloqueados para todo mundo.
+</td>
+<td width="33%" valign="top">
+<img src="assets/icones/exame.svg" width="48" alt=""><br>
+<b>Exame do seu site</b><br>
+Mostra o que um curioso consegue ver do seu site antes que alguém de fora descubra.
+</td>
+<td width="33%" valign="top">
+<img src="assets/icones/painel.svg" width="48" alt=""><br>
+<b>Painel de registro</b><br>
+Lista de todas as tentativas, guardada na sua máquina, para conferir quando quiser.
+</td>
+</tr>
+</table>
+
+## Como funciona
+
+<img src="assets/diagramas/como-funciona.svg" alt="Diagrama: visitantes passam pelo porteiro; pessoa e robôs oficiais vão ao site real; REA, robô copiador, F12 e varredura vão para a página sombra e geram aviso" width="100%">
+
+1. **Todo visitante passa pelo porteiro.** Ele olha quem está pedindo e o que está pedindo.
+2. **Na primeira visita, o navegador é verificado** por menos de um segundo. Quem passa ganha um
+   passe e navega livre por dias.
+3. **Robôs oficiais** (Google, Meta, prévia de link do WhatsApp) são confirmados pelo endereço
+   oficial deles e passam direto. Seu anúncio e sua busca continuam funcionando.
+4. **Quem é pego** recebe a página sombra no mesmo endereço, sem redirecionar. Você recebe o aviso.
+
+Quer entender cada parte com calma? Leia [O que é o ANTI-REA](docs/01-o-que-e.md).
+
+## O que dá para proteger (a verdade, sem enfeite)
+
+<img src="assets/diagramas/o-que-protege.svg" alt="Diagrama: no navegador ficam JavaScript, mapas de código, chamadas de API e arquivos esquecidos; no servidor ficam regras, banco, senhas e integrações" width="100%">
+
+A lógica que roda no servidor nunca vai para o navegador. Ferramentas como o REA só alcançam o que o
+site entrega para a tela. O ANTI-REA **barra quem tenta analisar** essa parte e o **exame avisa** se
+algo do servidor vazou para ela.
+
+> [!IMPORTANT]
+> Nenhuma ferramenta impede 100% a cópia do que o navegador recebe. Uma pessoa paciente, com um
+> navegador comum, sempre consegue salvar o que a página mostra. O ANTI-REA **encarece, denuncia e
+> engana** quem tenta. Ele não deixa seu site invisível, e desconfie de quem prometer isso.
+
+## Instalar em 3 passos
+
+<img src="assets/telas/assistente.svg" alt="Terminal com o assistente de instalação perguntando endereço do site, domínio, canal de aviso e caminhos isentos" width="100%">
+
+**1. Rode o assistente.** Ele pergunta o endereço do seu site e onde você quer os avisos, e escreve
+a configuração sozinho.
+
+```bash
+npx anti-rea init
+```
+
+**2. Ligue o porteiro.**
+
+```bash
+npx anti-rea start
+```
+
+**3. Aponte o seu domínio para o porteiro** em vez do site. Pronto.
+
+Prefere Docker? Use este `docker-compose.yml`:
+
+```yaml
+services:
+  anti-rea:
+    image: ghcr.io/jeipidevs/anti-rea:latest
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      - ./anti-rea.config.yml:/app/anti-rea.config.yml:ro
+      - ./registro:/app/registro
+```
+
+Passo a passo com imagem para cada tipo de hospedagem (VPS, EasyPanel, Coolify, nginx, Cloudflare):
+[Instalar](docs/02-instalar.md).
+
+## A página sombra
+
+<img src="assets/telas/pagina-sombra.svg" alt="Página sombra com o texto: Ops. Pegamos você. O código que você queria não mora aqui." width="100%">
+
+Vem com uma mensagem padrão em português e inglês. Troque pelo seu texto, sua cor e seu logo em
+[Página sombra](docs/04-pagina-sombra.md).
+
+## O aviso no seu celular
+
+<div align="center">
+<img src="assets/telas/aviso-whatsapp.svg" alt="Aviso no WhatsApp: tentativa de cópia barrada, com site, página, IP, motivo, horário e destino" width="420">
+</div>
+
+Só tentativa de cópia e ataque direcionado viram aviso. A varredura automática que todo site recebe
+o dia inteiro fica no painel, com um resumo diário opcional. Seu celular não vira sirene.
+Configurar: [Avisos](docs/05-avisos.md).
+
+## O exame do seu site
+
+<img src="assets/telas/exame.svg" alt="Terminal com o exame apontando mapa de código público, arquivo sensível, API sem login e chave aparente" width="100%">
+
+```bash
+npx anti-rea exame https://seusite.com.br
+```
+
+O exame usa a mesma lógica das ferramentas de engenharia reversa, só que a seu favor. Ele só roda em
+site que você prova ser seu, e só faz leitura: nunca altera nada. Detalhes em [Exame](docs/06-exame.md).
+
+## Perguntas rápidas
+
+<details>
+<summary><b>Meu cliente pode cair na página sombra por engano?</b></summary>
+
+Quem navega normal, não. Quem abre as ferramentas de desenvolvedor (F12) cai, por padrão, porque esse
+é o mesmo sinal que o REA deixa. Você pode mudar isso por site. Você e sua equipe usam o
+[link de dono](docs/07-modo-dono.md) e nunca são barrados.
+</details>
+
+<details>
+<summary><b>Vai atrapalhar o Google ou meus anúncios?</b></summary>
+
+Não. Google, Meta, Bing, a prévia do WhatsApp e outros robôs oficiais são confirmados pelo endereço
+oficial de cada um e passam direto. Veja [Robôs oficiais](docs/08-robos-oficiais.md).
+</details>
+
+<details>
+<summary><b>Meu site fica mais lento?</b></summary>
+
+Só a primeira visita tem a verificação, de menos de um segundo. Depois disso o visitante navega com
+um passe e não sente diferença.
+</details>
+
+<details>
+<summary><b>E os webhooks de pagamento e o app de celular que chamam minha API?</b></summary>
+
+Você lista esses caminhos como isentos. O assistente pergunta por eles na instalação.
+</details>
+
+<details>
+<summary><b>Substitui um firewall ou proteção contra DDoS?</b></summary>
+
+Não. O ANTI-REA cuida de cópia e análise. Use junto com a proteção que você já tem.
+</details>
+
+Mais perguntas: [Perguntas frequentes](docs/perguntas-frequentes.md) · Termos difíceis: [Glossário](docs/glossario.md)
+
+## Roteiro
+
+- [x] Projeto, marca e documentação
+- [ ] Porteiro (proxy reverso) com regras no servidor
+- [ ] Verificação do navegador na primeira visita
+- [ ] Confirmação de robôs oficiais
+- [ ] Página sombra configurável
+- [ ] Avisos: WhatsApp (Evolution API), Telegram e webhook
+- [ ] Assistente `npx anti-rea init`
+- [ ] Imagem Docker publicada
+- [ ] Exame do próprio site
+- [ ] Painel de registro
+
+## Uso responsável
+
+- O ANTI-REA **defende**. A página sombra nunca roda nada contra a máquina de quem tentou e nunca
+  coleta além do que chega na requisição.
+- O exame só roda em site que você prova controlar. Ele não serve para varrer site dos outros.
+- **IP é dado pessoal** pela LGPD (e pelo GDPR). Se você usar o ANTI-REA, cite a coleta na política
+  de privacidade do seu site. O registro apaga sozinho depois do prazo que você escolher.
+
+## Contribuir
+
+Ideias, correções e novos sinais de detecção são muito bem-vindos. Comece por
+[CONTRIBUTING.md](CONTRIBUTING.md). Achou uma falha de segurança? Siga o [SECURITY.md](SECURITY.md)
+e não abra issue pública.
+
+## Créditos e licença
+
+O ANTI-REA nasceu estudando a lógica do [REA (Reverse Engineer Anything)](https://github.com/morluto/rea),
+para saber como uma análise acontece e como se defender dela. É um projeto **independente**, sem
+ligação com o REA ou com seus autores.
+
+Licença [MIT](LICENSE). Feito no Brasil pela JPStudio.
+
+<div align="center">
+<br>
+<img src="assets/marca/simbolo.svg" width="56" alt="ANTI-REA">
+</div>

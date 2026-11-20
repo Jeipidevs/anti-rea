@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-label="Relatório do exame do próprio site no terminal">
+  <rect width="1280" height="640" rx="24" fill="#0B0C14"/>
+  <rect width="1280" height="48" rx="24" fill="#161829"/><rect y="24" width="1280" height="24" fill="#161829"/>
+  <circle cx="30" cy="24" r="7" fill="#FF5C7A"/><circle cx="54" cy="24" r="7" fill="#FFC24B"/><circle cx="78" cy="24" r="7" fill="#3BE8A8"/>
+  <text x="640" y="30" text-anchor="middle" fill="#8A90B2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14">Terminal</text>
+  <g font-family="'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace" font-size="19">
+    <text x="40" y="100" fill="#3BE8A8">$ <tspan fill="#EEF0FF">npx anti-rea exame https://seusite.com.br</tspan></text>
+    <text x="40" y="146" fill="#8A90B2">Dono confirmado pelo arquivo /.well-known/anti-rea.txt</text>
+    <text x="40" y="196" fill="#B3A9FF" font-weight="700">O que um curioso consegue ver do seu site</text>
+    <text x="40" y="244" fill="#FF5C7A">✖ <tspan fill="#EEF0FF">Mapa de código público</tspan><tspan x="400" fill="#8A90B2">/_next/static/chunks/app.js.map</tspan></text>
+    <text x="40" y="284" fill="#FF5C7A">✖ <tspan fill="#EEF0FF">Arquivo sensível no ar</tspan><tspan x="400" fill="#8A90B2">/.env.backup</tspan></text>
+    <text x="40" y="324" fill="#FFC24B">! <tspan fill="#EEF0FF">API responde sem login</tspan><tspan x="400" fill="#8A90B2">GET /api/clientes</tspan></text>
+    <text x="40" y="364" fill="#FFC24B">! <tspan fill="#EEF0FF">Chave aparente no código</tspan><tspan x="400" fill="#8A90B2">app.js linha 1: sk_live_••••</tspan></text>
+    <text x="40" y="404" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Pasta .git protegida</tspan></text>
+    <text x="40" y="444" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Porteiro ANTI-REA ativo</tspan></text>
+    <text x="40" y="500" fill="#EEF0FF">2 graves  ·  2 atenção  ·  2 ok</text>
+    <text x="40" y="540" fill="#8A90B2">Relatório completo com o que fazer em cada item:</text>
+    <text x="40" y="576" fill="#FFC24B">exame-seusite.com.br-2026-11-20.html</text>
+  </g>
+</svg>
