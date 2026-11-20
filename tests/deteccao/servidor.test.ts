@@ -35,6 +35,93 @@ describe("caminhoTrancado", () => {
     expect(caminhoTrancado("/.environment")).toBeNull();
     expect(caminhoTrancado("/.github/workflows")).toBeNull();
   });
+
+  it("tranca .env, configuração e backups em qualquer pasta (spec 3.5)", () => {
+    const trancados = [
+      // .env em qualquer profundidade
+      "/api/.env",
+      "/backend/.env.production",
+      "/laravel/.env.local",
+      "/api/config/.env",
+      "/.envrc",
+      "/app/.envrc",
+      "/.env.example",
+      "/.env/segredo",
+      // configuração
+      "/.htpasswd",
+      "/admin/.htpasswd",
+      "/.htaccess",
+      "/blog/.htaccess",
+      "/.npmrc",
+      "/front/.npmrc",
+      "/.git-credentials",
+      "/.ssh/id_rsa",
+      "/home/.ssh/authorized_keys",
+      "/.aws/credentials",
+      "/x/.aws/config",
+      "/wp-config.php.bak",
+      "/blog/wp-config.php.save",
+      "/wp-config.php.swp",
+      "/wp-config.php.old",
+      // sufixos de cópia do editor e de backup
+      "/index.php~",
+      "/config/app.yml~",
+      "/settings.py.save",
+      "/.index.php.swo",
+      "/a.bak",
+      "/a.old",
+      "/a.orig",
+      "/a.swp",
+      "/banco.sql",
+      "/banco.sql.gz",
+      // compactado com nome de backup em qualquer pasta
+      "/backup.zip",
+      "/backups.tar.gz",
+      "/uploads/backup-2026-11-20.tar.gz",
+      "/wp-content/bkp_site.7z",
+      "/BACKUP.RAR",
+      "/x/backup.tgz",
+      "/x/bkp.tar",
+      "/x/backup.gz",
+      // compactado com nome de site, na raiz
+      "/site.zip",
+      "/www.tar.gz",
+      "/web.tgz",
+      "/html.7z",
+      "/public_html.zip",
+      "/htdocs.rar",
+      "/wwwroot.tar",
+      "/db.gz",
+      "/database.zip",
+      "/dump.tar.gz",
+      "/SITE.ZIP",
+    ];
+    for (const caminho of trancados) {
+      expect(caminhoTrancado(caminho), caminho).toEqual({ motivo: "arquivo sensível", gravidade: "varredura" });
+    }
+  });
+
+  it("não tranca o que só parece: nome de site fora da raiz, compactado comum e wp-config.php em si", () => {
+    const livres = [
+      "/downloads/site.zip",
+      "/arquivos/db.gz",
+      "/catalogo.zip",
+      "/meu-backup.zip",
+      "/backup",
+      "/backup.html",
+      "/backups/",
+      "/site.html",
+      "/wp-config.php",
+      "/wp-config-sample.php",
+      "/.environment",
+      "/.envy",
+      "/.sshd",
+      "/.awsome",
+      "/app.save.js",
+      "/blog/~joao",
+    ];
+    for (const caminho of livres) expect(caminhoTrancado(caminho), caminho).toBeNull();
+  });
 });
 
 describe("caminhoDeVarredura", () => {

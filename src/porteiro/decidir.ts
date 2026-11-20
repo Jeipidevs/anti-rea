@@ -38,13 +38,15 @@ export type RotaInterna = "verificar" | "guarda" | "pego";
  * - `repassar.publico`: a resposta é a mesma para qualquer um (isento, público padrão ou mídia), então a CDN
  *   pode guardar. Sem ele, a resposta dependeu de passe ou de robô e não pode ir para cache
  *   compartilhado.
- * - `recusar` 400: caminho ambíguo; 403: sem passe.
+ * - `recusar` 400: caminho ambíguo; 403: sem passe; 404: caminho sob /.anti-rea/ que não é rota do
+ *   porteiro, ou arquivo trancado pedido com passe de dono (sem evento e sem aviso: o F12 do dono busca
+ *   os mapas de código sozinho).
  */
 export type Decisao =
   | { acao: "repassar"; injetarGuarda: boolean; emitirPasse?: true; registrar?: Sinal; publico?: true }
   | { acao: "sombra"; sinal: Sinal; status: 200 | 404 }
   | { acao: "verificar" }
-  | { acao: "recusar"; status: 400 | 403 }
+  | { acao: "recusar"; status: 400 | 403 | 404 }
   | { acao: "dono"; valido: boolean }
   | { acao: "interno"; rota: RotaInterna };
 
@@ -57,6 +59,7 @@ export type ContextoDecisao = {
   agora: number;
 };
 
+const PREFIXO_PORTEIRO = "/.anti-rea";
 const PREFIXO_DONO = "/.anti-rea/dono/";
 const ROTAS = new Map<string, RotaInterna>([
   ["/.anti-rea/verificar", "verificar"],
@@ -127,13 +130,18 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   }
   const rota = ROTAS.get(caminho);
   if (rota) return { acao: "interno", rota };
+  // O resto de /.anti-rea/ é do porteiro e nunca vai ao site (nem uma pasta do site com esse nome).
+  const minusculo = caminho.toLowerCase();
+  if (minusculo === PREFIXO_PORTEIRO || minusculo.startsWith(`${PREFIXO_PORTEIRO}/`)) return { acao: "recusar", status: 404 };
 
   const cookies = lerCookies(p.cookie);
   const passe = passeDoPedido(cookies, ctx.segredo, ctx.versaoDono, ctx.agora);
 
-  // 3: arquivo trancado. Com passe de visitante, procurar arquivo sensível é cópia.
+  // 3: arquivo trancado. Com passe de visitante, procurar arquivo sensível é cópia. Com passe de dono
+  // continua trancado, mas sem evento: o F12 do dono busca os mapas de código sozinho.
   const trancado = caminhoTrancado(caminho);
   if (trancado) {
+    if (passe?.tipo === "dono") return { acao: "recusar", status: 404 };
     const deDentro = passe?.tipo === "visitante" && trancado.gravidade === "varredura";
     return sombra(deDentro ? { ...trancado, gravidade: "copia" } : trancado, 404);
   }

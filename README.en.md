@@ -43,8 +43,13 @@ only needs a few exempt paths (see the Portuguese
    measurements, but in 2 of them it had already read the page and the scripts that tab loaded
    (details in the [Portuguese FAQ](docs/perguntas-frequentes.md)).
 
-It also locks source maps, `.env`, `.git` and backups for everyone. A **self-scan** that shows what a
-curious visitor can see of your site comes next.
+It also locks these files for everyone, in any folder: source maps (`.map`); `.env`, `.env.*` and
+`.envrc`; `.git`, `.svn`, `.hg` and `.DS_Store`; `.htaccess`, `.htpasswd`, `.npmrc`,
+`.git-credentials`, `.ssh`, `.aws` and `wp-config.php.*`; files ending in `.bak`, `.old`, `.orig`,
+`.save`, `~`, `.swp`, `.swo`, `.sql` and `.sql.gz`; archives (`.zip`, `.tar`, `.tar.gz`, `.tgz`, `.gz`,
+`.7z`, `.rar`) whose name starts with `backup` or `bkp` and, at the root, those named `site`, `www`,
+`web`, `html`, `public_html`, `htdocs`, `wwwroot`, `db`, `database` or `dump`. A **self-scan** that
+shows what a curious visitor can see of your site comes next.
 
 > [!IMPORTANT]
 > No tool can stop 100% of copying of what the browser receives. ANTI-REA raises the cost, reports

@@ -14,22 +14,29 @@ const CURL = { "user-agent": "curl/8.4.0" };
 describe("porteiro: o site recebe o caminho que foi decidido", () => {
   it("ponto-ponto escondido atrás de %2F em caminho isento é recusado com 400", async () => {
     const t = await montar();
-    for (const alvo of ["/api/webhook/a%2fb%2fc/../../../app.js", "/api/webhook/a%2fb%2fc/../../../.env", "/api/webhook/..;/app.js"]) {
+    for (const alvo of ["/api/webhook/a%2fb%2fc/../../../app.js", "/api/webhook/..;/app.js"]) {
       const r = await t.get(alvo, CURL);
       expect(r.status, alvo).toBe(400);
       expect(r.texto, alvo).not.toContain("console.log");
-      expect(r.texto, alvo).not.toContain("DB_PASS");
     }
-    expect(t.site.recebidos).toHaveLength(0);
     expect(t.eventos().at(-1)).toMatchObject({ destino: "recusado", motivo: "caminho ambíguo" });
+    // Lido normalizado vira /api/webhook/.env: trancado em qualquer pasta, antes do 400.
+    const env = await t.get("/api/webhook/a%2fb%2fc/../../../.env", CURL);
+    expect(env.status).toBe(404);
+    expect(env.texto).not.toContain("DB_PASS");
+    expect(t.site.recebidos).toHaveLength(0);
   });
 
   it("com passe, ponto-ponto que o porteiro resolveria diferente do site também é recusado", async () => {
     const t = await montar();
     const passe = await t.passe();
-    const r = await t.get("/x/a%2fb/../../.env", { cookie: passe });
+    const r = await t.get("/x/a%2fb/../../app.js", { cookie: passe });
     expect(r.status).toBe(400);
-    expect(r.texto).not.toContain("DB_PASS");
+    expect(r.texto).not.toContain("console.log");
+    expect(t.site.recebidos.some((p) => p.url.includes("app.js"))).toBe(false);
+    const env = await t.get("/x/a%2fb/../../.env", { cookie: passe });
+    expect(env.status).toBe(404);
+    expect(env.texto).not.toContain("DB_PASS");
     expect(t.site.recebidos.some((p) => p.url.includes(".env"))).toBe(false);
   });
 

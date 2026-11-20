@@ -8,7 +8,12 @@ existe o **link de dono**.
 1. O assistente mostra o link no fim da instalação:
    `https://seusite.com.br/.anti-rea/dono/<código>`
 2. Abra esse link uma vez em cada navegador que for usar.
-3. O navegador ganha um passe de dono e nunca mais é barrado (até você limpar os cookies).
+3. O navegador ganha um passe de dono, que vale por um ano (ou até você limpar os cookies). Nesse
+   tempo ele não passa pela verificação, a guarda não roda e o F12 fica livre.
+
+Os [arquivos trancados](03-configurar.md#arquivos-trancados) continuam trancados também para o dono.
+O F12 busca os mapas de código sozinho: com o passe de dono, esse pedido recebe um 404 simples, sem
+registro e sem aviso.
 
 ## Cuidados
 

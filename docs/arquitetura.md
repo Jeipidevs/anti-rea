@@ -35,7 +35,8 @@ src/
   deteccao/
     servidor/            sinais de cada pedido
       ferramentas.ts     agente de ferramenta conhecida (wget, curl, HTTrack, sqlmap...)
-      caminhos.ts        arquivo trancado (.env, .git, mapas de código) e caminho de varredura
+      caminhos.ts        arquivos trancados (mapas de código, .env, .git, configuração, backups)
+                         e caminho de varredura
       ritmo.ts           navegação rápida demais para gente
     navegador/           o que roda no navegador do visitante
       desafio.ts         tela de verificação e o coletor de sinais

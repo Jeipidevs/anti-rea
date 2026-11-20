@@ -1,5 +1,6 @@
 import http from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { codigoDeDono } from "../../src/passe/passe.js";
 import { criarPasseVisitante } from "../../src/porteiro/passes.js";
 import { CHROME, GUARDA, HTML, PNG, type Resposta, SEGREDO, SINAIS_LIMPOS, cookieDe, esperar, limparTudo, linhaCookie, montar, pedir } from "./apoio-servidor.js";
 
@@ -422,6 +423,34 @@ describe("porteiro: sombra, eventos e avisos", () => {
     expect(r.status).toBe(404);
     expect(t.eventos().at(-1)).toMatchObject({ motivo: "mapa de código", gravidade: "copia" });
     await esperar(() => t.enviados.length === 1);
+  });
+
+  it("passe de dono em arquivo trancado: 404 sem evento e sem aviso (o F12 do dono busca o .map)", async () => {
+    const t = await montar();
+    const dono = cookieDe(await t.get(`/.anti-rea/dono/${codigoDeDono(SEGREDO, 1)}`), "anti_rea_passe")!;
+    for (const caminho of ["/app.js.map", "/.env", "/api/.env"]) {
+      const r = await t.get(caminho, { cookie: dono, accept: "*/*" });
+      expect(r.status, caminho).toBe(404);
+      expect(r.texto, caminho).toBe("Não encontrado.");
+    }
+    expect(t.site.recebidos).toEqual([]);
+    expect(t.eventos()).toEqual([]);
+    await new Promise((ok) => setTimeout(ok, 50));
+    expect(t.enviados).toEqual([]);
+  });
+
+  it("caminho sob /.anti-rea/ que não é rota do porteiro: 404, sem evento, e nada vai ao site", async () => {
+    const t = await montar();
+    const passe = await t.passe();
+    // A tela de verificação buscou a prévia de "/" no site; daqui em diante nada mais chega lá.
+    const antes = t.site.recebidos.length;
+    for (const caminho of ["/.anti-rea/registro/2026-11-20.jsonl", "/.anti-rea/", "/.ANTI-REA/x"]) {
+      const r = await t.get(caminho, { cookie: passe, accept: HTML });
+      expect(r.status, caminho).toBe(404);
+      expect(r.headers["cache-control"], caminho).toBe("no-store");
+    }
+    expect(t.site.recebidos).toHaveLength(antes);
+    expect(t.eventos()).toEqual([]);
   });
 
   it("alvo que não é caminho recebe 400", async () => {

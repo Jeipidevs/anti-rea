@@ -4,7 +4,16 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { Avisos, TETO_AVISOS, TETO_JANELA_MS } from "../src/avisos/avisos.js";
 import { INTERVALO_MAX_MS, INTERVALO_MS } from "../src/deteccao/navegador/guarda.js";
-import { caminhoDeVarredura, caminhoTrancado } from "../src/deteccao/servidor/caminhos.js";
+import {
+  caminhoDeVarredura,
+  caminhoTrancado,
+  COMECOS_DE_BACKUP,
+  COMECOS_TRANCADOS,
+  COMPACTADOS,
+  NOMES_DE_SITE,
+  SEGMENTOS_TRANCADOS,
+  SUFIXOS_TRANCADOS,
+} from "../src/deteccao/servidor/caminhos.js";
 import type { Evento } from "../src/registro/registro.js";
 
 // Confere a embalagem da v0.1: imagem Docker, CI, roteiro do README e a FAQ. Número que a documentação
@@ -193,6 +202,24 @@ describe("números da documentação vêm do código", () => {
     expect(caminhos.length).toBeGreaterThan(0);
     for (const caminho of caminhos) {
       expect((caminhoDeVarredura(caminho) ?? caminhoTrancado(caminho))?.gravidade, caminho).toBe("varredura");
+    }
+  });
+
+  it("arquivos trancados: README, README.en, docs/01 e docs/03 listam cada item de caminhos.ts", () => {
+    // Código entre crases (Markdown) ou em <code> (a tabela do README), sem diferença de maiúsculas.
+    const temCodigo = (texto: string, item: string) => texto.includes("`" + item) || texto.includes("<code>" + item);
+    const itens = [
+      ...SEGMENTOS_TRANCADOS,
+      ...COMECOS_TRANCADOS.map((c) => `${c}*`),
+      ...SUFIXOS_TRANCADOS,
+      ...COMPACTADOS,
+      ...COMECOS_DE_BACKUP,
+      ...NOMES_DE_SITE,
+      ".map",
+    ];
+    for (const arquivo of ["README.md", "README.en.md", "docs/01-o-que-e.md", "docs/03-configurar.md"]) {
+      const texto = ler(arquivo).toLowerCase();
+      for (const item of itens) expect(temCodigo(texto, item), `${arquivo}: ${item}`).toBe(true);
     }
   });
 

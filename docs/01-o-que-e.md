@@ -30,8 +30,17 @@ cabra** é o REA, o robô copiador, o navegador automatizado e a ferramenta de a
 - se o pedido traz o passe da verificação. Quem busca código ou dados do site direto, sem passar
   pela tela de verificação, leva **403**. É assim que fica de fora a busca que o REA faz por conta
   própria, fora do navegador: ela não se apresenta com um nome conhecido, mas também não tem passe;
-- se está pedindo um **mapa de código** ou um arquivo sensível (`.env`, `.git`, backup). Esses ficam
-  trancados para todo mundo, até para quem tem passe;
+- se está pedindo um arquivo trancado. Esses ficam trancados para todo mundo, até para quem tem
+  passe, em qualquer pasta:
+  - **mapa de código** (`.map`);
+  - senhas: `.env`, `.env.*` e `.envrc`;
+  - histórico e restos do código: `.git`, `.svn`, `.hg` e `.DS_Store`;
+  - configuração e chaves: `.htaccess`, `.htpasswd`, `.npmrc`, `.git-credentials`, `.ssh`, `.aws` e
+    cópias do `wp-config.php` (`wp-config.php.*`);
+  - cópias e backups: arquivos terminados em `.bak`, `.old`, `.orig`, `.save`, `~`, `.swp`, `.swo`,
+    `.sql` ou `.sql.gz`, e compactados (`.zip`, `.tar`, `.tar.gz`, `.tgz`, `.gz`, `.7z`, `.rar`) com nome
+    que começa por `backup` ou `bkp`, ou, na raiz, chamados `site`, `www`, `web`, `html`,
+    `public_html`, `htdocs`, `wwwroot`, `db`, `database` ou `dump`;
 - se o pedido se apresenta como uma ferramenta de cópia ou de ataque conhecida (wget, HTTrack,
   navegador sem tela, scanners);
 - se está navegando rápido demais para ser gente;

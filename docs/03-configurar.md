@@ -52,6 +52,37 @@ Os cookies do porteiro (o passe, o passe de dono e a marca de quem foi pego) sae
 confiável, conforme `trustProxy`). Assim o retorno de um pagamento ou de um login que volta por POST
 de outro site chega com o passe. Em HTTP simples eles ficam `SameSite=Lax`.
 
+## Arquivos trancados
+
+Alguns arquivos nunca saem do porteiro, para ninguém: nem para quem tem passe, nem em caminho
+isento, nem em caminho público. Quem pede recebe a página sombra com 404 e o site nunca recebe o
+pedido. Não há opção para destrancar.
+
+Em qualquer pasta:
+
+- mapas de código: tudo que termina em `.map`;
+- pastas e arquivos com estes nomes: `.env`, `.envrc`, `.git`, `.svn`, `.hg`, `.DS_Store`,
+  `.htaccess`, `.htpasswd`, `.npmrc`, `.git-credentials`, `.ssh` e `.aws`;
+- nomes que começam com `.env.` ou `wp-config.php.`, ou seja, `.env.*` e `wp-config.php.*` (por
+  exemplo `.env.local`, `.env.production`, `wp-config.php.bak`);
+- arquivos que terminam em `.bak`, `.old`, `.orig`, `.save`, `~`, `.swp`, `.swo`, `.sql` ou `.sql.gz`;
+- arquivos compactados (`.zip`, `.tar`, `.tar.gz`, `.tgz`, `.gz`, `.7z` ou `.rar`) com nome que
+  começa por `backup` ou `bkp` (por exemplo `/uploads/backup-2026.zip`).
+
+Só na raiz do site: os compactados chamados `site`, `www`, `web`, `html`, `public_html`, `htdocs`,
+`wwwroot`, `db`, `database` ou `dump` (por exemplo `/site.zip` e `/www.tar.gz`; `/downloads/site.zip`
+passa).
+
+Mapa de código pedido é sempre tentativa de cópia, com aviso. Os outros, pedidos por quem já passou
+pela verificação, também; pedidos por robô da internet sem passe ficam como varredura, só no
+registro. Com o [passe de dono](07-modo-dono.md) o arquivo continua trancado, mas sai um 404 simples,
+sem registro e sem aviso: é o F12 do dono buscando os mapas de código sozinho.
+
+Se o seu site serve de propósito um arquivo com um desses nomes (um `backup.zip` para download, por
+exemplo), troque o nome: não há como isentar.
+
+Tudo sob `/.anti-rea/` também é do porteiro: o que não é rota dele recebe 404 e nunca chega ao site.
+
 ## Caminhos isentos
 
 Caminhos chamados por máquinas, não por pessoas. Eles nunca passam pela verificação.
@@ -63,7 +94,7 @@ exempt:
   - /health            # monitor de uptime
 ```
 
-Os arquivos trancados (`.env`, `.git`, mapas de código) continuam trancados mesmo em caminho isento.
+Os [arquivos trancados](#arquivos-trancados) continuam trancados mesmo em caminho isento.
 O caminho isento precisa casar como chega, letra por letra: `/api%2Fwebhook/x`, `//api/webhook/x`
 e `/api/webhook;x/y` não contam como `/api/webhook/*`. Caminho com `.` ou `..` em qualquer forma
 (`/../`, `%2e%2e`, `..;`, barra invertida) recebe 400 antes de qualquer outra regra, porque o site

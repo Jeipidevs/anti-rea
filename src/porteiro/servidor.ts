@@ -193,6 +193,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
           gravar(evento(AMBIGUO, "recusado"), true);
           return responderTexto(res, 400, "Pedido inválido.");
         }
+        // 404: rota do porteiro que não existe, ou arquivo trancado com passe de dono. Sem evento.
+        if (d.status === 404) return responderTexto(res, 404, "Não encontrado.");
         gravar(evento(SEM_PASSE, "recusado"), true);
         return responderRecusa(res);
       case "verificar":

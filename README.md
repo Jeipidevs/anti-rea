@@ -58,7 +58,18 @@ WhatsApp, Telegram ou webhook, com IP, página e motivo. Tentativas repetidas v�
 <td width="33%" valign="top">
 <img src="assets/icones/bloqueio.svg" width="48" alt=""><br>
 <b>Arquivos sensíveis trancados</b><br>
-Mapas de código, <code>.env</code>, <code>.git</code> e backups ficam bloqueados para todo mundo.
+Ficam bloqueados para todo mundo, em qualquer pasta: mapas de código (<code>.map</code>);
+<code>.env</code>, <code>.env.*</code> e <code>.envrc</code>; <code>.git</code>, <code>.svn</code>,
+<code>.hg</code> e <code>.DS_Store</code>; <code>.htaccess</code>, <code>.htpasswd</code>,
+<code>.npmrc</code>, <code>.git-credentials</code>, <code>.ssh</code>, <code>.aws</code> e
+<code>wp-config.php.*</code>; arquivos terminados em <code>.bak</code>, <code>.old</code>,
+<code>.orig</code>, <code>.save</code>, <code>~</code>, <code>.swp</code>, <code>.swo</code>,
+<code>.sql</code> e <code>.sql.gz</code>; compactados (<code>.zip</code>, <code>.tar</code>,
+<code>.tar.gz</code>, <code>.tgz</code>, <code>.gz</code>, <code>.7z</code>, <code>.rar</code>) com nome
+que começa por <code>backup</code> ou <code>bkp</code> e, na raiz, os chamados <code>site</code>,
+<code>www</code>, <code>web</code>, <code>html</code>, <code>public_html</code>, <code>htdocs</code>,
+<code>wwwroot</code>, <code>db</code>, <code>database</code> ou <code>dump</code>
+(<a href="docs/03-configurar.md#arquivos-trancados">detalhes</a>).
 </td>
 <td width="33%" valign="top">
 <img src="assets/icones/exame.svg" width="48" alt=""><br>
@@ -200,7 +211,8 @@ rodar em site que você prova ser seu, e só vai fazer leitura: nunca altera nad
 
 Quem navega normal, não. Quem abre as ferramentas de desenvolvedor (F12) cai, por padrão, porque esse
 é o mesmo sinal que o REA deixa. Você pode mudar isso por site. Você e sua equipe usam o
-[link de dono](docs/07-modo-dono.md) e nunca são barrados.
+[link de dono](docs/07-modo-dono.md) e não caem na página sombra (os arquivos trancados continuam
+trancados para todo mundo).
 </details>
 
 <details>

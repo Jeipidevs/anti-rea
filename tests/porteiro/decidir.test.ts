@@ -105,6 +105,17 @@ describe("decidir: rotas internas", () => {
   });
 });
 
+describe("decidir: caminho do porteiro que não é rota", () => {
+  it("tudo sob /.anti-rea/ que não é rota sai 404 e nunca vai ao site, com ou sem passe", async () => {
+    for (const caminho of ["/.anti-rea/registro/2026-11-20.jsonl", "/.anti-rea/", "/.anti-rea", "/.ANTI-REA/x", "//.anti-rea//x", "/.anti-rea/guarda.js/x", "/.anti-rea/.env"]) {
+      expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual({ acao: "recusar", status: 404 });
+      expect(await decidir(pedido({ caminho, cookie: passeDono() }), ctx()), caminho).toEqual({ acao: "recusar", status: 404 });
+      expect(await decidir(pedido({ caminho, agente: "curl/8.7.1" }), ctx()), caminho).toEqual({ acao: "recusar", status: 404 });
+    }
+    expect(await decidir(pedido({ caminho: "/.anti-reax" }), ctx())).toEqual({ acao: "verificar" });
+  });
+});
+
 describe("decidir: arquivos trancados", () => {
   it(".map vai à sombra 404 como cópia, com e sem passe", async () => {
     const esperado = sombra("mapa de código", "copia", 404);
@@ -117,8 +128,18 @@ describe("decidir: arquivos trancados", () => {
     expect(await decidir(pedido({ caminho: "/.env", cookie: passeVisitante() }), ctx())).toEqual(sombra("arquivo sensível", "copia", 404));
   });
 
-  it("passe de dono não destranca arquivo sensível", async () => {
-    expect(await decidir(pedido({ caminho: "/.env", cookie: passeDono() }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+  it("passe de dono não destranca arquivo trancado, mas sai 404 sem evento (o F12 do dono busca o .map)", async () => {
+    for (const caminho of ["/.env", "/api/.env", "/_next/static/app.js.map", "/backup.zip"]) {
+      expect(await decidir(pedido({ caminho, cookie: passeDono(), accept: "*/*" }), ctx()), caminho).toEqual({ acao: "recusar", status: 404 });
+    }
+  });
+
+  it(".env e backups em qualquer pasta, também em caminho isento e com passe de visitante", async () => {
+    expect(await decidir(pedido({ caminho: "/api/webhook/.env", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+    expect(await decidir(pedido({ caminho: "/backend/.env", cookie: passeVisitante() }), ctx())).toEqual(sombra("arquivo sensível", "copia", 404));
+    expect(await decidir(pedido({ caminho: "/uploads/backup-2026.tar.gz", cookie: passeVisitante() }), ctx())).toEqual(
+      sombra("arquivo sensível", "copia", 404),
+    );
   });
 
   it("caminho normalizado não escapa: barras dobradas, %xx, ponto-ponto, query e barra invertida", async () => {
@@ -180,16 +201,20 @@ describe("decidir: passe de dono e isentos", () => {
 
 describe("decidir: caminho ambíguo", () => {
   it("ponto-ponto que o site poderia resolver diferente vira 400, com ou sem passe", async () => {
-    for (const caminho of ["/api/webhook/..;/app.js", "/api/webhook/a%2fb%2fc/../../../app.js", "/api/webhook/a%2fb%2fc/../../../.env", "/x/./y"]) {
+    for (const caminho of ["/api/webhook/..;/app.js", "/api/webhook/a%2fb%2fc/../../../app.js", "/x/./y"]) {
       expect(await decidir(pedido({ caminho, agente: "curl/8.7.1" }), ctx()), caminho).toEqual({ acao: "recusar", status: 400 });
     }
-    expect(await decidir(pedido({ caminho: "/x/a%2fb/../../.env", cookie: passeVisitante() }), ctx())).toEqual({ acao: "recusar", status: 400 });
-    expect(await decidir(pedido({ caminho: "/x/a%2fb/../../.env", cookie: passeDono() }), ctx())).toEqual({ acao: "recusar", status: 400 });
+    expect(await decidir(pedido({ caminho: "/x/a%2fb/../../app.js", cookie: passeVisitante() }), ctx())).toEqual({ acao: "recusar", status: 400 });
+    expect(await decidir(pedido({ caminho: "/x/a%2fb/../../app.js", cookie: passeDono() }), ctx())).toEqual({ acao: "recusar", status: 400 });
   });
 
   it("arquivo trancado continua na sombra antes do 400", async () => {
     expect(await decidir(pedido({ caminho: "/.git;/config", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
     expect(await decidir(pedido({ caminho: "/x/../.env", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+    // Lido normalizado vira /api/webhook/.env: .env em qualquer pasta é trancado.
+    expect(await decidir(pedido({ caminho: "/api/webhook/a%2fb%2fc/../../../.env", agente: "curl/8.7.1" }), ctx())).toEqual(
+      sombra("arquivo sensível", "varredura", 404),
+    );
   });
 
   it("parâmetro de matriz não transforma JS em imagem", async () => {
@@ -416,7 +441,7 @@ describe("decidir: parâmetro de matriz na classificação", () => {
     expect(await decidir(pedido({ caminho: "/api/webhook/..;/app.js", cookie: passeDono() }), ctx())).toEqual({ acao: "recusar", status: 400 });
     for (const caminho of ["/app.js.map;x=1", "/app.js.map;", "/static;v=2/app.js.map", "/%61pp.js.map;x=1?y=2"]) {
       expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual(sombra("mapa de código", "copia", 404));
-      expect(await decidir(pedido({ caminho, cookie: passeDono() }), ctx()), caminho).toEqual(sombra("mapa de código", "copia", 404));
+      expect(await decidir(pedido({ caminho, cookie: passeDono() }), ctx()), caminho).toEqual({ acao: "recusar", status: 404 });
     }
     expect(await decidir(pedido({ caminho: "/.env;x=1", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
   });
