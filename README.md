@@ -44,8 +44,9 @@ Confere cada visitante antes de deixar entrar. Em menos de um segundo, só na pr
 <b>Página sombra</b><br>
 Robô copiador, navegador automatizado e quem abre o F12 veem só a mensagem sarcástica. Com a
 configuração padrão, o REA ligado a uma aba visível também cai: a guarda confere a cada 0,5 s (até
-uns 0,6 s numa página muito ocupada). A inspeção curta dele caiu 20 de 20 vezes, mas em 2 já tinha
-lido a página (<a href="docs/perguntas-frequentes.md">o que ele ainda leva</a>).
+uns 0,6 s numa página muito ocupada; num aparelho muito lento, ela recua para 1 s e depois 1,5 s). A
+inspeção curta dele caiu 20 de 20 vezes, mas em 2 já tinha lido a página
+(<a href="docs/perguntas-frequentes.md">o que ele ainda leva</a>).
 </td>
 <td width="33%" valign="top">
 <img src="assets/icones/aviso.svg" width="48" alt=""><br>

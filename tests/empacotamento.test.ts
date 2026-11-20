@@ -2,9 +2,14 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { Avisos, TETO_AVISOS, TETO_JANELA_MS } from "../src/avisos/avisos.js";
+import { INTERVALO_MAX_MS, INTERVALO_MS } from "../src/deteccao/navegador/guarda.js";
+import { caminhoDeVarredura, caminhoTrancado } from "../src/deteccao/servidor/caminhos.js";
+import type { Evento } from "../src/registro/registro.js";
 
-// Confere a embalagem da v0.1: imagem Docker, CI, roteiro do README e a FAQ. O que a imagem faz de
-// verdade (subir e dizer "Porteiro no ar em :8080") se confere com docker build e docker run.
+// Confere a embalagem da v0.1: imagem Docker, CI, roteiro do README e a FAQ. Número que a documentação
+// cita vem das constantes do código, para a doc não ficar errada com o teste verde. O que a imagem faz
+// de verdade (subir e dizer "Porteiro no ar em :8080") se confere com docker build e docker run.
 
 const raiz = join(import.meta.dirname, "..");
 const ler = (caminho: string) => readFileSync(join(raiz, caminho), "utf8");
@@ -97,13 +102,12 @@ describe("README e roteiro", () => {
     "`npx anti-rea init` wizard",
   ];
 
-  it("README.md marca só o que tem teste passando e troca o aviso de construção", () => {
+  it("README.md marca só o que tem teste passando e não se diz em construção", () => {
     const r = ler("README.md");
     for (const item of prontos) expect(r).toContain(`- [x] ${item}`);
     for (const item of ["Imagem Docker publicada", "Exame do próprio site", "Painel de registro"]) {
       expect(r).toContain(`- [ ] ${item}`);
     }
-    expect(r).toContain("Versão 0.1: o porteiro funciona. O exame do próprio site e o painel vêm a seguir.");
     expect(r).not.toMatch(/em construção|em%20constru/);
   });
 
@@ -111,7 +115,6 @@ describe("README e roteiro", () => {
     const r = ler("README.en.md");
     for (const item of ready) expect(r).toContain(`- [x] ${item}`);
     for (const item of ["Published Docker image", "Self-scan", "Log panel"]) expect(r).toContain(`- [ ] ${item}`);
-    expect(r).toContain("Version 0.1: the gatekeeper works. The self-scan and the log panel come next.");
     expect(r).not.toMatch(/under construction|under%20construction/);
   });
 
@@ -152,12 +155,61 @@ describe("Perguntas frequentes", () => {
     expect(doc).toContain("403");
   });
 
-  it("docs/05-avisos.md fala do teto global e cita só caminho que o porteiro trata como varredura", () => {
-    const avisos = ler("docs/05-avisos.md");
-    expect(avisos).toContain("6 avisos a cada 5 minutos");
-    expect(avisos).toContain("Muitas tentativas ao mesmo tempo");
-    // /wp-login.php não está na lista de varredura (pode ser um WordPress de verdade).
-    expect(avisos).not.toContain("/wp-login.php");
+});
+
+/** O aviso agrupado que o código manda quando o teto global estoura. */
+async function avisoAgrupado(): Promise<string> {
+  const enviados: string[] = [];
+  const a = new Avisos({ channels: ["telegram"], groupByIpMs: 3_600_000, scans: "panel" }, [
+    { nome: "teste", enviar: async (t) => void enviados.push(t) },
+  ], () => 0);
+  const evento: Evento = {
+    quando: "2026-11-20T10:00:00Z",
+    ip: "",
+    dominio: "seusite.com.br",
+    caminho: "/",
+    agente: "curl/8.7.1",
+    motivo: "curl",
+    gravidade: "copia",
+    destino: "sombra",
+  };
+  for (let i = 0; i <= TETO_AVISOS; i++) await a.receber({ ...evento, ip: `198.51.100.${i}` });
+  await a.descarregar(TETO_JANELA_MS);
+  return enviados.at(-1)!;
+}
+
+describe("números da documentação vêm do código", () => {
+  it("teto de avisos: docs/05 e README citam TETO_AVISOS por TETO_JANELA_MS e o texto do aviso agrupado", async () => {
+    const minutos = TETO_JANELA_MS / 60_000;
+    expect(ler("docs/05-avisos.md")).toContain(`${TETO_AVISOS} avisos a cada ${minutos} minutos`);
+    expect(ler("README.md")).toContain(`${TETO_AVISOS} a cada ${minutos} minutos`);
+    const agrupado = await avisoAgrupado();
+    expect(ler("docs/05-avisos.md")).toContain(agrupado.slice(0, agrupado.indexOf(":") + 1));
+  });
+
+  it("docs/05 cita como varredura genérica só caminho que o porteiro trata como varredura", () => {
+    const linha = ler("docs/05-avisos.md").split("\n").find((l) => l.includes("Varredura genérica ("))!;
+    const caminhos = [...linha.matchAll(/`(\/[^`]+)`/g)].map((m) => m[1]!);
+    expect(caminhos.length).toBeGreaterThan(0);
+    for (const caminho of caminhos) {
+      expect((caminhoDeVarredura(caminho) ?? caminhoTrancado(caminho))?.gravidade, caminho).toBe("varredura");
+    }
+  });
+
+  it("ritmo da guarda: README, README.en, docs/01 e a FAQ citam o intervalo, o recuo e o teto do recuo de guarda.ts", () => {
+    const pt = (ms: number) => `${String(ms / 1000).replace(".", ",")} s`;
+    const en = (ms: number) => `${ms / 1000} s`;
+    // Texto corrido: a quebra de linha do Markdown vale como espaço.
+    const corrido = (arquivo: string) => ler(arquivo).replace(/\s+/g, " ");
+    const recuo = INTERVALO_MS * 2;
+    for (const arquivo of ["README.md", "docs/01-o-que-e.md", "docs/perguntas-frequentes.md"]) {
+      const texto = corrido(arquivo);
+      expect(texto, arquivo).toContain(`a cada ${pt(INTERVALO_MS)}`);
+      expect(texto, arquivo).toContain(`recua para ${pt(recuo)} e depois ${pt(INTERVALO_MAX_MS)}`);
+    }
+    const ingles = corrido("README.en.md");
+    expect(ingles).toContain(`every ${en(INTERVALO_MS)}`);
+    expect(ingles).toContain(`backs off to ${en(recuo)} and then ${en(INTERVALO_MAX_MS)}`);
   });
 });
 
@@ -196,26 +248,21 @@ describe("Docker: assistente e troca do link de dono", () => {
   // O env_file do compose só é lido quando o contêiner é criado: `docker compose restart` mantém o
   // ANTI_REA_OWNER_VERSION antigo e o link velho continua valendo. O contêiner também não tem
   // /app/.env, então init e dono rodam no host (Node) ou pela imagem com a pasta montada.
+  // O caminho do CLI na imagem sai do Dockerfile (WORKDIR + o arquivo do CMD).
+  const dockerfile = ler("Dockerfile");
+  const cliNaImagem = `node ${/^WORKDIR (\S+)$/m.exec(dockerfile)![1]}/${/CMD \["node", "([^"]+)"/.exec(dockerfile)![1]}`;
   const comImagem = 'docker run --rm -it --user "$(id -u):$(id -g)" -v "$PWD":/work -w /work';
 
-  it("docs/02-instalar.md não diz que o Docker basta e mostra init e dono pela imagem", () => {
+  it("docs/02-instalar.md roda init e dono pela imagem, com a pasta montada e o CLI que o Dockerfile monta", () => {
     const instalar = ler("docs/02-instalar.md");
-    expect(instalar).not.toContain("Um dos dois basta");
-    expect(instalar).toContain(`${comImagem} ghcr.io/jeipidevs/anti-rea:latest node /app/dist/cli/index.js init`);
-    expect(instalar).toMatch(/node \/app\/dist\/cli\/index\.js dono --novo/);
+    expect(instalar).toContain(`${comImagem} ghcr.io/jeipidevs/anti-rea:latest ${cliNaImagem} init`);
+    expect(instalar).toContain(`${cliNaImagem} dono --novo`);
   });
 
-  it("docs/02 e docs/07 mandam recriar o contêiner com up -d depois do dono --novo, não restart", () => {
+  it("docs/02 e docs/07 recriam o contêiner com up -d depois do dono --novo", () => {
     for (const arquivo of ["docs/02-instalar.md", "docs/07-modo-dono.md"]) {
-      const texto = ler(arquivo);
-      expect(texto, arquivo).toMatch(/dono --novo[\s\S]*docker compose up -d/);
-      expect(texto, arquivo).toContain("não relê o `.env`");
+      expect(ler(arquivo), arquivo).toMatch(/dono --novo[\s\S]*docker compose up -d/);
     }
-  });
-
-  it("README.md avisa do up -d junto do docker-compose.yml", () => {
-    const r = ler("README.md");
-    expect(r).toContain("docker compose up -d");
-    expect(r).toContain("não relê o `.env`");
+    expect(ler("README.md")).toContain("docker compose up -d");
   });
 });

@@ -38,8 +38,8 @@ only needs a few exempt paths (see the Portuguese
    description and image.
 4. **Caught visitors** get the shadow page. You get an alert (WhatsApp, Telegram or webhook).
    With the default settings, a REA session attached to a visible tab is caught too: the guard
-   checks every 0.5 s (up to about 0.6 s on a very busy page, up to 1.5 s on a very slow device) and
-   does not check hidden tabs. REA's default short inspection was caught 20 times out of 20 in our
+   checks every 0.5 s (up to about 0.6 s on a very busy page; on a very slow device it backs off to
+   1 s and then 1.5 s) and does not check hidden tabs. REA's default short inspection was caught 20 times out of 20 in our
    measurements, but in 2 of them it had already read the page and the scripts that tab loaded
    (details in the [Portuguese FAQ](docs/perguntas-frequentes.md)).
 

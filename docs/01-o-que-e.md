@@ -45,8 +45,8 @@ cabra** é o REA, o robô copiador, o navegador automatizado e a ferramenta de a
 
 **No navegador, depois da verificação (a guarda na aba):**
 - com a configuração padrão, cada página do site leva uma **guarda** pequena que repete a conferência
-  a cada 0,5 s, só enquanto a aba está visível (numa página muito ocupada, até uns 0,6 s; num
-  aparelho muito lento, até 1,5 s). Se o REA está ligado a uma **aba visível** que já passou quando
+  a cada 0,5 s, só enquanto a aba está visível (até uns 0,6 s numa página muito ocupada; num
+  aparelho muito lento, ela recua para 1 s e depois 1,5 s). Se o REA está ligado a uma **aba visível** que já passou quando
   vem a conferência, a página vira sombra, o passe é cancelado e o aviso sai. Na medição, a inspeção
   curta dele foi pega 20 de 20 vezes, mas em 2 o REA já tinha lido a página. Numa aba escondida
   (em segundo plano, janela minimizada) a guarda não confere.

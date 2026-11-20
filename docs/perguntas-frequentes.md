@@ -38,9 +38,9 @@ e depois a cada 1,5 s. Os números estão em [docs/_medicoes](_medicoes/2026-11-
 Nem sempre, e a gente prefere dizer isso. Ele pega o navegador que o próprio REA abre (sem tela), a
 busca direta sem passe (leva 403), o pedido do mapa de código (leva a sombra) e, com
 `devtoolsIsCaught: true` (o padrão), o REA ligado a uma **aba visível** enquanto passa uma
-conferência da guarda: a página vira sombra e o aviso chega. As conferências vêm a cada 0,5 s numa
-página parada e, na nossa medição, a no máximo uns 0,6 s numa página que anima a cada quadro; em
-aparelho muito lento a guarda recua para 1 s e depois 1,5 s. Com `devtoolsIsCaught: false` a aba
+conferência da guarda: a página vira sombra e o aviso chega. As conferências vêm a cada 0,5 s (até
+uns 0,6 s numa página muito ocupada, das que animam a cada quadro; num aparelho muito lento, ela recua
+para 1 s e depois 1,5 s). Com `devtoolsIsCaught: false` a aba
 que já passou pela verificação não é mais conferida, e o REA ligado a ela não é pego. A inspeção
 curta (a padrão do REA, de meio segundo) numa aba que já passou pela verificação foi pega 20 em 20
 vezes na nossa medição; em 2 delas o REA já tinha lido a página antes da conferência e saiu com o
@@ -118,7 +118,8 @@ extensão, como `/api/og?titulo=...`, o robô recebe a tela de verificação no 
 prévia sai sem foto. Ponha esse caminho em [`exempt`](03-configurar.md).
 
 **Uma inspeção curta do REA numa aba que já passou pode levar a página.** A guarda confere a aba a
-cada 0,5 s (até uns 0,6 s numa página muito ocupada, até 1,65 s num aparelho muito lento). O REA
+cada 0,5 s (até uns 0,6 s numa página muito ocupada; num aparelho muito lento, ela recua para 1 s e
+depois 1,5 s). O REA
 que se liga, olha e se desliga entre duas conferências não é percebido, e o que lê antes da
 conferência seguinte ele leva: o que a aba já tinha carregado (a página e os scripts compilados),
 nunca o mapa nem o código-fonte original. Na medição, a inspeção padrão do REA (meio segundo) foi

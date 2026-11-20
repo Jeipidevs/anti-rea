@@ -5,9 +5,9 @@ import { COLETOR, COLETOR_SEM_PAUSA } from "./desafio.js";
  * o menor intervalo em que a volta custa menos de 1% de CPU com a CPU 6 vezes mais lenta (com a
  * tabela como objeto simples, a volta caiu de uns 8 para uns 3,4 ms a 6x: 500 ms passou a caber).
  */
-const INTERVALO_MS = 500;
+export const INTERVALO_MS = 500;
 /** Teto do recuo: em aparelho mais lento que o medido, o intervalo dobra até aqui. */
-const INTERVALO_MAX_MS = 1500;
+export const INTERVALO_MAX_MS = 1500;
 /** Fração do intervalo que a volta pode custar, em média, antes do recuo (1% de CPU). */
 const TETO_CPU = 0.01;
 /** Voltas na média do custo. A primeira (o navegador ainda compila o coletor) fica de fora. */
