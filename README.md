@@ -42,8 +42,8 @@ Confere cada visitante antes de deixar entrar. Em menos de um segundo, só na pr
 <img src="assets/icones/sombra.svg" width="48" alt=""><br>
 <b>Página sombra</b><br>
 Robô copiador, navegador automatizado e quem abre o F12 veem só a mensagem sarcástica. Com a
-configuração padrão, o REA que fica ligado a uma aba mais de 1,5 s também cai
-(<a href="docs/perguntas-frequentes.md">o que ele ainda leva</a>).
+configuração padrão, o REA que fica ligado a uma aba mais de 1 s também cai, e a inspeção curta
+dele cai em 6 de 10 vezes (<a href="docs/perguntas-frequentes.md">o que ele ainda leva</a>).
 </td>
 <td width="33%" valign="top">
 <img src="assets/icones/aviso.svg" width="48" alt=""><br>

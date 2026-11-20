@@ -45,8 +45,9 @@ cabra** é o REA, o robô copiador, o navegador automatizado e a ferramenta de a
 
 **No navegador, depois da verificação (a guarda na aba):**
 - com a configuração padrão, cada página do site leva uma **guarda** pequena que repete a conferência
-  a cada 1,5 s. Se o REA se liga a uma aba que já passou, a página vira sombra, o passe é cancelado
-  e o aviso sai.
+  a cada 1 s, enquanto a aba está visível. Se o REA fica ligado mais de 1 s a uma aba que já
+  passou, a página vira sombra, o passe é cancelado e o aviso sai. A inspeção curta dele cai em 6 de
+  10 vezes.
 
 Nem tudo é pego. O que ainda escapa está em
 [Limites conhecidos](perguntas-frequentes.md#limites-conhecidos).

@@ -336,7 +336,7 @@ describe("visitante com passe", () => {
   it.skipIf(!CHROME_DO_SISTEMA)("Chrome do sistema sem automação passa pela verificação e recebe o site real", async () => {
     const t = await montar();
     await abrirChromeDoSistema(t, false);
-    // A guarda roda na hora e a cada 1,5 s: três voltas sem nada.
+    // A guarda roda na carga e depois a cada 1 s: cinco voltas sem nada.
     await new Promise((ok) => setTimeout(ok, 4_500));
     expect(t.eventos()).toEqual([]);
     expect(t.avisos).toEqual([]);

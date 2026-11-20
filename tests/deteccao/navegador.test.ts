@@ -111,11 +111,12 @@ describe("paginaDesafio", () => {
 });
 
 describe("scriptGuarda", () => {
-  it("vigia a cada 1,5 s, posta para /.anti-rea/pego e só recarrega com 204", () => {
+  it("vigia com a aba visível, posta para /.anti-rea/pego e só recarrega com 204", () => {
+    // A política (intervalo, visibilidade, recuo, pausa) é testada rodando o script: guarda.test.ts.
     const js = scriptGuarda();
     expect(js).toContain("/.anti-rea/pego");
-    expect(js).toContain("1500");
-    expect(js).toContain("%4===0");
+    expect(js).toContain('visibilityState==="visible"');
+    expect(js).toContain("visibilitychange");
     expect(js).toContain("requestIdleCallback");
     expect(js).toContain("status===204");
     expect(js).toContain('credentials:"same-origin"');
@@ -150,6 +151,8 @@ type Ambiente = {
   resposta?: { ok: boolean; status: number };
   agora?: number;
   linguas?: string[];
+  /** `console.table` que parece nativo (função ligada): o coletor só imprime a tabela assim. */
+  tabela?: (linhas: unknown) => void;
 };
 
 function rodar(codigo: string, a: Ambiente) {
@@ -182,7 +185,7 @@ function rodar(codigo: string, a: Ambiente) {
     innerHeight: 800,
     name: a.nome ?? "",
     performance: { now: () => 0 },
-    console: { table: () => {} },
+    console: { table: a.tabela ? a.tabela.bind(null) : () => {} },
     Date: { now: () => a.agora ?? 1_000_000 },
     document: { getElementById: () => ({ set textContent(t: string) { registro.texto = t; } }) },
     location: { reload: () => { registro.recargas++; } },
@@ -244,6 +247,21 @@ describe("coletor em celular no modo computador", () => {
   });
 });
 
+describe("coletor com memo (Task 13)", () => {
+  it("com o mesmo memo monta as 1000 linhas uma vez; sem memo, monta a cada chamada", () => {
+    // O Chrome guarda os argumentos do console mesmo com o DevTools fechado: tabela nova a cada
+    // volta da guarda retinha uns 7,5 MB (docs/_medicoes/2026-11-guarda.md).
+    const tabelas: unknown[] = [];
+    const codigo = `var c = (${COLETOR}); var memo = {}; [c("", false, memo), c("", false, memo), c("", false)]`;
+    rodar(codigo, { ua: UA_DESKTOP_LINUX, chrome: {}, plugins: 5, tabela: (x) => tabelas.push(x) });
+    expect(tabelas).toHaveLength(6);
+    expect((tabelas[0] as unknown[]).length).toBe(1000);
+    expect(tabelas[2]).toBe(tabelas[0]);
+    expect(tabelas[3]).toBe(tabelas[0]);
+    expect(tabelas[4]).not.toBe(tabelas[0]);
+  });
+});
+
 describe("sonda de pausa opcional", () => {
   const n = criarNonce("s", 1_000);
 
@@ -260,8 +278,7 @@ describe("sonda de pausa opcional", () => {
   it("guarda: com sondarPausa false não leva o debugger nem sonda a pausa", () => {
     const sem = scriptGuarda({ sondarPausa: false });
     expect(sem).not.toMatch(/\bdebugger\b/);
-    expect(sem).not.toContain("%4===0");
-    expect(sem).toContain('coletar("",false)');
+    expect(sem).toContain("var pausa=false;");
     expect(() => new Function(sem)).not.toThrow();
     expect(scriptGuarda()).toMatch(/\bdebugger\b/);
     expect(scriptGuarda({ sondarPausa: true })).toBe(scriptGuarda());

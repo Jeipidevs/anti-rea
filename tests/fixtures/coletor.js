@@ -1,4 +1,4 @@
-function (nonce, sondarPausa) {
+function (nonce, sondarPausa, memo) {
   var n = navigator, w = window, ua = String(n.userAgent || "");
   var agora = function () { return w.performance && performance.now ? performance.now() : Date.now(); };
   var temChrome = typeof w.chrome === "object" && w.chrome !== null;
@@ -15,8 +15,12 @@ function (nonce, sondarPausa) {
   try {
     var nativo = /\[native code\]/.test(Function.prototype.toString.call(console.table));
     if ((temChrome || !!n.userAgentData) && nativo) {
-      var linhas = [];
-      for (var i = 0; i < 1000; i++) linhas.push({ a: i, b: "x" + i, c: i % 7 });
+      var linhas = memo && memo.linhas;
+      if (!linhas) {
+        linhas = [];
+        for (var i = 0; i < 1000; i++) linhas.push({ a: i, b: "x" + i, c: i % 7 });
+        if (memo) memo.linhas = linhas;
+      }
       var t0 = agora(), voltas = 0;
       do { JSON.parse(JSON.stringify(linhas)); voltas++; } while (agora() - t0 < 2 && voltas < 200);
       var base = Math.max((agora() - t0) / voltas, 0.1);

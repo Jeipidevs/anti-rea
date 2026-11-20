@@ -8,7 +8,13 @@ const VALIDADE_NONCE_MS = 120_000;
 /**
  * Coletor de sinais do navegador. Fonte única, usada pela tela de desafio e pela
  * guarda; copiado sem mudança em tests/fixtures/coletor.js (um teste confere).
- * Chamada: `coletor(nonce, sondarPausa)`. Provas no Chrome real: tests/e2e/coletor-cdp.test.ts.
+ * Chamada: `coletor(nonce, sondarPausa, memo?)`. Provas no Chrome real: tests/e2e/coletor-cdp.test.ts.
+ *
+ * - `memo` (opcional): objeto que quem chama guarda entre as chamadas; as 1000 linhas da tabela são
+ *   montadas uma vez e reaproveitadas. A guarda passa o mesmo `memo` em todas as voltas: o Chrome
+ *   guarda os argumentos do console mesmo com o DevTools fechado, e uma tabela nova por volta
+ *   retinha uns 7,5 MB na página (docs/_medicoes/2026-11-guarda.md). A detecção não muda: com a
+ *   mesma tabela já impressa várias vezes, o `Runtime.enable` ainda deu `cdp` em todas as chamadas.
  *
  * - Pausa (`sondarPausa`): `debugger;` só para quando o domínio Debugger está ligado
  *   (F12 aberto). Exige duas pausas seguidas de mais de 50 ms, para relógio arredondado
@@ -33,7 +39,7 @@ function fonteColetor(comPausa: boolean): string {
     ? `  var pausa = function () { var t = agora(); debugger; return agora() - t > 50; };
   var pausou = !!sondarPausa && pausa() && pausa();`
     : "  var pausou = false;";
-  return `function (nonce, sondarPausa) {
+  return `function (nonce, sondarPausa, memo) {
   var n = navigator, w = window, ua = String(n.userAgent || "");
   var agora = function () { return w.performance && performance.now ? performance.now() : Date.now(); };
   var temChrome = typeof w.chrome === "object" && w.chrome !== null;
@@ -49,8 +55,12 @@ ${pausa}
   try {
     var nativo = /\\[native code\\]/.test(Function.prototype.toString.call(console.table));
     if ((temChrome || !!n.userAgentData) && nativo) {
-      var linhas = [];
-      for (var i = 0; i < 1000; i++) linhas.push({ a: i, b: "x" + i, c: i % 7 });
+      var linhas = memo && memo.linhas;
+      if (!linhas) {
+        linhas = [];
+        for (var i = 0; i < 1000; i++) linhas.push({ a: i, b: "x" + i, c: i % 7 });
+        if (memo) memo.linhas = linhas;
+      }
       var t0 = agora(), voltas = 0;
       do { JSON.parse(JSON.stringify(linhas)); voltas++; } while (agora() - t0 < 2 && voltas < 200);
       var base = Math.max((agora() - t0) / voltas, 0.1);
@@ -73,7 +83,7 @@ ${pausa}
 }`;
 }
 
-/** Coletor completo, com a sonda de pausa (chamada: `coletor(nonce, sondarPausa)`). */
+/** Coletor completo, com a sonda de pausa (chamada: `coletor(nonce, sondarPausa, memo?)`). */
 export const COLETOR = fonteColetor(true);
 /** Mesmo coletor sem a sonda de pausa: nem o `debugger;` vai para a página. */
 export const COLETOR_SEM_PAUSA = fonteColetor(false);
