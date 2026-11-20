@@ -23,15 +23,28 @@ const VALIDADE_NONCE_MS = 120_000;
  *   ele não roda nem com `Runtime.enable`.
  * - `uaChrome` só vale para Chrome de computador: celular e WebView (navegador
  *   embutido do Instagram, WhatsApp) ficam de fora, porque lá `window.chrome` e os
- *   plugins faltam de verdade.
+ *   plugins faltam de verdade. Vale também para celular no "modo computador" (o
+ *   DuckDuckGo do Android manda UA de Linux x86_64 numa WebView): tela de toque ou
+ *   dica de celular no `userAgentData` (Android, `mobile`, marca "Android WebView")
+ *   tiram o `uaChrome`.
  */
-export const COLETOR = `function (nonce, sondarPausa) {
+function fonteColetor(comPausa: boolean): string {
+  const pausa = comPausa
+    ? `  var pausa = function () { var t = agora(); debugger; return agora() - t > 50; };
+  var pausou = !!sondarPausa && pausa() && pausa();`
+    : "  var pausou = false;";
+  return `function (nonce, sondarPausa) {
   var n = navigator, w = window, ua = String(n.userAgent || "");
   var agora = function () { return w.performance && performance.now ? performance.now() : Date.now(); };
   var temChrome = typeof w.chrome === "object" && w.chrome !== null;
   var encolhida = w.outerWidth - w.innerWidth > 160 || w.outerHeight - w.innerHeight > 160;
-  var pausa = function () { var t = agora(); debugger; return agora() - t > 50; };
-  var pausou = !!sondarPausa && pausa() && pausa();
+${pausa}
+  var celular = /Android|Mobile|; wv\\)/.test(ua) || n.maxTouchPoints > 0;
+  try {
+    var d = n.userAgentData;
+    if (d) celular = celular || d.mobile === true || d.platform === "Android" ||
+      (d.brands || []).some(function (b) { return /Android WebView/.test(b.brand); });
+  } catch (x) {}
   var runtime = false;
   try {
     var nativo = /\\[native code\\]/.test(Function.prototype.toString.call(console.table));
@@ -51,13 +64,19 @@ export const COLETOR = `function (nonce, sondarPausa) {
     headlessUA: /HeadlessChrome/.test(ua),
     semPlugins: !n.plugins || n.plugins.length === 0,
     temWindowChrome: temChrome,
-    uaChrome: /\\bChrome\\/\\d/.test(ua) && !/Android|Mobile|; wv\\)/.test(ua),
+    uaChrome: /\\bChrome\\/\\d/.test(ua) && !celular,
     cdp: runtime && !pausou && !encolhida,
     devtoolsAberto: pausou || (runtime && encolhida),
     linguas: n.languages ? n.languages.length : 0,
     nonce: String(nonce || "")
   };
 }`;
+}
+
+/** Coletor completo, com a sonda de pausa (chamada: `coletor(nonce, sondarPausa)`). */
+export const COLETOR = fonteColetor(true);
+/** Mesmo coletor sem a sonda de pausa: nem o `debugger;` vai para a página. */
+export const COLETOR_SEM_PAUSA = fonteColetor(false);
 
 function assinar(segredo: string, carga: string): Buffer {
   return createHmac("sha256", segredo).update("nonce:" + carga).digest();
@@ -99,13 +118,21 @@ const TEXTOS = {
     verificando: "Verificando seu navegador",
     semJs: "Este site precisa de JavaScript para abrir. Ative o JavaScript e recarregue a página.",
     falha: "Não foi possível verificar. Recarregue a página.",
+    semCookies: "Este site precisa de cookies para abrir. Ative os cookies e recarregue a página.",
   },
   en: {
     verificando: "Checking your browser",
     semJs: "This site needs JavaScript to open. Turn on JavaScript and reload the page.",
     falha: "Could not check your browser. Please reload the page.",
+    semCookies: "This site needs cookies to open. Turn on cookies and reload the page.",
   },
 } as const;
+
+/** Recargas automáticas seguidas antes de desistir e mostrar a falha (passe que não gruda). */
+const MAX_TENTATIVAS = 2;
+/** Tentativa mais velha que isto não conta: o passe que vence horas depois passa de novo. */
+const JANELA_TENTATIVAS_MS = 30_000;
+const CHAVE_TENTATIVAS = "anti-rea-tentativas:";
 
 function etiquetasDaPrevia(previa: Previa): string[] {
   const linhas: string[] = [];
@@ -117,15 +144,43 @@ function etiquetasDaPrevia(previa: Previa): string[] {
   return linhas;
 }
 
-/** Tela "verificando" de menos de um segundo: coleta, posta e recarrega. Sem recurso externo. */
-export function paginaDesafio(opts: { nonce: string; previa: Previa; idioma: "pt-BR" | "en" }): string {
-  const t = TEXTOS[opts.idioma];
-  const titulo = escaparHtml(opts.previa.titulo || t.verificando);
-  const script =
-    `(function(){var s=(${COLETOR})(${jsSeguro(opts.nonce)},true);` +
+/**
+ * Script da tela de desafio. Sem laço de recarga: com cookies desligados avisa e para;
+ * conta as tentativas (sessionStorage, ou window.name quando ele está bloqueado) e, se o
+ * passe não grudar em MAX_TENTATIVAS recargas, mostra a falha e zera a conta, para a
+ * recarga manual tentar de novo. Só recarrega com resposta 2xx.
+ */
+function scriptDesafio(nonce: string, sondarPausa: boolean, t: (typeof TEXTOS)[keyof typeof TEXTOS]): string {
+  const coletor = sondarPausa ? COLETOR : COLETOR_SEM_PAUSA;
+  const K = jsSeguro(CHAVE_TENTATIVAS);
+  return (
+    `(function(){var m=document.getElementById("m");` +
+    `function parar(x){m.textContent=x}` +
+    `if(navigator.cookieEnabled===false)return parar(${jsSeguro(t.semCookies)});` +
+    `function ler(){var v=null;try{v=sessionStorage.getItem(${K})}catch(e){}` +
+    `if(v==null){var nm=String(window.name||"");if(nm.indexOf(${K})===0)v=nm.slice(${K}.length)}return v||""}` +
+    `function gravar(v){try{sessionStorage.setItem(${K},v);return}catch(e){}window.name=${K}+v}` +
+    `var agora=Date.now(),c=ler().split("."),n=parseInt(c[0],10)||0,t0=parseInt(c[1],10)||0;` +
+    `if(agora-t0>${JANELA_TENTATIVAS_MS}||agora<t0)n=0;` +
+    `function falhar(){gravar("");parar(${jsSeguro(t.falha)})}` +
+    `if(n>=${MAX_TENTATIVAS})return falhar();` +
+    `gravar((n+1)+"."+agora);` +
+    `var s=(${coletor})(${jsSeguro(nonce)},${sondarPausa});` +
     `fetch("/.anti-rea/verificar",{method:"POST",credentials:"same-origin",` +
     `headers:{"content-type":"application/json"},body:JSON.stringify(s)})` +
-    `.then(function(){location.reload()},function(){document.getElementById("m").textContent=${jsSeguro(t.falha)}})})();`;
+    `.then(function(r){if(r.ok)location.reload();else falhar()},falhar)})();`
+  );
+}
+
+/**
+ * Tela "verificando" de menos de um segundo: coleta, posta e recarrega. Sem recurso externo.
+ * `sondarPausa` (padrão true) liga a sonda de `debugger;`; a Task 9 passa
+ * `cfg.check.devtoolsIsCaught`, para quem abre o F12 não parar no depurador quando ele não pega.
+ */
+export function paginaDesafio(opts: { nonce: string; previa: Previa; idioma: "pt-BR" | "en"; sondarPausa?: boolean }): string {
+  const t = TEXTOS[opts.idioma];
+  const titulo = escaparHtml(opts.previa.titulo || t.verificando);
+  const script = scriptDesafio(opts.nonce, opts.sondarPausa !== false, t);
 
   return [
     "<!doctype html>",

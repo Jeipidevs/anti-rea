@@ -1,4 +1,4 @@
-import { COLETOR } from "./desafio.js";
+import { COLETOR, COLETOR_SEM_PAUSA } from "./desafio.js";
 
 const INTERVALO_MS = 1500;
 /** A sonda de pausa (`debugger;`) roda numa a cada tantas voltas: na hora e depois a cada 6 s. */
@@ -10,12 +10,17 @@ const VOLTAS_POR_PAUSA = 4;
  * (`requestIdleCallback`), para não travar rolagem nem animação. Se pegar depuração
  * remota ou F12, avisa uma vez em POST /.anti-rea/pego, para de vigiar e só recarrega
  * quando o porteiro responde 204 (passe revogado).
+ * `sondarPausa` (padrão true) liga a sonda de `debugger;`; com false ela nem vai no script
+ * (a Task 9 passa `cfg.check.devtoolsIsCaught`).
  */
-export function scriptGuarda(): string {
+export function scriptGuarda(opts: { sondarPausa?: boolean } = {}): string {
+  const sondar = opts.sondarPausa !== false;
+  const coletor = sondar ? COLETOR : COLETOR_SEM_PAUSA;
+  const pausaNestaVolta = sondar ? `volta++%${VOLTAS_POR_PAUSA}===0` : "false";
   return (
     `(function(){if(window.__antiReaGuarda)return;window.__antiReaGuarda=1;` +
-    `var coletar=(${COLETOR});var avisado=false,volta=0,relogio;` +
-    `function vigiar(){if(avisado)return;var s=coletar("",volta++%${VOLTAS_POR_PAUSA}===0);` +
+    `var coletar=(${coletor});var avisado=false,volta=0,relogio;` +
+    `function vigiar(){if(avisado)return;var s=coletar("",${pausaNestaVolta});` +
     `if(!s.cdp&&!s.devtoolsAberto)return;avisado=true;clearInterval(relogio);` +
     `fetch("/.anti-rea/pego",{method:"POST",credentials:"same-origin",` +
     `headers:{"content-type":"application/json"},body:JSON.stringify(s)})` +

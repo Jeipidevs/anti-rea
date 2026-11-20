@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 import { describe, expect, it } from "vitest";
 import { avaliarNavegador, type SinaisNavegador } from "../../src/deteccao/navegador/avaliar.js";
-import { COLETOR } from "../../src/deteccao/navegador/desafio.js";
+import { COLETOR, paginaDesafio } from "../../src/deteccao/navegador/desafio.js";
 import { scriptGuarda } from "../../src/deteccao/navegador/guarda.js";
 
 const CHROME = [
@@ -37,6 +37,8 @@ fetch("/r", { method: "POST", body: JSON.stringify(s) });
 
 /** Página com a guarda, como o porteiro injeta no site real. */
 const PAGINA_GUARDA = `<!doctype html><meta charset="utf-8"><body><p>site</p><script>${scriptGuarda()}</script>`;
+/** Guarda com `devtoolsIsCaught: false` (sem a sonda de pausa). */
+const PAGINA_GUARDA_SEM_PAUSA = `<!doctype html><meta charset="utf-8"><body><p>site</p><script>${scriptGuarda({ sondarPausa: false })}</script>`;
 
 function limite<T>(p: Promise<T>, ms: number, rotulo: string): Promise<T> {
   return Promise.race([p, new Promise<never>((_, erro) => setTimeout(() => erro(new Error("tempo esgotado: " + rotulo)), ms))]);
@@ -228,4 +230,45 @@ describe.skipIf(!CHROME)("guarda num Chrome de verdade", () => {
     expect(r?.corpo.devtoolsAberto).toBe(true);
     expect(r?.corpo.cdp).toBe(false);
   }, 30_000);
+});
+
+describe.skipIf(!CHROME)("sonda de pausa desligada num Chrome de verdade", () => {
+  it("guarda sem a sonda: com o Debugger ligado (F12) não para nem avisa", async () => {
+    expect(await abrir(PAGINA_GUARDA_SEM_PAUSA, ["Debugger.enable"], 7_000)).toBeNull();
+  }, 30_000);
+});
+
+describe.skipIf(!CHROME)("tela de desafio sem laço de recarga num Chrome de verdade", () => {
+  it("passe que nunca gruda: no máximo duas tentativas e a página para na falha", async () => {
+    let gets = 0;
+    let posts = 0;
+    const s = http.createServer((req, res) => {
+      if (req.method === "POST") {
+        posts++;
+        req.resume();
+        req.on("end", () => {
+          res.setHeader("content-type", "application/json");
+          res.end('{"ok":true}');
+        });
+        return;
+      }
+      if (req.url === "/") gets++;
+      res.setHeader("content-type", "text/html; charset=utf-8");
+      res.end(paginaDesafio({ nonce: "x", previa: {}, idioma: "pt-BR", sondarPausa: false }));
+    });
+    await new Promise<void>((ok) => s.listen(0, "127.0.0.1", ok));
+    const { port } = s.address() as { port: number };
+    const navegador = await chromium.launch({ executablePath: CHROME, headless: true, timeout: 20_000 });
+    try {
+      const pagina = await navegador.newPage();
+      await pagina.goto(`http://127.0.0.1:${port}/`);
+      await new Promise((ok) => setTimeout(ok, 3_000));
+      expect(posts).toBe(2);
+      expect(gets).toBe(3);
+      expect(await pagina.textContent("#m")).toBe("Não foi possível verificar. Recarregue a página.");
+    } finally {
+      await limite(navegador.close(), 10_000, "fechar playwright").catch(() => {});
+      s.close();
+    }
+  }, 40_000);
 });

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 import { avaliarNavegador, type SinaisNavegador } from "../../src/deteccao/navegador/avaliar.js";
 import { COLETOR, conferirNonce, criarNonce, paginaDesafio } from "../../src/deteccao/navegador/desafio.js";
@@ -7,7 +8,7 @@ import { scriptGuarda } from "../../src/deteccao/navegador/guarda.js";
 const PASTA = new URL("../fixtures/", import.meta.url);
 
 function fx(nome: string): SinaisNavegador {
-  const { manual: _manual, ...sinais } = JSON.parse(readFileSync(new URL(`sinais/${nome}.json`, PASTA), "utf8"));
+  const { manual: _manual, origem: _origem, ...sinais } = JSON.parse(readFileSync(new URL(`sinais/${nome}.json`, PASTA), "utf8"));
   return sinais as SinaisNavegador;
 }
 
@@ -15,7 +16,7 @@ const op = { devtoolsIsCaught: true };
 
 describe("avaliarNavegador", () => {
   it("deixa passar navegador de verdade", () => {
-    for (const f of ["chrome", "firefox-rfp", "safari", "brave"]) expect(avaliarNavegador(fx(f), op)).toBeNull();
+    for (const f of ["chrome", "firefox-rfp", "safari", "brave", "android-webview-desktop"]) expect(avaliarNavegador(fx(f), op)).toBeNull();
   });
 
   it("pega automação, depuração remota e F12", () => {
@@ -133,5 +134,204 @@ describe("scriptGuarda", () => {
   it("o coletor é JavaScript válido", () => {
     expect(() => new Function(`return (${COLETOR});`)).not.toThrow();
     expect(() => new Function(scriptGuarda())).not.toThrow();
+  });
+});
+
+// Ambiente de navegador falso para rodar o coletor e o script da tela de desafio em node:vm.
+type Ambiente = {
+  ua: string;
+  plugins?: number;
+  chrome?: object;
+  userAgentData?: object;
+  maxTouchPoints?: number;
+  cookieEnabled?: boolean;
+  armazenamento?: Map<string, string> | "bloqueado";
+  nome?: string;
+  resposta?: { ok: boolean; status: number };
+  agora?: number;
+  linguas?: string[];
+};
+
+function rodar(codigo: string, a: Ambiente) {
+  const armazenamento = a.armazenamento ?? new Map<string, string>();
+  const registro = { fetches: 0, recargas: 0, texto: "" };
+  const sessionStorage = {
+    getItem: (k: string) => {
+      if (armazenamento === "bloqueado") throw new Error("SecurityError");
+      return armazenamento.get(k) ?? null;
+    },
+    setItem: (k: string, v: string) => {
+      if (armazenamento === "bloqueado") throw new Error("SecurityError");
+      armazenamento.set(k, String(v));
+    },
+  };
+  const caixa: Record<string, unknown> = {
+    navigator: {
+      userAgent: a.ua,
+      webdriver: false,
+      languages: a.linguas ?? ["pt-BR"],
+      plugins: { length: a.plugins ?? 0 },
+      userAgentData: a.userAgentData,
+      maxTouchPoints: a.maxTouchPoints ?? 0,
+      cookieEnabled: a.cookieEnabled ?? true,
+    },
+    chrome: a.chrome,
+    outerWidth: 1200,
+    innerWidth: 1200,
+    outerHeight: 800,
+    innerHeight: 800,
+    name: a.nome ?? "",
+    performance: { now: () => 0 },
+    console: { table: () => {} },
+    Date: { now: () => a.agora ?? 1_000_000 },
+    document: { getElementById: () => ({ set textContent(t: string) { registro.texto = t; } }) },
+    location: { reload: () => { registro.recargas++; } },
+    fetch: () => {
+      registro.fetches++;
+      return Promise.resolve(a.resposta ?? { ok: true, status: 200 });
+    },
+  };
+  Object.defineProperty(caixa, "sessionStorage", { get: () => sessionStorage });
+  caixa.window = caixa;
+  const resultado = vm.runInContext(codigo, vm.createContext(caixa));
+  return { resultado, registro, caixa };
+}
+
+function scriptDaPagina(html: string): string {
+  return /<script>([\s\S]*)<\/script>/.exec(html)![1]!;
+}
+
+const UA_DESKTOP_LINUX =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/157.0.0.0 Safari/537.36";
+
+describe("coletor em celular no modo computador", () => {
+  const coletar = (a: Ambiente) => rodar(`(${COLETOR})("n", false)`, a).resultado as SinaisNavegador;
+
+  it("WebView do Android (DuckDuckGo) com UA de computador não é Chrome falso", () => {
+    const comDicas = coletar({
+      ua: UA_DESKTOP_LINUX,
+      userAgentData: { brands: [{ brand: "Android WebView", version: "157" }], mobile: false, platform: "Android" },
+      maxTouchPoints: 5,
+    });
+    expect(comDicas.uaChrome).toBe(false);
+    expect(avaliarNavegador(comDicas, op)).toBeNull();
+    expect(avaliarNavegador(comDicas, { devtoolsIsCaught: false })).toBeNull();
+
+    const soPlataforma = coletar({ ua: UA_DESKTOP_LINUX, userAgentData: { brands: [], mobile: false, platform: "Android" } });
+    expect(avaliarNavegador(soPlataforma, op)).toBeNull();
+    const soMovel = coletar({ ua: UA_DESKTOP_LINUX, userAgentData: { brands: [], mobile: true, platform: "" } });
+    expect(avaliarNavegador(soMovel, op)).toBeNull();
+    const soToque = coletar({ ua: UA_DESKTOP_LINUX, maxTouchPoints: 5 });
+    expect(avaliarNavegador(soToque, op)).toBeNull();
+  });
+
+  it("a fixture do WebView no modo computador bate com o coletor", () => {
+    const s = coletar({
+      ua: UA_DESKTOP_LINUX,
+      userAgentData: { brands: [{ brand: "Android WebView", version: "157" }], mobile: false, platform: "Android" },
+      maxTouchPoints: 5,
+      linguas: ["pt-BR", "pt", "en-US", "en"],
+    });
+    const { nonce: _n, ...gravado } = fx("android-webview-desktop");
+    const { nonce: _m, ...coletado } = s;
+    expect(coletado).toEqual(gravado);
+  });
+
+  it("Chrome falso de computador, sem toque e sem dica de celular, continua pego", () => {
+    const s = coletar({ ua: UA_DESKTOP_LINUX });
+    expect(s.uaChrome).toBe(true);
+    expect(avaliarNavegador(s, op)?.motivo).toBe("Chrome falso");
+  });
+});
+
+describe("sonda de pausa opcional", () => {
+  const n = criarNonce("s", 1_000);
+
+  it("tela de desafio: com sondarPausa false não leva o debugger", () => {
+    const sem = paginaDesafio({ nonce: n, previa: {}, idioma: "pt-BR", sondarPausa: false });
+    expect(sem).not.toMatch(/\bdebugger\b/);
+    expect(sem).toContain(JSON.stringify(n) + ",false)");
+    const padrao = paginaDesafio({ nonce: n, previa: {}, idioma: "pt-BR" });
+    expect(padrao).toMatch(/\bdebugger\b/);
+    expect(padrao).toContain(JSON.stringify(n) + ",true)");
+    expect(paginaDesafio({ nonce: n, previa: {}, idioma: "pt-BR", sondarPausa: true })).toBe(padrao);
+  });
+
+  it("guarda: com sondarPausa false não leva o debugger nem sonda a pausa", () => {
+    const sem = scriptGuarda({ sondarPausa: false });
+    expect(sem).not.toMatch(/\bdebugger\b/);
+    expect(sem).not.toContain("%4===0");
+    expect(sem).toContain('coletar("",false)');
+    expect(() => new Function(sem)).not.toThrow();
+    expect(scriptGuarda()).toMatch(/\bdebugger\b/);
+    expect(scriptGuarda({ sondarPausa: true })).toBe(scriptGuarda());
+  });
+
+  it("sem a sonda, a coleta continua igual", () => {
+    const html = paginaDesafio({ nonce: n, previa: {}, idioma: "pt-BR", sondarPausa: false });
+    expect(html).toContain("console.table(linhas)");
+    expect(scriptGuarda({ sondarPausa: false })).toContain("console.table(linhas)");
+  });
+});
+
+describe("tela de desafio sem laço de recarga", () => {
+  const UA_MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36";
+  const pagina = (idioma: "pt-BR" | "en" = "pt-BR") => scriptDaPagina(paginaDesafio({ nonce: "x", previa: {}, idioma }));
+  const esperar = () => new Promise((r) => setTimeout(r, 0));
+
+  it("com cookies desligados avisa e não posta", async () => {
+    const { registro } = rodar(pagina(), { ua: UA_MAC, chrome: {}, plugins: 5, cookieEnabled: false });
+    await esperar();
+    expect(registro.fetches).toBe(0);
+    expect(registro.recargas).toBe(0);
+    expect(registro.texto).toMatch(/cookies/);
+    const en = rodar(pagina("en"), { ua: UA_MAC, chrome: {}, plugins: 5, cookieEnabled: false });
+    expect(en.registro.texto).toMatch(/cookies/);
+  });
+
+  it("se o passe não gruda, para depois de duas tentativas e mostra a falha", async () => {
+    const armazenamento = new Map<string, string>();
+    let fetches = 0, recargas = 0, texto = "";
+    for (let i = 0; i < 10; i++) {
+      const { registro } = rodar(pagina(), { ua: UA_MAC, chrome: {}, plugins: 5, armazenamento, agora: 1_000_000 + i * 100 });
+      await esperar();
+      fetches += registro.fetches;
+      recargas += registro.recargas;
+      if (registro.recargas === 0) { texto = registro.texto; break; }
+    }
+    expect(fetches).toBe(2);
+    expect(recargas).toBe(2);
+    expect(texto).toBe("Não foi possível verificar. Recarregue a página.");
+  });
+
+  it("sem sessionStorage, conta pelo window.name e também para", async () => {
+    let nome = "", fetches = 0, parou = false;
+    for (let i = 0; i < 10; i++) {
+      const { registro, caixa } = rodar(pagina(), { ua: UA_MAC, chrome: {}, plugins: 5, armazenamento: "bloqueado", nome, agora: 1_000_000 + i * 100 });
+      await esperar();
+      fetches += registro.fetches;
+      nome = String(caixa.name);
+      if (registro.recargas === 0) { parou = true; break; }
+    }
+    expect(parou).toBe(true);
+    expect(fetches).toBe(2);
+  });
+
+  it("tentativa antiga não conta: o passe que vence depois de horas passa de novo", async () => {
+    const armazenamento = new Map<string, string>();
+    for (const agora of [1_000_000, 5_000_000, 9_000_000, 13_000_000]) {
+      const { registro } = rodar(pagina(), { ua: UA_MAC, chrome: {}, plugins: 5, armazenamento, agora });
+      await esperar();
+      expect(registro.fetches).toBe(1);
+      expect(registro.recargas).toBe(1);
+    }
+  });
+
+  it("só recarrega com resposta 2xx; 400 mostra a falha", async () => {
+    const { registro } = rodar(pagina(), { ua: UA_MAC, chrome: {}, plugins: 5, resposta: { ok: false, status: 400 } });
+    await esperar();
+    expect(registro.fetches).toBe(1);
+    expect(registro.recargas).toBe(0);
+    expect(registro.texto).toBe("Não foi possível verificar. Recarregue a página.");
   });
 });

@@ -1,0 +1,13 @@
+{
+  "webdriver": false,
+  "headlessUA": false,
+  "semPlugins": true,
+  "temWindowChrome": false,
+  "uaChrome": false,
+  "cdp": false,
+  "devtoolsAberto": false,
+  "linguas": 4,
+  "nonce": "gravado",
+  "manual": true,
+  "origem": "coletor real em node:vm com navigator do DuckDuckGo para Android no modo computador (WebView, UA X11 Linux x86_64, sem window.chrome, sem plugins, toque, userAgentData Android WebView)"
+}

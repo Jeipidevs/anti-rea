@@ -5,6 +5,12 @@ function (nonce, sondarPausa) {
   var encolhida = w.outerWidth - w.innerWidth > 160 || w.outerHeight - w.innerHeight > 160;
   var pausa = function () { var t = agora(); debugger; return agora() - t > 50; };
   var pausou = !!sondarPausa && pausa() && pausa();
+  var celular = /Android|Mobile|; wv\)/.test(ua) || n.maxTouchPoints > 0;
+  try {
+    var d = n.userAgentData;
+    if (d) celular = celular || d.mobile === true || d.platform === "Android" ||
+      (d.brands || []).some(function (b) { return /Android WebView/.test(b.brand); });
+  } catch (x) {}
   var runtime = false;
   try {
     var nativo = /\[native code\]/.test(Function.prototype.toString.call(console.table));
@@ -24,7 +30,7 @@ function (nonce, sondarPausa) {
     headlessUA: /HeadlessChrome/.test(ua),
     semPlugins: !n.plugins || n.plugins.length === 0,
     temWindowChrome: temChrome,
-    uaChrome: /\bChrome\/\d/.test(ua) && !/Android|Mobile|; wv\)/.test(ua),
+    uaChrome: /\bChrome\/\d/.test(ua) && !celular,
     cdp: runtime && !pausou && !encolhida,
     devtoolsAberto: pausou || (runtime && encolhida),
     linguas: n.languages ? n.languages.length : 0,
