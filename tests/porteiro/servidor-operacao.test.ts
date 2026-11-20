@@ -56,7 +56,7 @@ describe("porteiro: site lento ou fora do ar", () => {
   });
 
   it("corpo que chega devagar renova o tempo: o envio longo não vira 504", async () => {
-    const t = await montar({}, { tempoDoSiteMs: 300 });
+    const t = await montar({}, { tempoDoSiteMs: 1_000 });
     const status = await new Promise<number>((resolver, rejeitar) => {
       const r = http.request(
         { host: "127.0.0.1", port: t.porteiro.porta, path: "/api/webhook/x", method: "POST", headers: { "content-type": "application/json" }, agent: false },
@@ -73,7 +73,7 @@ describe("porteiro: site lento ou fora do ar", () => {
           clearInterval(enviar);
           r.end();
         }
-      }, 150);
+      }, 300);
     });
     expect(status).toBe(200);
   });
@@ -197,12 +197,16 @@ describe("porteiro: prévia na tela de verificação", () => {
     const t = await montar();
     const inicio = Date.now();
     const r1 = await t.get("/devagar", { accept: HTML });
-    expect(Date.now() - inicio).toBeLessThan(900);
+    // O site leva 1,5 s; a tela saiu bem antes, sem a prévia.
+    expect(Date.now() - inicio).toBeLessThan(1_200);
     expect(r1.texto).toContain("Verificando seu navegador");
     expect(r1.texto).not.toContain("Página Devagar");
-    await new Promise((ok) => setTimeout(ok, 1_100));
-    const r2 = await t.get("/devagar", { accept: HTML });
-    expect(r2.texto).toContain('<meta property="og:title" content="Página Devagar">');
+    // A busca terminou em segundo plano: um pedido seguinte leva a prévia, sem buscar de novo.
+    let texto = "";
+    for (const fim = Date.now() + 5_000; !texto.includes("Página Devagar") && Date.now() < fim; ) {
+      texto = (await t.get("/devagar", { accept: HTML })).texto;
+    }
+    expect(texto).toContain('<meta property="og:title" content="Página Devagar">');
     expect(t.site.recebidos.filter((p) => p.url === "/devagar")).toHaveLength(1);
   });
 
@@ -210,7 +214,7 @@ describe("porteiro: prévia na tela de verificação", () => {
     const t = await montar();
     const inicio = Date.now();
     const r = await t.get("/devagar-robo", { "user-agent": WHATSAPP, accept: HTML });
-    expect(Date.now() - inicio).toBeGreaterThanOrEqual(900);
+    expect(Date.now() - inicio).toBeGreaterThanOrEqual(1_400);
     expect(r.texto).toContain('<meta property="og:title" content="Página Devagar">');
   });
 

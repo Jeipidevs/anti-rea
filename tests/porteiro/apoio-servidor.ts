@@ -189,12 +189,12 @@ async function subirSite() {
           return res.end(JSON.stringify(req.headers));
         case "/devagar":
         case "/devagar-robo":
-          // Página que leva 1 s para sair, com prévia própria.
+          // Página que leva 1,5 s para sair, com prévia própria.
           setTimeout(() => {
             if (res.destroyed) return;
             res.writeHead(200, html);
             res.end('<!doctype html><html><head><meta property="og:title" content="Página Devagar"></head><body>x</body></html>');
-          }, 1_000);
+          }, 1_500);
           return;
         case "/quebrado":
           res.writeHead(503, html);

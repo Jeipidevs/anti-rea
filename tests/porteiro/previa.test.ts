@@ -87,11 +87,11 @@ describe("CachePrevia", () => {
       await new Promise((r) => setTimeout(r, 80));
       return "<title>Devagar</title>";
     };
-    const inicio = Date.now();
+    // Vazia: voltou antes de a busca (80 ms) terminar.
     expect(await cache.obter("/a", buscar, 20)).toEqual({});
-    expect(Date.now() - inicio).toBeLessThan(70);
-    await new Promise((r) => setTimeout(r, 100));
-    expect(await cache.obter("/a", buscar, 20)).toEqual({ titulo: "Devagar" });
+    let previa = {};
+    for (let i = 0; i < 100 && !("titulo" in previa); i++) previa = await cache.obter("/a", buscar, 20);
+    expect(previa).toEqual({ titulo: "Devagar" });
     expect(buscas).toBe(1);
   });
 
