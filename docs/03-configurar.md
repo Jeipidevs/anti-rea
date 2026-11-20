@@ -60,6 +60,13 @@ check:
   passDuration: 7d        # por quanto tempo o visitante verificado navega livre
 ```
 
+A tela de verificação leva a prévia da página (título, descrição e imagem), que o porteiro busca no
+site. Ela nunca espera o site por mais de 0,3 s: se a busca demorar, a tela sai sem a prévia e a
+busca termina em segundo plano, para o próximo pedido. Robô de prévia de link conhecido (WhatsApp,
+Telegram e os outros de [Robôs oficiais](08-robos-oficiais.md#prévias-e-duckduckgo)) espera até 5 s,
+porque é a prévia que ele veio buscar. A prévia fica guardada por 10 minutos em cada caminho; a busca
+que falha (site fora do ar, erro 5xx ou mais de 5 s) fica guardada só 30 s.
+
 O passe se renova sozinho: passada a metade do `passDuration`, a próxima resposta 200 do site (uma
 página ou um pedido de dados; imagens e fontes não contam) leva um passe novo, com a duração inteira.
 Quem usa o site pelo menos uma vez a cada metade do prazo nunca volta para a verificação.

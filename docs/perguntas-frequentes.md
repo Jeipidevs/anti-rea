@@ -61,7 +61,8 @@ tem como ser conferido, e aceitar o nome dele deixaria qualquer copiador entrar 
 DuckDuckBot. Ele recebe a tela de verificação com a prévia, nunca a sombra, e indexa só essa prévia.
 
 **Deixa o site lento?**
-Só a primeira visita tem a verificação de menos de 1 segundo. A página que o seu site manda
+Só a primeira visita tem a verificação de menos de 1 segundo, e a tela dela não espera o site por
+mais de 0,3 s. A página que o seu site manda
 comprimida (gzip, deflate ou br) continua comprimida: o porteiro põe a guarda e comprime de novo, em
 fluxo.
 

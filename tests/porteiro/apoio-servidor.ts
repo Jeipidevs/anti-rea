@@ -187,6 +187,18 @@ async function subirSite() {
         case "/eco":
           res.writeHead(200, { "content-type": "application/json" });
           return res.end(JSON.stringify(req.headers));
+        case "/devagar":
+        case "/devagar-robo":
+          // Página que leva 1 s para sair, com prévia própria.
+          setTimeout(() => {
+            if (res.destroyed) return;
+            res.writeHead(200, html);
+            res.end('<!doctype html><html><head><meta property="og:title" content="Página Devagar"></head><body>x</body></html>');
+          }, 1_000);
+          return;
+        case "/quebrado":
+          res.writeHead(503, html);
+          return res.end('<!doctype html><html><head><meta property="og:title" content="Erro do proxy"></head></html>');
         case "/mudo":
           // Aceita o pedido e nunca responde.
           return;

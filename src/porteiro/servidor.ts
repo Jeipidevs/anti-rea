@@ -10,7 +10,7 @@ import { Ritmo } from "../deteccao/servidor/ritmo.js";
 import type { Evento, Registro } from "../registro/registro.js";
 import { criarResolvedorDns, type Resolvedor } from "../robos/dns.js";
 import { buscarFaixasMeta, FaixasMeta } from "../robos/faixas-meta.js";
-import { confirmarRobo } from "../robos/robos.js";
+import { confirmarRobo, roboDeclarado } from "../robos/robos.js";
 import { paginaSombra } from "../sombra/sombra.js";
 import { caminhoIsento, decidir, type Pedido } from "./decidir.js";
 import { ipReal, pedidoHttps, proxyIgnorado } from "./ip.js";
@@ -24,7 +24,7 @@ import {
   passeDoPedido,
 } from "./passes.js";
 import { caminhoAmbiguo, caminhoDoAlvo, caminhoDoPorteiro, dominioDoHost, normalizarCaminho } from "./pedido.js";
-import { buscarHtml, CachePrevia } from "./previa.js";
+import { buscarHtml, CachePrevia, ESPERA_GENTE_MS, ESPERA_ROBO_MS } from "./previa.js";
 import { criarDestino, recusarUpgrade, repassarPedido, repassarUpgrade } from "./repasse.js";
 import { enviar, responderDesafio, responderRecusa, responderSombra, responderTexto } from "./respostas.js";
 import { rotaGuarda, rotaPego, rotaVerificar, type ContextoRota } from "./rotas.js";
@@ -140,11 +140,15 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
   /**
    * Tela de verificação com a prévia do caminho. A prévia é buscada sem a query: link de uso único
    * (login por e-mail, troca de senha) leva o código na query e seria gasto antes da pessoa passar.
+   * Uma pessoa espera a prévia no máximo ESPERA_GENTE_MS (a busca termina em segundo plano para o
+   * próximo pedido); o robô de prévia conhecido espera a busca inteira, porque veio buscar a prévia.
    */
-  async function desafio(req: IncomingMessage, caminho: string, agora: number): Promise<string> {
+  async function desafio(req: IncomingMessage, p: Pedido, agora: number): Promise<string> {
     const host = hostDaPrevia(req.headers.host);
-    const semQuery = caminho.split(/[?#]/, 1)[0] ?? "/";
-    const previa = await previas.obter(`${host ?? ""} ${semQuery}`, () => buscarHtml(destino, semQuery, host, fechamento.signal));
+    const semQuery = p.caminho.split(/[?#]/, 1)[0] ?? "/";
+    const espera = roboDeclarado(p.agente)?.classe === "previa" ? ESPERA_ROBO_MS : ESPERA_GENTE_MS;
+    const buscar = () => buscarHtml(destino, semQuery, host, fechamento.signal);
+    const previa = await previas.obter(`${host ?? ""} ${semQuery}`, buscar, espera);
     return paginaDesafio({
       nonce: criarNonce(segredo, agora),
       previa,
@@ -219,7 +223,7 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
         gravar(evento(SEM_PASSE, "recusado"), true);
         return responderRecusa(res);
       case "verificar":
-        return responderDesafio(res, await desafio(req, caminho, agora));
+        return responderDesafio(res, await desafio(req, p, agora));
       case "dono": {
         if (!d.valido) {
           gravar(evento(DONO_ERRADO, "sombra"), true);

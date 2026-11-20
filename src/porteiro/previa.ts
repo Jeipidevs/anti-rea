@@ -11,7 +11,14 @@ const MAX_PREVIA = 512 * 1024;
 const MAX_TEXTO = 300;
 const MAX_IMAGEM = 2_000;
 const VALIDADE_MS = 10 * 60_000;
+/** Busca que falhou (site fora do ar, erro 5xx ou mais de 5 s) fica guardada só isto, contado da falha. */
+export const VALIDADE_FALHA_MS = 30_000;
 const MAX_CAMINHOS = 500;
+
+/** Quanto a tela de verificação espera a prévia para uma pessoa; a busca segue depois disso. */
+export const ESPERA_GENTE_MS = 300;
+/** Robô de prévia conhecido espera a busca inteira (até os 5 s dela): é a prévia que ele veio buscar. */
+export const ESPERA_ROBO_MS = TEMPO_PREVIA_MS;
 
 const ENTIDADES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
@@ -63,9 +70,23 @@ export function extrairPrevia(html: string): Previa {
   return previa;
 }
 
+/** A prévia, ou a prévia vazia se ela não chegar em `ms`; a busca continua e fica guardada. */
+function noMaximo(previa: Promise<Previa>, ms: number): Promise<Previa> {
+  if (!Number.isFinite(ms)) return previa;
+  return new Promise((resolver) => {
+    const relogio = setTimeout(() => resolver({}), ms);
+    void previa.then((p) => {
+      clearTimeout(relogio);
+      resolver(p);
+    });
+  });
+}
+
 /**
  * Prévia por caminho, guardada por 10 minutos, no máximo 500 caminhos (sai o mais antigo).
- * Pedidos simultâneos do mesmo caminho dividem a mesma busca. Erro na busca vira prévia vazia.
+ * Pedidos simultâneos do mesmo caminho dividem a mesma busca. Erro na busca vira prévia vazia,
+ * guardada só VALIDADE_FALHA_MS. Com `esperaMs`, quem pede recebe a prévia vazia se a busca passar
+ * disso; a busca termina em segundo plano e serve o próximo pedido.
  */
 export class CachePrevia {
   private readonly guardadas = new Map<string, { previa: Promise<Previa>; ate: number }>();
@@ -76,18 +97,22 @@ export class CachePrevia {
     return this.guardadas.size;
   }
 
-  obter(caminho: string, buscar: () => Promise<string>): Promise<Previa> {
+  obter(caminho: string, buscar: () => Promise<string>, esperaMs = Number.POSITIVE_INFINITY): Promise<Previa> {
     const agora = this.agora();
     const guardada = this.guardadas.get(caminho);
-    if (guardada && agora < guardada.ate) return guardada.previa;
+    if (guardada && agora < guardada.ate) return noMaximo(guardada.previa, esperaMs);
     this.guardadas.delete(caminho);
     while (this.guardadas.size >= MAX_CAMINHOS) this.guardadas.delete(this.guardadas.keys().next().value!);
-    const previa = Promise.resolve()
+    const entrada = { previa: Promise.resolve<Previa>({}), ate: agora + VALIDADE_MS };
+    entrada.previa = Promise.resolve()
       .then(buscar)
       .then((html) => extrairPrevia(html))
-      .catch((): Previa => ({}));
-    this.guardadas.set(caminho, { previa, ate: agora + VALIDADE_MS });
-    return previa;
+      .catch((): Previa => {
+        entrada.ate = this.agora() + VALIDADE_FALHA_MS;
+        return {};
+      });
+    this.guardadas.set(caminho, entrada);
+    return noMaximo(entrada.previa, esperaMs);
   }
 }
 
@@ -102,7 +127,8 @@ function decodificar(bytes: Buffer, contentType: string): string {
 
 /**
  * HTML do mesmo caminho no site, para a prévia: GET com accept text/html, sem cookie de ninguém,
- * 5 s no máximo, lê até 512 KB (já descomprimido). Fora de 200 + HTML devolve "".
+ * 5 s no máximo, lê até 512 KB (já descomprimido). Erro 5xx do site é falha, como a conexão recusada
+ * e o tempo esgotado; fora disso, o que não é 200 + HTML devolve "".
  */
 export function buscarHtml(destino: Destino, caminho: string, hostDoSite: string | undefined, sinal: AbortSignal): Promise<string> {
   return new Promise((resolver, rejeitar) => {
@@ -127,6 +153,11 @@ export function buscarHtml(destino: Destino, caminho: string, hostDoSite: string
     pedido.on("error", (erro) => terminar(erro));
     pedido.on("response", (resposta) => {
       const tipo = String(resposta.headers["content-type"] ?? "");
+      if ((resposta.statusCode ?? 500) >= 500) {
+        resposta.resume();
+        terminar(new Error(`prévia com erro ${resposta.statusCode ?? ""} do site`));
+        return;
+      }
       const abrir = descompressor(resposta.headers["content-encoding"]);
       if (resposta.statusCode !== 200 || !ehHtml(resposta) || abrir === undefined) {
         resposta.resume();

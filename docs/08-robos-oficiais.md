@@ -41,7 +41,8 @@ sobe, fica guardada por 24 horas e é renovada em segundo plano.
 WhatsApp, Telegram, Slack, LinkedIn, X (Twitter), Discord, Skype, Pinterest e o DuckDuckBot não
 têm como ser conferidos: a prévia do WhatsApp sai do celular de quem manda o link, e o DuckDuckGo
 não publica um nome de DNS reverso. Esses recebem a tela de verificação, que já leva o título, a
-descrição e a imagem do seu site. Nunca a sombra, e do site só as imagens.
+descrição e a imagem do seu site. Nunca a sombra, e do site só as imagens. Para montar a prévia, o
+porteiro busca a página no site e espera até 5 s por ela quando o pedido vem de um desses robôs.
 
 Com isso o DuckDuckGo indexa só a prévia da página.
 
@@ -63,3 +64,7 @@ desconhecido monta o cartão certinho, sem ver o resto do site. Ele recebe essa 
 página: com `Accept` de HTML, ou sem dizer o formato (sem `Accept` ou com o curinga `*/*`) num caminho
 sem extensão de arquivo. Pedido de arquivo (`/app.js`) ou de outro formato (`application/json`) sem
 passe leva 403.
+
+Robô fora da lista é tratado como gente: a tela sai em até 0,3 s, com a prévia se o site respondeu
+nesse tempo ou se ela já estava guardada (veja
+[A verificação da primeira visita](03-configurar.md#a-verificação-da-primeira-visita)).

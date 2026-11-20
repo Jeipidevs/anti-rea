@@ -2,7 +2,7 @@ import { once } from "node:events";
 import http from "node:http";
 import net from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CHROME, esperar, limparTudo, montar, pedir } from "./apoio-servidor.js";
+import { CHROME, HTML, esperar, limparTudo, montar, pedir } from "./apoio-servidor.js";
 
 // Operação do porteiro: site lento ou fora do ar, conexões ociosas e desligamento.
 
@@ -187,5 +187,45 @@ describe("porteiro: desligamento", () => {
     await t.porteiro.fechar();
     expect(t.enviados).toHaveLength(7);
     expect(t.enviados[6]).toMatch(/^Muitas tentativas ao mesmo tempo: 1 tentativas de 1 IPs desde /);
+  });
+});
+
+describe("porteiro: prévia na tela de verificação", () => {
+  const WHATSAPP = "WhatsApp/2.23.20.0";
+
+  it("gente espera a prévia no máximo 300 ms; a busca termina em segundo plano e serve o próximo pedido", async () => {
+    const t = await montar();
+    const inicio = Date.now();
+    const r1 = await t.get("/devagar", { accept: HTML });
+    expect(Date.now() - inicio).toBeLessThan(900);
+    expect(r1.texto).toContain("Verificando seu navegador");
+    expect(r1.texto).not.toContain("Página Devagar");
+    await new Promise((ok) => setTimeout(ok, 1_100));
+    const r2 = await t.get("/devagar", { accept: HTML });
+    expect(r2.texto).toContain('<meta property="og:title" content="Página Devagar">');
+    expect(t.site.recebidos.filter((p) => p.url === "/devagar")).toHaveLength(1);
+  });
+
+  it("robô de prévia conhecido espera a busca e leva a prévia já no primeiro pedido", async () => {
+    const t = await montar();
+    const inicio = Date.now();
+    const r = await t.get("/devagar-robo", { "user-agent": WHATSAPP, accept: HTML });
+    expect(Date.now() - inicio).toBeGreaterThanOrEqual(900);
+    expect(r.texto).toContain('<meta property="og:title" content="Página Devagar">');
+  });
+
+  it("site com erro 5xx na prévia: a falha fica guardada só 30 s", async () => {
+    let agora = Date.now();
+    const t = await montar({}, { agora: () => agora });
+    const buscas = () => t.site.recebidos.filter((p) => p.url === "/quebrado").length;
+    const r = await t.get("/quebrado", { accept: HTML });
+    expect(r.texto).not.toContain("Erro do proxy");
+    await esperar(() => buscas() === 1);
+    agora += 29_000;
+    await t.get("/quebrado", { accept: HTML });
+    expect(buscas()).toBe(1);
+    agora += 1_100;
+    await t.get("/quebrado", { accept: HTML });
+    await esperar(() => buscas() === 2);
   });
 });

@@ -15,6 +15,7 @@ import {
   SUFIXOS_TRANCADOS,
 } from "../src/deteccao/servidor/caminhos.js";
 import { SCANNERS } from "../src/deteccao/servidor/ferramentas.js";
+import { ESPERA_GENTE_MS, ESPERA_ROBO_MS, VALIDADE_FALHA_MS } from "../src/porteiro/previa.js";
 import { TEMPO_SITE_MS } from "../src/porteiro/repasse.js";
 import { KEEP_ALIVE_MS, PRAZO_DESLIGAR_MS, RITMO_JANELA_MS, RITMO_LIMITE } from "../src/porteiro/servidor.js";
 import type { Evento } from "../src/registro/registro.js";
@@ -241,6 +242,18 @@ describe("números da documentação vêm do código", () => {
     expect(corrido("docs/perguntas-frequentes.md")).toContain(`depois de ${TEMPO_SITE_MS / 1000} s sem começar a responder`);
     expect(corrido("docs/02-instalar.md")).toContain(`conexão ociosa por ${KEEP_ALIVE_MS / 1000} s`);
     expect(corrido("docs/02-instalar.md")).toContain(`espera até ${PRAZO_DESLIGAR_MS / 1000} s os pedidos em andamento`);
+  });
+
+  it("prévia: docs/03, docs/08 e a FAQ citam as esperas e a validade da falha de previa.ts", () => {
+    const corrido = (arquivo: string) => ler(arquivo).replace(/\s+/g, " ");
+    const s = (ms: number) => `${String(ms / 1000).replace(".", ",")} s`;
+    const configurar = corrido("docs/03-configurar.md");
+    expect(configurar).toContain(`nunca espera o site por mais de ${s(ESPERA_GENTE_MS)}`);
+    expect(configurar).toContain(`espera até ${s(ESPERA_ROBO_MS)}`);
+    expect(configurar).toContain(`fica guardada só ${s(VALIDADE_FALHA_MS)}`);
+    expect(corrido("docs/08-robos-oficiais.md")).toContain(`espera até ${s(ESPERA_ROBO_MS)} por ela`);
+    expect(corrido("docs/08-robos-oficiais.md")).toContain(`a tela sai em até ${s(ESPERA_GENTE_MS)}`);
+    expect(corrido("docs/perguntas-frequentes.md")).toContain(`não espera o site por mais de ${s(ESPERA_GENTE_MS)}`);
   });
 
   it("ritmo de navegação: docs/03 cita o limite e a janela de servidor.ts", () => {

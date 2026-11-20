@@ -61,6 +61,40 @@ describe("CachePrevia", () => {
     expect(await cache.obter("/a", async () => Promise.reject(new Error("fora do ar")))).toEqual({});
   });
 
+  it("falha na busca fica guardada só 30 s, contados da falha", async () => {
+    let agora = 1_000;
+    let buscas = 0;
+    const cache = new CachePrevia(() => agora);
+    const falhar = async () => {
+      buscas++;
+      agora += 5_000; // a busca levou 5 s e estourou
+      throw new Error("prévia sem resposta em 5 s");
+    };
+    expect(await cache.obter("/a", falhar)).toEqual({});
+    agora = 6_000 + 30_000 - 1;
+    expect(await cache.obter("/a", falhar)).toEqual({});
+    expect(buscas).toBe(1);
+    agora = 6_000 + 30_000;
+    await cache.obter("/a", falhar);
+    expect(buscas).toBe(2);
+  });
+
+  it("com espera curta devolve a prévia vazia na hora, e a busca termina em segundo plano para o próximo", async () => {
+    let buscas = 0;
+    const cache = new CachePrevia(() => 0);
+    const buscar = async () => {
+      buscas++;
+      await new Promise((r) => setTimeout(r, 80));
+      return "<title>Devagar</title>";
+    };
+    const inicio = Date.now();
+    expect(await cache.obter("/a", buscar, 20)).toEqual({});
+    expect(Date.now() - inicio).toBeLessThan(70);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(await cache.obter("/a", buscar, 20)).toEqual({ titulo: "Devagar" });
+    expect(buscas).toBe(1);
+  });
+
   it("pedidos simultâneos do mesmo caminho fazem uma busca só", async () => {
     let buscas = 0;
     const cache = new CachePrevia(() => 0);
