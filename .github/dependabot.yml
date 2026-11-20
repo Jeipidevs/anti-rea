@@ -1,0 +1,7 @@
+# Propõe as versões novas das ações do GitHub, que ficam presas ao SHA do commit nos fluxos.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
