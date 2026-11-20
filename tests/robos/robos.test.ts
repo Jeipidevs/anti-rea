@@ -83,6 +83,37 @@ describe("roboDeclarado", () => {
   });
 });
 
+describe("roboDeclarado: Google além do Googlebot", () => {
+  it("Shopping e GoogleOther são rastreadores de busca; verificação do Search Console e leitura em voz alta são a pedido", () => {
+    expect(roboDeclarado("Mozilla/5.0 (X11; Linux x86_64; Storebot-Google/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36")).toEqual({
+      nome: "Storebot-Google",
+      classe: "busca",
+    });
+    expect(roboDeclarado("Mozilla/5.0 (compatible; GoogleOther)")).toEqual({ nome: "GoogleOther", classe: "busca" });
+    expect(roboDeclarado("GoogleOther-Image/1.0")).toEqual({ nome: "GoogleOther", classe: "busca" });
+    expect(roboDeclarado("Mozilla/5.0 (compatible; Google-Site-Verification/1.0)")).toEqual({
+      nome: "Google-Site-Verification",
+      classe: "aPedido",
+    });
+    expect(roboDeclarado("Mozilla/5.0 Chrome/120.0 Safari/537.36 (compatible; Google-Read-Aloud; +https://support.google.com/webmasters/answer/1061943)")).toEqual({
+      nome: "Google-Read-Aloud",
+      classe: "aPedido",
+    });
+  });
+
+  it("conferidos pelos mesmos sufixos do Google", async () => {
+    const { meta } = faixasFalsas([]);
+    const rastreador: Resolvedor = { reverso: async () => ["crawl-66-249-66-1.googlebot.com"], direto: async () => ["66.249.66.1"] };
+    const aPedido: Resolvedor = { reverso: async () => ["google-proxy-66-249-90-77.google.com"], direto: async () => ["66.249.90.77"] };
+    const vm: Resolvedor = { reverso: async () => ["1-2-3-4.gae.googleusercontent.com"], direto: async () => ["34.1.2.3"] };
+    const storebot = roboDeclarado("Storebot-Google/1.0")!;
+    const verificador = roboDeclarado("Google-Site-Verification/1.0")!;
+    expect(await confirmarRobo(storebot, "66.249.66.1", { dns: rastreador, meta, agora: 0 })).toBe("sim");
+    expect(await confirmarRobo(verificador, "66.249.90.77", { dns: aPedido, meta, agora: 0 })).toBe("sim");
+    expect(await confirmarRobo(verificador, "34.1.2.3", { dns: vm, meta, agora: 0 })).toBe("nao");
+  });
+});
+
 describe("verificarPorDns", () => {
   it("confirma quando o reverso termina no sufixo e o direto volta ao IP", async () => {
     expect(await verificarPorDns("66.249.66.1", [".googlebot.com"], dnsGoogle)).toBe("sim");

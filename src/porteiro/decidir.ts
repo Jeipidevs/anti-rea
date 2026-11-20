@@ -31,8 +31,10 @@ export type RotaInterna = "verificar" | "guarda" | "pego";
 /**
  * O que fazer com o pedido.
  * - `repassar.registrar`: passa, mas grava um evento "registrado" sem aviso (robô não confirmado).
- * - `repassar.emitirPasse`: passa e entrega um passe de visitante (firstVisit false), para a guarda
- *   poder revogar alguma coisa se pegar F12 ou automação e para o WebSocket do site abrir.
+ * - `repassar.emitirPasse`: passa e entrega um passe de visitante novo (só numa resposta 200). Com
+ *   firstVisit false, na navegação sem passe, para a guarda poder revogar alguma coisa se pegar F12 ou
+ *   automação e para o WebSocket do site abrir. Com passe de visitante que já passou da metade da
+ *   validade, para renovar: senão ele vence com o visitante no meio do uso.
  * - `repassar.publico`: a resposta é a mesma para qualquer um (isento, público padrão ou mídia), então a CDN
  *   pode guardar. Sem ele, a resposta dependeu de passe ou de robô e não pode ir para cache
  *   compartilhado.
@@ -65,17 +67,33 @@ const ROTAS = new Map<string, RotaInterna>([
 const PEGO: Sinal = { motivo: "pego na verificação", gravidade: "copia" };
 const RAPIDO_DEMAIS: Sinal = { motivo: "navegação rápida demais", gravidade: "copia" };
 
-function casaIsento(caminho: string, isentos: string[]): boolean {
-  return isentos.some((padrao) => (padrao.endsWith("*") ? caminho.startsWith(padrao.slice(0, -1)) : caminho === padrao));
+/** `*` no fim do padrão casa o prefixo; sem `*`, só igual. */
+function casa(texto: string, padrao: string): boolean {
+  return padrao.endsWith("*") ? texto.startsWith(padrao.slice(0, -1)) : texto === padrao;
+}
+
+/** Query crua do pedido (sem o "?" e sem fragmento), ou null quando ele não tem "?". */
+function queryDe(cru: string): string | null {
+  const i = cru.indexOf("?");
+  return i < 0 ? null : (cru.slice(i + 1).split("#", 1)[0] ?? "");
 }
 
 /**
  * Caminho cru (não ambíguo) casa com um dos isentos: `*` no fim casa o prefixo; sem `*`, só igual.
- * Precisa casar lido dos dois jeitos, normalizado e ao pé da letra, para valer qualquer que seja o
- * jeito como o site lê %2F, barras dobradas e parâmetro de matriz.
+ * O caminho precisa casar lido dos dois jeitos, normalizado e ao pé da letra, para valer qualquer que
+ * seja o jeito como o site lê %2F, barras dobradas e parâmetro de matriz. Padrão com "?" (como
+ * "/?wc-api=*") também confere a query crua do pedido, pelo começo dela.
  */
 export function caminhoIsento(cru: string, isentos: string[]): boolean {
-  return casaIsento(normalizarCaminho(cru), isentos) && casaIsento(caminhoLiteral(cru), isentos);
+  const normalizado = normalizarCaminho(cru);
+  const literal = caminhoLiteral(cru);
+  const query = queryDe(cru);
+  return isentos.some((padrao) => {
+    const q = padrao.indexOf("?");
+    const caminhoDoPadrao = q < 0 ? padrao : padrao.slice(0, q);
+    if (!casa(normalizado, caminhoDoPadrao) || !casa(literal, caminhoDoPadrao)) return false;
+    return q < 0 || (query !== null && casa(query, padrao.slice(q + 1)));
+  });
 }
 
 function mesmoCodigo(recebido: string, esperado: string): boolean {
@@ -148,13 +166,17 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
     // quem pediu se perdeu. Não dá para conferir: na dúvida, passa e fica registrado.
     const confirmacao = ipInterno(p.ip) ? "incerto" : await ctx.confirmarRobo(robo, p.ip);
     if (confirmacao === "sim") return repassar(false);
-    if (confirmacao === "nao") return sombra({ motivo: `robô falso: ${robo.nome}`, gravidade: "copia" });
-    // Incerto (DNS ou faixas fora do ar): na dúvida passa, e fica registrado.
-    return {
-      acao: "repassar",
-      injetarGuarda: false,
-      registrar: { motivo: `robô não confirmado: ${robo.nome}`, gravidade: "copia" },
-    };
+    if (confirmacao === "incerto") {
+      // DNS ou faixas fora do ar: na dúvida passa, e fica registrado.
+      return {
+        acao: "repassar",
+        injetarGuarda: false,
+        registrar: { motivo: `robô não confirmado: ${robo.nome}`, gravidade: "copia" },
+      };
+    }
+    // Robô a pedido que não confirma pode ser o do Google saindo de endereço que não dá para conferir:
+    // segue as regras de visitante comum. Os outros mentem sobre quem são.
+    if (robo.classe !== "aPedido") return sombra({ motivo: `robô falso: ${robo.nome}`, gravidade: "copia" });
   }
 
   // 8: ritmo de navegação. IP interno não conta: atrás de um proxy que o porteiro não lê, todo
@@ -164,7 +186,12 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
 
   // 9 a 11: passe de visitante, primeira visita.
   const guarda = ctx.cfg.check.devtoolsIsCaught;
-  if (passe) return repassar(guarda);
+  if (passe) {
+    // O passe de visitante que já passou da metade da validade é renovado: quem usa o site toda semana
+    // nunca fica sem passe no meio de um formulário. Mídia sai pública para a CDN e nunca leva Set-Cookie.
+    const renovar = passe.expira - ctx.agora < ctx.cfg.check.passDurationMs / 2 && !ehMidia(caminho);
+    return renovar ? { acao: "repassar", injetarGuarda: guarda, emitirPasse: true } : repassar(guarda);
+  }
   if (!ctx.cfg.check.firstVisit) {
     // Toda navegação ganha passe, com ou sem guarda: sem ele nenhum WebSocket do site abriria.
     return navegacao ? { acao: "repassar", injetarGuarda: guarda, emitirPasse: true } : repassar(guarda);

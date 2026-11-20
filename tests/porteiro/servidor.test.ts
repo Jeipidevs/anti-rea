@@ -1,6 +1,7 @@
 import http from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CHROME, GUARDA, HTML, PNG, type Resposta, SINAIS_LIMPOS, cookieDe, esperar, limparTudo, linhaCookie, montar, pedir } from "./apoio-servidor.js";
+import { criarPasseVisitante } from "../../src/porteiro/passes.js";
+import { CHROME, GUARDA, HTML, PNG, type Resposta, SEGREDO, SINAIS_LIMPOS, cookieDe, esperar, limparTudo, linhaCookie, montar, pedir } from "./apoio-servidor.js";
 
 afterEach(limparTudo);
 
@@ -315,6 +316,35 @@ describe("porteiro: repasse", () => {
     expect(r.texto).toContain(`${GUARDA}</head>`);
     expect(linhaCookie(r, "anti_rea_passe")).toMatch(/HttpOnly; SameSite=Lax$/);
     expect(r.headers["set-cookie"]).toContain("sessao=abc; Path=/");
+  });
+});
+
+describe("porteiro: renovação do passe", () => {
+  const DIA = 86_400_000;
+
+  it("passe com mais da metade da validade gasta ganha um novo, com a duração inteira, na página e no fetch", async () => {
+    const t = await montar();
+    const velho = `anti_rea_passe=${criarPasseVisitante(SEGREDO, 7 * DIA, Date.now() - 4 * DIA)}`;
+    const pagina = await t.get("/pagina", { accept: HTML, cookie: velho });
+    expect(pagina.status).toBe(200);
+    expect(linhaCookie(pagina, "anti_rea_passe")).toMatch(/^anti_rea_passe=[^;]+; Max-Age=604800; Path=\/; HttpOnly/);
+    expect(cookieDe(pagina, "anti_rea_passe")).not.toBe(velho);
+    const js = await t.get("/app.js", { cookie: velho });
+    expect(js.status).toBe(200);
+    expect(linhaCookie(js, "anti_rea_passe")).toMatch(/Max-Age=604800/);
+    expect(js.headers["cache-control"]).toMatch(/private/);
+    // O passe novo vale.
+    expect((await t.get("/pagina", { accept: HTML, cookie: cookieDe(pagina, "anti_rea_passe") })).texto).toContain("Olá do site real");
+  });
+
+  it("passe na primeira metade da validade não muda, e resposta que não é 200 não leva passe", async () => {
+    const t = await montar();
+    const recente = `anti_rea_passe=${criarPasseVisitante(SEGREDO, 7 * DIA, Date.now() - DIA)}`;
+    expect(linhaCookie(await t.get("/pagina", { accept: HTML, cookie: recente }), "anti_rea_passe")).toBeUndefined();
+    const velho = `anti_rea_passe=${criarPasseVisitante(SEGREDO, 7 * DIA, Date.now() - 4 * DIA)}`;
+    const naoAchou = await t.get("/nao-existe", { accept: HTML, cookie: velho });
+    expect(naoAchou.status).toBe(404);
+    expect(linhaCookie(naoAchou, "anti_rea_passe")).toBeUndefined();
   });
 });
 

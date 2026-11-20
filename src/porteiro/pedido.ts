@@ -94,14 +94,19 @@ function ehPublicoPadrao(caminho: string): boolean {
   return (
     caminho.startsWith("/.well-known/") ||
     /^\/(?:robots\.txt|ads\.txt|app-ads\.txt|favicon\.ico|manifest\.json|sitemap[^/]*\.xml)$/.test(caminho) ||
-    /\/[^/]*\.webmanifest$/.test(caminho)
+    /\/[^/]*\.webmanifest$/.test(caminho) ||
+    // Feeds: leitor de RSS não roda JavaScript nem guarda cookie. "/feed" fica de fora: pode ser uma
+    // página de aplicativo, e página pública sai sem passe e quebraria o JS dela na primeira visita.
+    /\/(?:rss|feed|atom)\.xml$/.test(caminho) ||
+    /\/[^/]*\.(?:rss|atom)$/.test(caminho)
   );
 }
 
 /**
  * Caminho público padrão: /robots.txt, /sitemap.xml e /sitemap*.xml na raiz, /ads.txt, /app-ads.txt,
- * /favicon.ico, /manifest.json, qualquer *.webmanifest e tudo sob /.well-known/. Como o isento, precisa
- * casar lido dos dois jeitos (normalizado e ao pé da letra). Só serve para caminho que não é ambíguo.
+ * /favicon.ico, /manifest.json, qualquer *.webmanifest, tudo sob /.well-known/ e os feeds (rss.xml,
+ * feed.xml e atom.xml em qualquer pasta, qualquer *.rss e *.atom). Como o isento, precisa casar lido
+ * dos dois jeitos (normalizado e ao pé da letra). Só serve para caminho que não é ambíguo.
  */
 export function caminhoPublico(cru: string): boolean {
   return ehPublicoPadrao(normalizarCaminho(cru)) && ehPublicoPadrao(caminhoLiteral(cru));

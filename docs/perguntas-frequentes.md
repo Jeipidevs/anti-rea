@@ -48,7 +48,9 @@ que aquela aba tinha carregado: a página e os scripts compilados. O mapa e o c�
 não saem. Veja os [limites conhecidos](#limites-conhecidos).
 
 **Atrapalha SEO ou anúncios?**
-Não. Veja [Robôs oficiais](08-robos-oficiais.md).
+Não. Os robôs do Google (busca, Shopping, verificação do Search Console), do Bing, da Apple e da Meta
+são conferidos e passam. Para o Search Console, prefira verificar o site por DNS (registro TXT), que
+não depende de o robô chegar ao site. Veja [Robôs oficiais](08-robos-oficiais.md).
 
 **O DuckDuckGo vê o meu site?**
 Só a prévia: título, descrição e imagem. O DuckDuckGo não publica um nome de DNS reverso, então não
@@ -59,7 +61,12 @@ DuckDuckBot. Ele recebe a tela de verificação com a prévia, nunca a sombra, e
 Só a primeira visita tem a verificação de menos de 1 segundo.
 
 **Funciona com WordPress? E com site estático?**
-Sim. O porteiro não depende de como o site foi feito.
+Sim, mas o WordPress pede alguns caminhos isentos: as tarefas agendadas (`/wp-cron.php`), a API
+REST (`/wp-json/*`), a fila de plugins como o WooCommerce (`/wp-admin/admin-ajax.php`), o aviso de
+pagamento (`/wc-api/*` ou `/?wc-api=*`) e o feed (`/feed/*`). Sem eles, post agendado não sai e pedido
+pago fica como não pago. A lista pronta está em
+[Configurar](03-configurar.md#wordpress-feeds-e-cdn). Site estático funciona sem nada disso. Se uma
+CDN de origem busca os arquivos no site, as pastas dela também entram em `exempt` (mesmo link).
 
 **Posso usar com Cloudflare ou outra CDN na frente?**
 Pode, com `trustProxy: cloudflare` e o servidor aceitando conexões só dos endereços da Cloudflare
@@ -120,6 +127,15 @@ do `inspect-web-page` ele saiu com a página antes de a aba virar sombra. Com a 
 1,5 s, de antes, escapava 8 em 10. Conferir mais rápido (a cada 0,25 s) custaria 1,4% de CPU num
 aparelho 6 vezes mais lento, acima do teto de 1% que o projeto se impôs. Os números estão em
 [docs/_medicoes](_medicoes/2026-11-guarda.md).
+
+**PWA que abre as páginas do cache só renova o passe pelos pedidos de dados.** O passe se renova
+sozinho na metade do prazo, em qualquer resposta do site, e quem usa o site com alguma frequência
+nunca o perde. Mas um PWA cujo service worker abre as páginas do cache (o `NavigationRoute` do
+Workbox, o `navigateFallback` do vite-plugin-pwa) não manda navegação ao porteiro: se ficar mais que o
+`passDuration` sem uso, o passe vence, os pedidos de dados levam 403 e a tela de verificação nunca
+aparece, nem para o service worker se atualizar. Ponha o arquivo do service worker (por exemplo
+`/sw.js`) em `exempt` e deixe a navegação ir primeiro à rede (`NetworkFirst`), para a tela de
+verificação aparecer quando o passe vencer.
 
 **A guarda só confere a aba visível.** Com a aba em segundo plano ou a janela minimizada, a guarda
 para, para não gastar o aparelho de quem nem está olhando o site. Quando a aba volta a ficar

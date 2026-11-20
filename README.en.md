@@ -23,7 +23,9 @@ ANTI-REA is a **gatekeeper** that sits in front of your website. Real people bro
 Reverse-engineering tools, copier bots and attack scanners land on a **shadow page** with a sarcastic
 message, at the same address, and you get an **instant alert** on your phone.
 
-Works with any site (Next.js, WordPress, Laravel, plain HTML). No changes to your code.
+Works with any site (Next.js, WordPress, Laravel, plain HTML). No changes to your code; WordPress
+only needs a few exempt paths (see the Portuguese
+[configuration guide](docs/03-configurar.md#wordpress-feeds-e-cdn)).
 
 ## How it works
 

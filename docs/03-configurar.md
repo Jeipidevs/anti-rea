@@ -38,6 +38,10 @@ check:
   passDuration: 7d        # por quanto tempo o visitante verificado navega livre
 ```
 
+O passe se renova sozinho: passada a metade do `passDuration`, a próxima resposta 200 do site (uma
+página ou um pedido de dados; imagens e fontes não contam) leva um passe novo, com a duração inteira.
+Quem usa o site pelo menos uma vez a cada metade do prazo nunca volta para a verificação.
+
 Desligar `firstVisit` deixa o site abrir direto, mas o robô recebe o código antes de ser pego.
 Só desligue se souber o que está trocando. Com `firstVisit: false`, toda página aberta pelo
 navegador (resposta 200) entrega um passe, mesmo com `devtoolsIsCaught: false`: é ele que deixa o
@@ -69,6 +73,44 @@ Link de uso único com o código no próprio caminho (por exemplo `/login/magico
 entrar em `exempt`: a tela de verificação busca a prévia do caminho no site e gastaria o código.
 Código na query (`?token=...`) não corre esse risco, porque a prévia é buscada sem a query.
 
+Padrão com `?` também confere a query, pelo começo dela: `/?wc-api=*` isenta `/?wc-api=WC_Gateway`
+(e `/?wc-api=WC_Gateway&x=1`), mas não `/?x=1&wc-api=WC_Gateway` nem `/loja?wc-api=WC_Gateway`. O
+caminho antes do `?` segue as mesmas regras de cima.
+
+## WordPress, feeds e CDN
+
+Alguns pedidos de máquina chegam sem cookie e sem rodar JavaScript. Sem isenção eles levam 403 (ou a
+tela de verificação), e o site perde coisas que dependem deles.
+
+**WordPress.** O próprio WordPress chama o site por HTTP para rodar as tarefas agendadas (post
+agendado, e-mail, backup), e o WooCommerce recebe por HTTP o aviso de pagamento. Isente:
+
+```yaml
+exempt:
+  - /wp-cron.php                   # tarefas agendadas (WP-Cron)
+  - /wp-json/*                     # API REST: Saúde do Site, editor, apps e integrações
+  - /wp-admin/admin-ajax.php       # fila do Action Scheduler (WooCommerce e outros plugins)
+  - /wc-api/*                      # aviso de pagamento do WooCommerce, forma /wc-api/<nome>
+  - /?wc-api=*                     # o mesmo aviso, forma /?wc-api=<nome>
+  - /feed/*                        # feed do blog (/feed/, /feed/atom/)
+```
+
+Prefira configurar o meio de pagamento (Mercado Pago, PagSeguro e afins) para avisar em
+`/wc-api/<nome>`, que é um caminho só dele. A forma `/?wc-api=` também funciona com o padrão acima.
+Sem isenção, o aviso de pagamento é recusado e o pedido pago fica como não pago.
+
+**Feeds.** `rss.xml`, `feed.xml` e `atom.xml` (em qualquer pasta) e qualquer arquivo `.rss` ou
+`.atom` já são [públicos](#caminhos-públicos-padrão). O feed do WordPress (`/feed/`) não tem extensão
+e precisa entrar em `exempt`, como acima.
+
+**CDN de origem (pull zone).** Se uma CDN (BunnyCDN, KeyCDN, CloudFront) busca os arquivos no seu site
+para guardar e servir, ela chega sem passe e leva 403, e a página sai sem CSS e sem JavaScript. Isente
+as pastas que ela busca: `/wp-content/*` e `/wp-includes/*` no WordPress, `/_next/static/*` no
+Next.js. Saiba o que está trocando: esses arquivos passam a sair para qualquer um, pela CDN e pelo
+porteiro. A proteção do código fica só nas páginas, que continuam com verificação e guarda. A
+Cloudflare na frente do porteiro não tem esse problema: ela repassa o pedido do visitante, com o
+passe dele.
+
 ## Caminhos públicos padrão
 
 Alguns arquivos o navegador e as integrações pedem sem cookie, e nenhum deles tem código de valor.
@@ -78,6 +120,7 @@ Eles passam sem passe, sem verificação e sem registro, sem precisar entrar em 
 - `/ads.txt` e `/app-ads.txt`
 - `/favicon.ico`, `/manifest.json` e qualquer arquivo terminado em `.webmanifest` (manifesto do PWA)
 - tudo sob `/.well-known/` (links de app, OAuth, `security.txt`)
+- feeds: `rss.xml`, `feed.xml` e `atom.xml` em qualquer pasta, e qualquer arquivo `.rss` ou `.atom`
 
 Como nos isentos, o caminho precisa casar como chega: `/blog/sitemap.xml` ou `//robots.txt` não
 contam, e `/.well-known/../app.js` recebe 400. Arquivo trancado continua trancado também aqui

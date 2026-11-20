@@ -5,21 +5,35 @@ export type { Confirmacao } from "./faixas-meta.js";
 
 // Classifica o robô que o agente declara e confirma pelo endereço de onde ele vem.
 
-export type Robo = { nome: string; classe: "busca" | "meta" | "previa" };
+/**
+ * busca: rastreador que se confirma por DNS; quem se diz um e não é cai na sombra.
+ * aPedido: robô que busca a pedido de alguém (verificação do Search Console, leitura em voz alta);
+ *   confirmado passa, não confirmado segue como visitante comum, nunca sombra.
+ * meta: confirmado pelas faixas da Meta. previa: nunca se confirma (recebe a tela com a prévia).
+ */
+export type Robo = { nome: string; classe: "busca" | "aPedido" | "meta" | "previa" };
 
 type Linha = { classe: Robo["classe"]; nomes: string[]; sufixos?: string[] };
 
-// Ordem importa: busca, depois prévia, depois meta; o primeiro casamento vence.
+// Sem .googleusercontent.com: esse sufixo é de qualquer VM do Google Cloud (e .gae. de qualquer app do App Engine).
+const SUFIXOS_GOOGLE = [".googlebot.com", ".google.com"];
+
+// Ordem importa: busca e a pedido, depois prévia, depois meta; o primeiro casamento vence.
 // Prévia antes de meta: a prévia de link do iMessage (Mensagens no iPhone e no Mac) sai
 // do aparelho de quem manda e se declara "... facebookexternalhit/1.1 Facebot Twitterbot/1.0".
 // O robô de verdade da Meta não cita nenhuma prévia.
 const TABELA: Linha[] = [
   {
     classe: "busca",
-    nomes: ["Googlebot", "Google-InspectionTool", "AdsBot-Google", "Mediapartners-Google"],
-    // Sem .googleusercontent.com: esse sufixo é de qualquer VM do Google Cloud.
-    sufixos: [".googlebot.com", ".google.com"],
+    // Storebot-Google confere os produtos do Google Shopping; GoogleOther (e -Image, -Video) é o
+    // rastreador genérico do Google. Os dois saem de crawl-*.googlebot.com, como o Googlebot.
+    nomes: ["Googlebot", "Google-InspectionTool", "AdsBot-Google", "Mediapartners-Google", "Storebot-Google", "GoogleOther"],
+    sufixos: SUFIXOS_GOOGLE,
   },
+  // A pedido de alguém: a doc do Google diz que esses saem de google-proxy-*.google.com ou de
+  // *.gae.googleusercontent.com, e o segundo não dá para conferir. Por isso o não confirmado não vai
+  // à sombra: segue como visitante comum.
+  { classe: "aPedido", nomes: ["Google-Site-Verification", "Google-Read-Aloud"], sufixos: SUFIXOS_GOOGLE },
   { classe: "busca", nomes: ["bingbot", "AdIdxBot"], sufixos: [".search.msn.com"] },
   { classe: "busca", nomes: ["Applebot"], sufixos: [".applebot.apple.com"] },
   // Prévia de link não se confirma: a do WhatsApp sai do celular de quem manda.
@@ -54,7 +68,7 @@ export function roboDeclarado(agente: string | undefined): Robo | null {
 }
 
 function sufixosDe(nome: string): string[] | null {
-  const linha = TABELA.find((l) => l.classe === "busca" && l.nomes.includes(nome));
+  const linha = TABELA.find((l) => l.sufixos !== undefined && l.nomes.includes(nome));
   return linha?.sufixos ?? null;
 }
 
@@ -85,7 +99,7 @@ async function verificar(
 }
 
 /**
- * Confirma que o robô declarado vem mesmo de quem diz ser. Busca: DNS reverso e direto.
+ * Confirma que o robô declarado vem mesmo de quem diz ser. Busca e a pedido: DNS reverso e direto.
  * Meta: faixas do AS32934. Prévia: sempre "nao".
  * "nao" só com resposta definitiva (sem nome reverso, sufixo errado, direto para outro IP,
  * IP fora das faixas carregadas). Falha passageira (tempo esgotado, SERVFAIL, outro erro,

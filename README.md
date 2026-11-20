@@ -27,7 +27,8 @@ com ferramenta de engenharia reversa, robô copiador ou varredura de ataque cai 
 com uma mensagem sarcástica, no mesmo endereço. E você recebe um **aviso no celular** na hora.
 
 Funciona com qualquer site: Next.js, WordPress, Laravel, HTML simples ou o que você tiver. Não precisa
-mexer em uma linha do seu código.
+mexer em uma linha do seu código; o WordPress só pede alguns caminhos isentos (veja
+[Configurar](docs/03-configurar.md#wordpress-feeds-e-cdn)).
 
 ## O que ele faz
 

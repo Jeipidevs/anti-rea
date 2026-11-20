@@ -57,7 +57,9 @@ function pedido(parcial: Partial<Pedido> = {}): Pedido {
   };
 }
 
-const passeVisitante = () => `anti_rea_passe=${criarPasse(SEGREDO, "visitante", 86_400_000, AGORA)}`;
+const SETE_DIAS = 7 * 86_400_000;
+/** Passe recém-emitido, com a validade padrão (7 d): ainda não é hora de renovar. */
+const passeVisitante = () => `anti_rea_passe=${criarPasse(SEGREDO, "visitante", SETE_DIAS, AGORA)}`;
 const passeDono = (versao = 1) => `anti_rea_passe=${criarPasseDono(SEGREDO, versao, AGORA)}`;
 const marcaPego = () => `anti_rea_pego=${criarMarcaPego(SEGREDO, AGORA)}`;
 
@@ -157,6 +159,16 @@ describe("decidir: passe de dono e isentos", () => {
     expect(await decidir(pedido({ caminho: "/api/webhook/../../app.js", agente: "curl/8.7.1" }), ctx())).toEqual({ acao: "recusar", status: 400 });
     expect(await decidir(pedido({ caminho: "/api/webhook/%2e%2e/%2e%2e/app.js", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 400 });
     expect(await decidir(pedido({ caminho: "/API/webhook/x", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("curl", "copia", 200));
+  });
+
+  it("isento com query: o caminho casa igual e a query casa pelo começo (aviso de pagamento do WooCommerce)", async () => {
+    const c = ctx({ cfg: config({ exempt: ["/?wc-api=*", "/loja/?acao=pago"] }) });
+    const POST = { metodo: "POST", agente: "MercadoPago/1.0", accept: "*/*" };
+    expect(await decidir(pedido({ ...POST, caminho: "/?wc-api=WC_WooMercadoPago_Basic_Gateway&source_news=webhooks" }), c)).toEqual(publico(false));
+    expect(await decidir(pedido({ ...POST, caminho: "/loja/?acao=pago" }), c)).toEqual(publico(false));
+    for (const caminho of ["/?x=1&wc-api=WC_X", "/", "/loja?wc-api=WC_X", "/app.js?wc-api=WC_X", "/loja/?acao=pago2", "/%3Fwc-api=x"]) {
+      expect(await decidir(pedido({ ...POST, caminho }), c), caminho).toEqual({ acao: "recusar", status: 403 });
+    }
   });
 
   it("isento só vale quando o caminho casa lido dos dois jeitos (%2F, barra dobrada e matriz não criam isento)", async () => {
@@ -266,6 +278,19 @@ describe("decidir: robôs declarados", () => {
     expect(c.robosPerguntados).toEqual([]);
   });
 
+  it("robô do Google a pedido (Search Console, leitura em voz alta) não confirmado segue como visitante, nunca sombra", async () => {
+    const c = ctx();
+    const VERIFICADOR = "Mozilla/5.0 (compatible; Google-Site-Verification/1.0)";
+    expect(await decidir(pedido({ agente: VERIFICADOR, caminho: "/google1234.html", accept: "*/*", ip: IP_GOOGLE }), c)).toEqual(repassar(false));
+    expect(await decidir(pedido({ agente: VERIFICADOR, caminho: "/google1234.html", accept: "*/*", ip: "203.0.113.9" }), c)).toEqual({
+      acao: "recusar",
+      status: 403,
+    });
+    const LEITURA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36 (compatible; Google-Read-Aloud; +https://support.google.com/webmasters/answer/1061943)";
+    expect(await decidir(pedido({ agente: LEITURA, ip: "203.0.113.9" }), c)).toEqual({ acao: "verificar" });
+    expect(c.robosPerguntados).toEqual([`Google-Site-Verification|${IP_GOOGLE}`, "Google-Site-Verification|203.0.113.9", "Google-Read-Aloud|203.0.113.9"]);
+  });
+
   it("WhatsApp/2.24 em / vai a verificar; imagem de prévia passa", async () => {
     const c = ctx();
     expect(await decidir(pedido({ agente: "WhatsApp/2.24", accept: "*/*" }), c)).toEqual({ acao: "verificar" });
@@ -316,6 +341,24 @@ describe("decidir: passe de visitante e primeira visita", () => {
     expect(await decidir(pedido({ cookie: vencido }), ctx())).toEqual({ acao: "verificar" });
     const outro = `anti_rea_passe=${criarPasse("outro-segredo", "visitante", 86_400_000, AGORA)}`;
     expect(await decidir(pedido({ cookie: outro }), ctx())).toEqual({ acao: "verificar" });
+  });
+
+  it("passe com mais da metade da validade gasta é renovado na resposta (sem isso vencia com o visitante no meio do uso)", async () => {
+    const velho = `anti_rea_passe=${criarPasse(SEGREDO, "visitante", SETE_DIAS, AGORA - 4 * 86_400_000)}`;
+    expect(await decidir(pedido({ cookie: velho }), ctx())).toEqual({ acao: "repassar", injetarGuarda: true, emitirPasse: true });
+    // Pedido de dados (fetch, service worker) também renova: PWA que abre as páginas do cache só manda esses.
+    expect(await decidir(pedido({ cookie: velho, caminho: "/api/dados", accept: "*/*" }), ctx())).toEqual({
+      acao: "repassar",
+      injetarGuarda: true,
+      emitirPasse: true,
+    });
+    // Mídia sai como pública para a CDN: nunca leva Set-Cookie.
+    expect(await decidir(pedido({ cookie: velho, caminho: "/og.png", accept: "image/*" }), ctx())).toEqual(publico(true));
+    // Na primeira metade, não renova.
+    const novo = `anti_rea_passe=${criarPasse(SEGREDO, "visitante", SETE_DIAS, AGORA - 3 * 86_400_000)}`;
+    expect(await decidir(pedido({ cookie: novo }), ctx())).toEqual(repassar(true));
+    // Passe de dono não é renovado aqui (vale 1 ano).
+    expect(await decidir(pedido({ cookie: passeDono() }), ctx())).toEqual(repassar(false));
   });
 
   it("acha o passe no meio de outros cookies", async () => {
@@ -396,6 +439,13 @@ describe("decidir: caminhos públicos padrão", () => {
     "/.well-known/apple-app-site-association",
     "/.well-known/openid-configuration",
     "/robots.txt?x=1",
+    // Feeds: leitor de RSS não roda JavaScript nem guarda cookie.
+    "/rss.xml",
+    "/feed.xml",
+    "/atom.xml",
+    "/blog/rss.xml",
+    "/podcast.rss",
+    "/noticias/index.atom",
   ];
 
   it("passam sem passe, sem guarda e sem registro, para qualquer agente", async () => {
@@ -416,7 +466,7 @@ describe("decidir: caminhos públicos padrão", () => {
     for (const caminho of ["/.well-known/../app.js", "/.well-known/%2e%2e/app.js", "/.well-known/..;/app.js", "/.well-known\\..\\app.js"]) {
       expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual({ acao: "recusar", status: 400 });
     }
-    for (const caminho of ["/blog/sitemap.xml", "/blog/robots.txt", "/.well-known", "/.well-knownx/a", "/manifest.json.js", "/x.webmanifest.js", "/sitemap.xml/app.js", "//robots.txt", "/.well-known%2fx"]) {
+    for (const caminho of ["/blog/sitemap.xml", "/blog/robots.txt", "/.well-known", "/.well-knownx/a", "/manifest.json.js", "/x.webmanifest.js", "/sitemap.xml/app.js", "//robots.txt", "/.well-known%2fx", "/feed", "/feed/", "/rss.xml/app.js", "/x.rss.js", "/myrss.xml"]) {
       expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual({ acao: "recusar", status: 403 });
     }
   });

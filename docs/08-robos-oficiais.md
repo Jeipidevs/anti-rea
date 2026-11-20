@@ -16,13 +16,21 @@ na sombra.
 
 | Robô | Como o ANTI-REA confere |
 |---|---|
-| Google | DNS reverso termina em `.googlebot.com` ou `.google.com`, e esse nome aponta de volta para o mesmo IP |
+| Google (Googlebot, Google-InspectionTool, AdsBot, Mediapartners, Storebot-Google do Shopping, GoogleOther) | DNS reverso termina em `.googlebot.com` ou `.google.com`, e esse nome aponta de volta para o mesmo IP |
+| Google a pedido (Google-Site-Verification do Search Console, Google-Read-Aloud da leitura em voz alta) | O mesmo do Google; quando não confirma, segue como visitante comum, sem sombra |
 | Bing | O mesmo, com `.search.msn.com` |
 | Apple | O mesmo, com `.applebot.apple.com` |
 | Meta | O IP está nas faixas que a Meta anuncia (AS32934) |
 
 O sufixo `.googleusercontent.com` não vale: ele é de qualquer máquina alugada no Google Cloud, e
 aceitar esse nome deixaria qualquer um se passar pelo Google.
+
+Os robôs que o Google manda a pedido de alguém (a verificação do Search Console, a leitura em voz
+alta) podem sair desse endereço que não dá para conferir. Por isso, quando não confirmam, eles não
+caem na sombra: seguem as regras de visitante comum (a tela de verificação ou o 403). Para verificar
+o site no Search Console, use o **registro TXT no DNS**: ele não depende de o robô chegar ao site e
+nunca expira por causa do porteiro. A verificação por arquivo HTML ou etiqueta também funciona
+quando o robô vem de `.google.com`.
 
 As faixas da Meta vêm do RIPEstat, por HTTPS. Se o RIPEstat não responder, o ANTI-REA pergunta ao
 whois do RADb (porta 43, que muita VPS bloqueia). A lista começa a carregar quando o porteiro
