@@ -157,7 +157,7 @@ services:
     image: anti-rea
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     env_file: .env
     # Horário dos avisos e do resumo do dia: sem TZ, o contêiner fica em UTC.
     # environment:

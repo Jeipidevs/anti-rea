@@ -283,6 +283,6 @@ export async function rodarInit(pasta: string, forcar: boolean): Promise<string[
   const valores = analisarEnv(readFileSync(join(pasta, ARQUIVO_ENV), "utf8"));
   const vazias = variaveisDoCanal(r.canal).filter((v) => !valores[v]);
   if (vazias.length > 0) linhas.push(`Preencha no .env: ${vazias.join(", ")}`);
-  linhas.push("Depois rode: npx anti-rea start");
+  linhas.push("Depois ligue o porteiro: o mesmo comando, com start no lugar de init (no Docker, docker compose up -d).");
   return linhas;
 }

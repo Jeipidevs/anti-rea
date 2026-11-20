@@ -18,8 +18,12 @@ Você precisa de duas coisas:
 <img src="../assets/telas/assistente.svg" alt="Assistente de instalação no terminal" width="100%">
 
 ```bash
-npx anti-rea init
+node <pasta do anti-rea>/dist/cli/index.js init
 ```
+
+Rode na pasta onde a configuração vai morar. A pasta do anti-rea é a do repositório compilado (veja
+[Antes da primeira versão publicada](#antes-da-primeira-versão-publicada)); quando o pacote sair no
+npm, o comando vira `npx anti-rea init`.
 
 Responda as perguntas. Uma delas é o que fica na frente do porteiro (nada, um proxy como nginx,
 Traefik, EasyPanel ou Coolify, ou a Cloudflare): é daí que sai o IP de cada visitante, então responda
@@ -34,21 +38,21 @@ Se a pasta já tem um `.env` (o do seu site, por exemplo), o assistente não mex
 acrescenta no fim, sob a linha `# ANTI-REA`, as variáveis `ANTI_REA_` que faltam. As `ANTI_REA_` que
 já existem ficam como estão, inclusive o segredo, então o link de dono continua o mesmo. Rodar de
 novo não repete nada. O assistente só recusa quando `anti-rea.config.yml` já existe; para trocar a
-configuração, use `npx anti-rea init --forcar` (o `.env` continua sendo só completado).
+configuração, rode o `init --forcar` (o `.env` continua sendo só completado).
 
 Ele também mostra o seu [link de dono](07-modo-dono.md). Guarde num lugar seguro.
 
 Depois, ligue:
 
 ```bash
-npx anti-rea start
+node <pasta do anti-rea>/dist/cli/index.js start
 ```
 
 ## Jeito 2: Docker
 
 Crie a configuração com o assistente. O assistente e o comando `dono` rodam fora do porteiro: o
 contêiner do porteiro não tem o `.env` dentro (ele chega pelo `env_file`) e não grava na pasta da
-instalação. Com Node no servidor, use `npx anti-rea init` (passo acima). Sem Node, rode o assistente
+instalação. Com Node no servidor, use o `init` do passo acima. Sem Node, rode o assistente
 pela imagem, na pasta onde a configuração vai morar:
 
 ```bash
@@ -66,7 +70,7 @@ services:
     image: ghcr.io/jeipidevs/anti-rea:latest
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     env_file: .env
     # Horário dos avisos e do resumo do dia: sem TZ, o contêiner fica em UTC.
     # environment:
@@ -76,10 +80,11 @@ services:
       - ./registro:/app/registro
 ```
 
-Com um proxy na mesma máquina (nginx ou Traefik, `trustProxy: true`), troque a linha da porta por
-`"127.0.0.1:8080:8080"`, como na seção do [nginx](#com-nginx-na-frente): a porta do porteiro só pode
-ser alcançada pelo proxy. Com a Cloudflare ligada direto no porteiro, não use `127.0.0.1`: veja
-[Atrás da Cloudflare](#atrás-da-cloudflare).
+A porta sai só para a própria máquina (`"127.0.0.1:8080:8080"`), o caso de um proxy na mesma máquina
+(nginx ou Traefik, `trustProxy: true`), como na seção do [nginx](#com-nginx-na-frente): a porta do
+porteiro só pode ser alcançada pelo proxy. No painel (EasyPanel, Coolify), não publique porta. Com a
+Cloudflare ligada direto no porteiro, não use `127.0.0.1`: veja [Atrás da Cloudflare](#atrás-da-cloudflare).
+Sem nada na frente (`trustProxy: false`), tire o `127.0.0.1:` para a porta aceitar conexões de fora.
 
 O `restart: unless-stopped` religa o porteiro sozinho se ele cair ou se a máquina reiniciar: com ele
 parado, o site fica fora do ar.
@@ -122,8 +127,8 @@ npm ci
 npm run build
 ```
 
-Depois, na pasta onde a configuração vai morar, troque `npx anti-rea` por
-`node <pasta do anti-rea>/dist/cli/index.js` nos comandos acima (`init`, `start` e `dono`).
+Os comandos acima (`init`, `start` e `dono`) usam essa pasta: `node <pasta do anti-rea>/dist/cli/index.js`.
+Quando o pacote sair no npm, cada um vira `npx anti-rea` (por exemplo `npx anti-rea start`).
 
 Para o Docker, construa a imagem na pasta do repositório e use `anti-rea` no lugar de
 `ghcr.io/jeipidevs/anti-rea:latest`, no `docker-compose.yml` (`image: anti-rea`) e nos comandos

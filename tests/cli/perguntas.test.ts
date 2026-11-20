@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
@@ -21,7 +22,7 @@ function responder({ message }: { message: string }): Promise<unknown> {
 
 vi.mock("@inquirer/prompts", () => ({ input: responder, select: responder, confirm: responder }));
 
-const { perguntar } = await import("../../src/cli/init.js");
+const { perguntar, rodarInit } = await import("../../src/cli/init.js");
 const tela = readFileSync(join(import.meta.dirname, "..", "..", "assets", "telas", "assistente.svg"), "utf8");
 
 /** Pergunta e resposta de cada linha com ✔ da tela, já sem as etiquetas do SVG. */
@@ -33,6 +34,18 @@ function linhasDaTela(): { pergunta: string; resposta: string }[] {
 }
 
 describe("assistente: perguntas e a tela assistente.svg", () => {
+  it("a última linha diz como ligar com o que roda hoje, sem npx anti-rea (o pacote ainda não está no npm)", async () => {
+    const pasta = mkdtempSync(join(tmpdir(), "anti-rea-init-"));
+    try {
+      const ultima = (await rodarInit(pasta, false)).at(-1)!;
+      expect(ultima).not.toContain("npx anti-rea");
+      expect(ultima).toContain("start no lugar de init");
+      expect(ultima).toContain("docker compose up -d");
+    } finally {
+      rmSync(pasta, { recursive: true, force: true });
+    }
+  });
+
   it("a pergunta dos caminhos de máquina dá o exemplo com /* (prefixo), e a tela responde assim", async () => {
     perguntas.length = 0;
     const r = await perguntar();

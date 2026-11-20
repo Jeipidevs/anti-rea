@@ -21,8 +21,9 @@ registro e sem aviso.
 - Perdeu o link? Rode `npx anti-rea dono` na pasta da instalação e ele aparece de novo. Antes da
   primeira versão publicada no npm, use `node <pasta do anti-rea>/dist/cli/index.js dono` (veja
   [Instalar](02-instalar.md#antes-da-primeira-versão-publicada)).
-- Quer trocar o link (alguém saiu da equipe)? Rode `npx anti-rea dono --novo` e reinicie o porteiro.
-  O link antigo e os passes de dono antigos deixam de valer.
+- Quer trocar o link (alguém saiu da equipe)? Rode o `dono --novo` (antes da primeira versão no npm,
+  `node <pasta do anti-rea>/dist/cli/index.js dono --novo`) e reinicie o porteiro. O link antigo e os
+  passes de dono antigos deixam de valer.
 - No Docker, o `dono` roda fora do contêiner (com Node ou pela imagem, veja
   [Instalar](02-instalar.md#trocar-o-link-de-dono-no-docker)). Depois do `dono --novo`, rode
   `docker compose up -d`, que recria o contêiner. O `docker compose restart` não relê o `.env`, e o
@@ -38,7 +39,7 @@ O código do link sai de duas variáveis do `.env`:
   43, e à mão você gera um com `openssl rand -base64 32`. Com menos, o `start` recusa e diz isso. Sem
   ele, o porteiro sobe com um segredo que só vale até reiniciar.
 - `ANTI_REA_OWNER_VERSION`: a versão do link de dono, um número inteiro a partir de 1 (sem a linha,
-  vale 1). `npx anti-rea dono --novo` soma 1 nesse número. Muda só o link e os passes de dono; quem
+  vale 1). O `dono --novo` soma 1 nesse número. Muda só o link e os passes de dono; quem
   visita o site continua navegando. Se a linha aparecer mais de uma vez no `.env` (vale a última),
   o `--novo` deixa uma linha só, com a versão nova, e confere que é ela que vale antes de mostrar o
   link.
