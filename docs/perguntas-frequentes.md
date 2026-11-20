@@ -51,9 +51,12 @@ que aquela aba tinha carregado: a página e os scripts compilados. O mapa e o c�
 não saem. Veja os [limites conhecidos](#limites-conhecidos).
 
 **Atrapalha SEO ou anúncios?**
-Não. Os robôs do Google (busca, Shopping, verificação do Search Console), do Bing, da Apple e da Meta
-são conferidos e passam. Para o Search Console, prefira verificar o site por DNS (registro TXT), que
-não depende de o robô chegar ao site. Veja [Robôs oficiais](08-robos-oficiais.md).
+Não. Os robôs do Google (busca, Shopping, anúncios), do Bing, da Apple e da Meta são conferidos e
+passam. A verificação do Search Console por arquivo HTML ou etiqueta passa quando o robô vem de um
+endereço do Google (`.google.com`); às vezes ele sai de uma máquina do Google Cloud, que não dá para
+conferir, e aí recebe o tratamento de visitante comum (o arquivo de verificação leva 403). Por isso,
+verifique o site no Search Console por DNS (registro TXT), que não depende de o robô chegar ao site.
+Veja [Robôs oficiais](08-robos-oficiais.md).
 
 **O DuckDuckGo vê o meu site?**
 Só a prévia: título, descrição e imagem. O DuckDuckGo não publica um nome de DNS reverso, então não
@@ -61,10 +64,12 @@ tem como ser conferido, e aceitar o nome dele deixaria qualquer copiador entrar 
 DuckDuckBot. Ele recebe a tela de verificação com a prévia, nunca a sombra, e indexa só essa prévia.
 
 **Deixa o site lento?**
-Só a primeira visita tem a verificação de menos de 1 segundo, e a tela dela não espera o site por
-mais de 0,3 s. A página que o seu site manda
-comprimida (gzip, deflate ou br) continua comprimida: o porteiro põe a guarda e comprime de novo, em
-fluxo.
+Pouco, e medimos. A primeira visita tem a verificação de menos de 1 segundo, e a tela dela não
+espera o site por mais de 0,3 s. Depois, cada página leva a guarda, que confere a aba duas vezes por
+segundo enquanto ela está visível: num aparelho com a CPU 6 vezes mais lenta dá 0,7% de CPU (os
+números estão em [docs/_medicoes](_medicoes/2026-11-guarda.md)). A página
+que o seu site manda comprimida (gzip, deflate ou br) continua comprimida: o porteiro põe a guarda e
+comprime de novo, em fluxo.
 
 **Funciona com WordPress? E com site estático?**
 Sim, mas o WordPress pede alguns caminhos isentos: as tarefas agendadas (`/wp-cron.php`), a API
@@ -122,7 +127,19 @@ cai se for pego outra vez.
 script do próprio endereço do site (`/.anti-rea/guarda.js`). Se o seu site manda um cabeçalho
 `Content-Security-Policy` em que o `script-src` não tem `'self'`, o navegador não roda a guarda. O
 site continua funcionando, mas a aba deixa de ser conferida depois da verificação. Resolva
-acrescentando `'self'` ao `script-src`.
+acrescentando `'self'` ao `script-src`. Se o `script-src` usa `'strict-dynamic'` (como na receita
+de CSP com nonce do Next.js), o navegador ignora o `'self'`: a guarda só rodaria com o nonce da
+página, e na versão 0.1 o porteiro não põe o nonce nela. Nesse caso a guarda não roda; o site segue
+funcionando e a tela de verificação continua valendo, só sem a conferência contínua.
+
+**Um script que lê a tela de verificação pode ganhar passe.** A tela de verificação leva um código
+assinado (o nonce), que vale 2 minutos. Um script feito para o ANTI-REA, sem navegador, pode ler esse
+código, responder com sinais limpos e ganhar um passe de visitante pelo `passDuration` (7 dias por
+padrão). Com o passe e pedindo com `Accept: */*`, os pedidos dele não contam como navegação, então o
+[ritmo de navegação](03-configurar.md#ritmo-de-navegação) não o segura. Continuam valendo os
+arquivos trancados e a conferência do nome da ferramenta; a guarda não roda, porque ele não executa
+JavaScript. Na próxima versão, o ritmo vai contar todo pedido cuja resposta do site é uma
+página HTML, e não só o que pede HTML.
 
 **Imagem de prévia gerada na hora, sem extensão, precisa ir em `exempt`.** Robô de prévia de link
 (WhatsApp, Telegram, LinkedIn) recebe as imagens, fontes e ícones que ele reconhece pela extensão

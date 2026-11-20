@@ -51,7 +51,8 @@ inspeção curta dele caiu 20 de 20 vezes, mas em 2 já tinha lido a página
 <td width="33%" valign="top">
 <img src="assets/icones/aviso.svg" width="48" alt=""><br>
 <b>Aviso na hora</b><br>
-WhatsApp, Telegram ou webhook, com IP, página e motivo. Tentativas repetidas vêm agrupadas.
+WhatsApp, Telegram ou webhook, com IP, página, motivo, agente e horário. Tentativas repetidas vêm
+agrupadas.
 </td>
 </tr>
 <tr>
@@ -87,7 +88,7 @@ seguir.
 
 ## Como funciona
 
-<img src="assets/diagramas/como-funciona.svg" alt="Diagrama: visitantes passam pelo porteiro; pessoa e robôs oficiais vão ao site real; REA, robô copiador, F12 e varredura vão para a página sombra e geram aviso" width="100%">
+<img src="assets/diagramas/como-funciona.svg" alt="Diagrama: visitantes passam pelo porteiro; pessoa verificada e robôs oficiais (Google, Bing, Meta) vão ao site real; robô de prévia de link recebe a tela de verificação, com título, descrição e imagem; REA, robô copiador, F12 e varredura vão para a página sombra e geram aviso" width="100%">
 
 1. **Todo visitante passa pelo porteiro.** Ele olha quem está pedindo e o que está pedindo.
 2. **Na primeira visita, o navegador é verificado** por menos de um segundo. Quem passa ganha um
@@ -119,31 +120,41 @@ seguir) vai avisar se algo do servidor vazou para ela.
 
 > [!NOTE]
 > O pacote `anti-rea` ainda não está no npm nem a imagem no GHCR: os dois saem junto com a primeira
-> versão publicada. Até lá, rode a partir deste repositório, como explica [Instalar](docs/02-instalar.md).
+> versão publicada. Até lá, os comandos abaixo rodam a partir deste repositório.
 
-**1. Rode o assistente.** Ele pergunta o endereço do seu site, o que fica na frente dele e onde você
-quer os avisos, e escreve a configuração sozinho.
+**1. Baixe, compile e rode o assistente** (precisa do Node.js 22 ou mais novo). Ele pergunta o
+endereço do seu site, o que fica na frente dele e onde você quer os avisos, e escreve a configuração
+sozinho.
 
 ```bash
-npx anti-rea init
+git clone https://github.com/Jeipidevs/anti-rea.git
+cd anti-rea
+npm ci && npm run build
+node dist/cli/index.js init
 ```
 
 **2. Ligue o porteiro.**
 
 ```bash
-npx anti-rea start
+node dist/cli/index.js start
 ```
 
-**3. Aponte o seu domínio para o porteiro** em vez do site. Pronto.
+**3. Aponte o seu domínio para o porteiro** em vez do site. O porteiro fala HTTP simples na porta
+8080: o HTTPS fica com quem está na frente dele (o nginx da máquina, o Traefik do painel ou a
+Cloudflare), como explica [Instalar](docs/02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).
 
-Prefere Docker? Use este `docker-compose.yml`. A imagem `ghcr.io/jeipidevs/anti-rea` sai junto com a
-primeira versão publicada; até lá, construa a sua a partir deste repositório com
-`docker build -t anti-rea .` e troque a linha `image:` por `image: anti-rea`.
+Prefere Docker? Construa a imagem na pasta do repositório e use este `docker-compose.yml` (quando a
+imagem `ghcr.io/jeipidevs/anti-rea` sair, troque a linha `image:` por ela). No `upstream` da
+configuração, use o endereço do site visto de dentro do contêiner, não `localhost`.
+
+```bash
+docker build -t anti-rea .
+```
 
 ```yaml
 services:
   anti-rea:
-    image: ghcr.io/jeipidevs/anti-rea:latest
+    image: anti-rea
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -164,15 +175,23 @@ mkdir -p registro && sudo chown 1000:1000 registro
 docker compose up -d
 ```
 
-Com um proxy na frente (nginx, Traefik, EasyPanel, Cloudflare), ligue `trustProxy` e deixe a porta do
-porteiro alcançável só pelo proxy (`"127.0.0.1:8080:8080"`). O passo a passo de cada caso está em
-[Instalar](docs/02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).
+O que fica na frente do porteiro muda a porta e o `trustProxy`:
+
+- **nginx ou Traefik na mesma máquina:** `trustProxy: true` e a porta publicada só para a própria
+  máquina (`"127.0.0.1:8080:8080"`), para só o proxy alcançar o porteiro.
+- **Painel (EasyPanel, Coolify):** `trustProxy: true` e nenhuma porta publicada; o painel entrega o
+  domínio pelo Traefik dele.
+- **Cloudflare ligada direto no porteiro:** `trustProxy: cloudflare` e a porta 80 do servidor
+  publicada para o porteiro (`"80:8080"`), sem `127.0.0.1` (a Cloudflare não alcançaria o porteiro e
+  o site sairia do ar). Quem fecha a porta para o resto da internet é o
+  firewall, que aceita só os endereços da Cloudflare: veja
+  [Atrás da Cloudflare](docs/02-instalar.md#atrás-da-cloudflare).
 
 No Docker, o assistente e o comando `dono` rodam com Node ou pela própria imagem (veja
 [Instalar](docs/02-instalar.md#jeito-2-docker)). Depois de mudar o `.env`, rode `docker compose up -d`:
 o `docker compose restart` não relê o `.env`.
 
-Passo a passo com imagem para cada tipo de hospedagem (VPS, EasyPanel, Coolify, nginx, Cloudflare):
+Passo a passo para painel (EasyPanel, Coolify), nginx na mesma máquina e Cloudflare:
 [Instalar](docs/02-instalar.md).
 
 ## A página sombra
@@ -230,15 +249,18 @@ tem como ser conferido e vê só essa prévia. Veja [Robôs oficiais](docs/08-ro
 <details>
 <summary><b>Meu site fica mais lento?</b></summary>
 
-Só a primeira visita tem a verificação, de menos de um segundo. Depois disso o visitante navega com
-um passe e não sente diferença. A página que o seu site manda comprimida (gzip, deflate ou br)
-continua comprimida, com a guarda.
+Pouco, e medimos. A primeira visita tem a verificação, de menos de um segundo. Depois, cada página
+leva a guarda, que confere a aba duas vezes por segundo enquanto ela está visível: num aparelho com a
+CPU 6 vezes mais lenta isso dá 0,7% de CPU
+([os números](docs/_medicoes/2026-11-guarda.md)). A página que o
+seu site manda comprimida (gzip, deflate ou br) continua comprimida, com a guarda.
 </details>
 
 <details>
 <summary><b>E os webhooks de pagamento e o app de celular que chamam minha API?</b></summary>
 
-Você lista esses caminhos como isentos. O assistente pergunta por eles na instalação.
+Você lista esses caminhos como isentos, com `/*` no fim para valer para tudo abaixo deles
+(`/api/webhook/*`). O assistente pergunta por eles na instalação.
 `robots.txt`, sitemaps, o manifesto do PWA e `/.well-known/` já passam sozinhos. Veja
 [Configurar](docs/03-configurar.md#caminhos-públicos-padrão).
 </details>
@@ -259,7 +281,8 @@ Mais perguntas: [Perguntas frequentes](docs/perguntas-frequentes.md) · Termos d
 - [x] Confirmação de robôs oficiais
 - [x] Página sombra configurável
 - [x] Avisos: WhatsApp (Evolution API), Telegram e webhook
-- [x] Assistente `npx anti-rea init`
+- [x] Assistente de instalação (`anti-rea init`)
+- [ ] Pacote publicado no npm
 - [ ] Imagem Docker publicada
 - [ ] Exame do próprio site
 - [ ] Painel de registro

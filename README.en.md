@@ -29,7 +29,7 @@ only needs a few exempt paths (see the Portuguese
 
 ## How it works
 
-<img src="assets/diagramas/como-funciona.svg" alt="How ANTI-REA works" width="100%">
+<img src="assets/diagramas/como-funciona.svg" alt="Diagram: visitors go through the gatekeeper; verified people and official bots (Google, Bing, Meta) reach the real site; link-preview bots get the check page with title, description and image; REA, copier bots, DevTools and scanners get the shadow page and trigger an alert" width="100%">
 
 1. **Every visitor goes through the gatekeeper**, which reads who is asking and what for.
 2. **First visit: a sub-second browser check.** Visitors who pass get a signed pass for days.
@@ -57,22 +57,38 @@ shows what a curious visitor can see of your site comes next.
 
 ## Install in 3 steps
 
-The `anti-rea` package is not on npm yet: it ships with the first published release. Until then,
-run it from this repository (`npm ci && npm run build`, then `node dist/cli/index.js init`).
+The `anti-rea` package is not on npm and the image is not on GHCR yet: both ship with the first
+published release. Until then, these commands run from this repository (Node.js 22 or newer):
 
 ```bash
-npx anti-rea init     # wizard: asks your site address, what sits in front of it and alert channel
-npx anti-rea start    # gatekeeper up on :8080
+git clone https://github.com/Jeipidevs/anti-rea.git
+cd anti-rea
+npm ci && npm run build
+node dist/cli/index.js init    # wizard: asks your site address, what sits in front of it and alert channel
+node dist/cli/index.js start   # gatekeeper up on :8080
 ```
 
-Then point your domain to the gatekeeper instead of the site. The Docker image
-`ghcr.io/jeipidevs/anti-rea` ships with the first published release; until then, build it from this
-repository with `docker build -t anti-rea .`.
+Then point your domain to the gatekeeper instead of the site. The gatekeeper speaks plain HTTP on
+port 8080: HTTPS comes from what sits in front of it (nginx on the machine, the panel's Traefik or
+Cloudflare).
 
-Behind a proxy (nginx, Traefik, EasyPanel, Coolify), set `trustProxy: true`; behind Cloudflare, set
-`trustProxy: cloudflare` and let only Cloudflare's addresses reach the server. Either way, the
-gatekeeper port must be reachable only through the proxy (publish it as `"127.0.0.1:8080:8080"`),
-or anyone can pick their own IP with a header.
+Prefer Docker? Build the image in the repository folder with `docker build -t anti-rea .` and use
+`image: anti-rea` in the `docker-compose.yml` shown in the
+[Portuguese README](README.md#instalar-em-3-passos) (swap it for `ghcr.io/jeipidevs/anti-rea` once
+that image ships).
+
+What sits in front of the gatekeeper sets the port and `trustProxy`; with a trusted proxy, anyone
+who reaches the gatekeeper port directly could pick their own IP with a header:
+
+- **nginx or Traefik on the same machine:** `trustProxy: true` and publish the port to that machine
+  only (`"127.0.0.1:8080:8080"`).
+- **Panel (EasyPanel, Coolify):** `trustProxy: true` and no published port; the panel serves the
+  domain through its Traefik.
+- **Cloudflare connecting straight to the gatekeeper:** `trustProxy: cloudflare`, the server's port
+  80 published to the gatekeeper (`"80:8080"`) and no `127.0.0.1` (Cloudflare could not reach the
+  gatekeeper and the site would go down). A firewall that accepts
+  only Cloudflare's addresses closes the port to everyone else: see
+  [Atrás da Cloudflare](docs/02-instalar.md#atrás-da-cloudflare) (Portuguese).
 
 ## Roadmap
 
@@ -82,7 +98,8 @@ or anyone can pick their own IP with a header.
 - [x] Official bot verification
 - [x] Configurable shadow page
 - [x] Alerts: WhatsApp (Evolution API), Telegram, webhook
-- [x] `npx anti-rea init` wizard
+- [x] Install wizard (`anti-rea init`)
+- [ ] Published npm package
 - [ ] Published Docker image
 - [ ] Self-scan
 - [ ] Log panel

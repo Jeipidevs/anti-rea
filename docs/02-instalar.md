@@ -76,8 +76,10 @@ services:
       - ./registro:/app/registro
 ```
 
-Com um proxy na frente (`trustProxy` ligado), troque a linha da porta por `"127.0.0.1:8080:8080"`,
-como na seção do [nginx](#com-nginx-na-frente): a porta do porteiro só pode ser alcançada pelo proxy.
+Com um proxy na mesma máquina (nginx ou Traefik, `trustProxy: true`), troque a linha da porta por
+`"127.0.0.1:8080:8080"`, como na seção do [nginx](#com-nginx-na-frente): a porta do porteiro só pode
+ser alcançada pelo proxy. Com a Cloudflare ligada direto no porteiro, não use `127.0.0.1`: veja
+[Atrás da Cloudflare](#atrás-da-cloudflare).
 
 O `restart: unless-stopped` religa o porteiro sozinho se ele cair ou se a máquina reiniciar: com ele
 parado, o site fica fora do ar.
@@ -141,18 +143,39 @@ Antes:   internet  ──►  seu site
 Depois:  internet  ──►  ANTI-REA  ──►  seu site
 ```
 
+O porteiro fala HTTP simples na porta 8080. O HTTPS (o cadeado do navegador) fica com quem está na
+frente dele: o Traefik do painel, o nginx da máquina ou a Cloudflare. Sem nenhum deles, o site
+fica sem HTTPS.
+
 ### Em painéis como EasyPanel ou Coolify
 
-1. Crie um serviço novo com a imagem `ghcr.io/jeipidevs/anti-rea`.
-2. Em `upstream`, coloque o endereço interno do seu site (o nome do serviço e a porta).
-3. Em `trustProxy`, coloque `true`: o Traefik do painel fica na frente do porteiro e é ele quem informa
-   o IP de cada visitante. Se a Cloudflare também está na frente (nuvem laranja ligada), use
-   `cloudflare` (veja [Atrás da Cloudflare](#atrás-da-cloudflare)).
-4. Não publique a porta 8080 do porteiro (nada em "Portas" ou "Ports"): ligue só o domínio, que o
-   painel entrega pelo Traefik. O porteiro guarda a conexão ociosa por 95 s, mais que os 90 s do
-   Traefik: quem fecha é o proxy, e um pedido nunca cai numa conexão que o porteiro acabou de fechar.
-5. Mova o domínio do serviço do site para o serviço do ANTI-REA.
-6. Abra o site no navegador e confira que carrega normal.
+No painel não há `docker-compose.yml` nem `.env` na pasta: a configuração, as variáveis e o registro
+chegam ao contêiner pelas telas do serviço.
+
+1. Crie um serviço novo com a imagem `ghcr.io/jeipidevs/anti-rea`. Antes da primeira versão
+   publicada, aponte o serviço para este repositório no GitHub e deixe o painel construir pelo
+   `Dockerfile`.
+2. Monte o arquivo de configuração no contêiner em `/app/anti-rea.config.yml` (montagem de
+   arquivo: "Mounts", tipo "File", no EasyPanel; "Storages", "File Mount", no Coolify). A imagem só
+   lê esse caminho. Escreva o arquivo com o assistente em qualquer máquina, ou copie o
+   [exemplo](../examples/anti-rea.config.yml), com:
+   - `upstream`: o endereço interno do seu site, visto de dentro do painel (o nome do serviço e a
+     porta, por exemplo `http://meu-site:3000`), nunca `localhost`;
+   - `trustProxy: true`: o Traefik do painel fica na frente do porteiro e é ele quem informa o IP de
+     cada visitante. Se a Cloudflare também está na frente (nuvem laranja ligada), use
+     `trustProxy: cloudflare` (veja [Atrás da Cloudflare](#atrás-da-cloudflare)).
+3. Ponha as variáveis `ANTI_REA_` do `.env` (o `ANTI_REA_SECRET` e as do canal de aviso) no ambiente
+   do serviço ("Environment"). Valem como o `.env`, e o arquivo de configuração não leva senha
+   nenhuma. Ali também vai o `TZ=America/Sao_Paulo`, se quiser os avisos no horário de Brasília.
+4. Crie um volume em `/app/registro`, para o registro sobreviver a cada novo deploy. Um volume novo
+   do Docker nasce com o dono da imagem (uid 1000); se preferir uma pasta do servidor, dê a ela esse
+   dono (`sudo chown 1000:1000 <pasta>`).
+5. Não publique a porta 8080 do porteiro (nada em "Portas" ou "Ports"): ligue só o domínio, com a
+   porta 8080 do serviço como destino, que o painel entrega pelo Traefik. O porteiro guarda a
+   conexão ociosa por 95 s, mais que os 90 s do Traefik: quem fecha é o proxy, e um pedido nunca cai
+   numa conexão que o porteiro acabou de fechar.
+6. Mova o domínio do serviço do site para o serviço do ANTI-REA.
+7. Abra o site no navegador e confira que carrega normal.
 
 > [!WARNING]
 > Sem `trustProxy: true` atrás do painel, todo visitante parece vir do Traefik. O porteiro percebe:
@@ -202,10 +225,19 @@ Sem Docker, feche a porta 8080 no firewall. Com a porta aberta para fora, qualqu
 Funciona. Ligue `trustProxy: cloudflare` para o porteiro ler o IP real no cabeçalho da Cloudflare
 (`CF-Connecting-IP`), inclusive quando há nginx ou Traefik entre a Cloudflare e o porteiro.
 
-Qualquer um pode mandar esse cabeçalho. Por isso o servidor só pode aceitar conexões nas portas 80 e
-443 vindas dos [endereços da Cloudflare](https://www.cloudflare.com/ips/) (no firewall da VPS ou do
-provedor), e a porta do porteiro fica fechada para fora. Sem esse firewall, quem descobre o IP do
-servidor manda o cabeçalho falso e passa por robô oficial.
+Qualquer um pode mandar esse cabeçalho. Por isso o servidor só pode aceitar conexões vindas dos
+[endereços da Cloudflare](https://www.cloudflare.com/ips/), e isso se faz no firewall do provedor
+(o painel da VPS na nuvem): o Docker publica portas por cima do `ufw`, que não segura o contêiner.
+Sem esse firewall, quem descobre o IP do servidor manda o cabeçalho falso e passa por robô oficial.
+
+- **Com nginx ou Traefik na mesma máquina** entre a Cloudflare e o porteiro: o firewall deixa
+  entrar só a Cloudflare nas portas 80 e 443, e a porta do porteiro fica só para a própria máquina
+  (`"127.0.0.1:8080:8080"`), como na seção do [nginx](#com-nginx-na-frente).
+- **Com a Cloudflare ligada direto no porteiro**, sem nada no meio: não use `127.0.0.1`, senão a
+  Cloudflare não alcança o porteiro e o site sai do ar. Publique o porteiro na porta 80 do servidor
+  (`"80:8080"`) e deixe o firewall aceitar nela só os endereços da Cloudflare. A Cloudflare fala com
+  o porteiro em HTTP simples (o modo "Flexible" do SSL dela); para ter HTTPS até o servidor, ponha um
+  nginx ou Traefik com certificado na frente, como no item de cima.
 
 ## Conferir se deu certo
 

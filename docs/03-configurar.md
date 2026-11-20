@@ -8,9 +8,14 @@ página explica cada parte. O exemplo completo está em [`examples/anti-rea.conf
 ```yaml
 upstream: http://localhost:3000   # onde o seu site real roda
 domains:
-  - seusite.com.br                # um porteiro pode cuidar de vários domínios
+  - seusite.com.br                # um porteiro pode cuidar de vários domínios, todos no mesmo upstream
 trustProxy: false                 # true atrás de nginx, Traefik, EasyPanel ou Coolify; "cloudflare" atrás da Cloudflare
 ```
+
+Na versão 0.1, todos os domínios de um porteiro vão para o mesmo `upstream`: serve para o mesmo site
+com mais de um endereço (`seusite.com.br` e `www.seusite.com.br`, por exemplo). Sites diferentes, cada
+um com o próprio endereço interno (como no EasyPanel, onde cada site é um serviço), pedem um porteiro
+para cada site. Um `upstream` por domínio fica para a próxima versão.
 
 O `trustProxy` diz de onde sai o IP de cada visitante:
 

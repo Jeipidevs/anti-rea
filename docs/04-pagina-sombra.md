@@ -33,6 +33,12 @@ shadow:
 
 No seu HTML, use `{{ip}}`, `{{path}}` e `{{time}}` onde quiser mostrar esses dados.
 
+O HTML precisa ser **autocontido**: o CSS dentro do próprio arquivo (num `<style>`) e as imagens em
+`data:` (o `logo` acima já entra assim). A página sombra sai com a política de segurança
+`default-src 'none'; style-src 'unsafe-inline'; img-src data:`, e o navegador bloqueia sem aviso
+tudo o que vem de fora: folha de estilo, fonte ou imagem por endereço, e qualquer script. É de
+propósito: a página sombra não busca nada nem roda nada.
+
 ## Regras que valem sempre
 
 - Sarcasmo, sim. Ofensa, ameaça ou conteúdo discriminatório, não.

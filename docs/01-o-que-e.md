@@ -1,6 +1,6 @@
 # O que é o ANTI-REA
 
-<img src="../assets/diagramas/como-funciona.svg" alt="Diagrama de como o ANTI-REA funciona" width="100%">
+<img src="../assets/diagramas/como-funciona.svg" alt="Diagrama: pessoa verificada e robôs oficiais vão ao site real; robô de prévia de link recebe a tela de verificação; REA, robô copiador, F12 e varredura vão para a página sombra e geram aviso" width="100%">
 
 ## O problema
 

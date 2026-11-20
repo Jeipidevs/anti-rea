@@ -26,7 +26,7 @@ Escrita para quem nunca mexeu com segurança. Uma ideia por página, com imagem 
 | [Página sombra](04-pagina-sombra.md) | Trocar a mensagem, a cor e o logo |
 | [Avisos](05-avisos.md) | Receber no WhatsApp, Telegram ou webhook |
 | [Exame do seu site](06-exame.md) | Descobrir o que está vazando |
-| [Modo dono](07-modo-dono.md) | Você e sua equipe nunca serem barrados |
+| [Modo dono](07-modo-dono.md) | Você e sua equipe abrirem o F12 sem cair na página sombra |
 | [Robôs oficiais](08-robos-oficiais.md) | Por que Google e Meta passam e como isso é conferido |
 
 ## Consulta
