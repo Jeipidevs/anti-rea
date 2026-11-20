@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { linkDeDono, mostrarDono } from "../../src/cli/dono.js";
 import { escreverInstalacao, type RespostasInit } from "../../src/cli/init.js";
+import { ambienteComEnv, versaoDoDono } from "../../src/cli/start.js";
 import { carregarConfig } from "../../src/config/carregar.js";
 import { codigoDeDono } from "../../src/passe/passe.js";
 
@@ -134,6 +135,37 @@ describe("dono", () => {
     expect(statSync(join(dir, ".env")).mode & 0o777).toBe(0o600);
 
     expect(mostrarDono(config, false, {})).toContain(linkDeDono("seusite.com.br", SEGREDO, 2));
+  });
+
+  it("--novo com a versão repetida no .env deixa uma linha só e a versão nova vale de fato", () => {
+    escreverInstalacao(dir, respostas, () => SEGREDO);
+    const config = join(dir, "anti-rea.config.yml");
+    // Quem cola o .env.example por cima do .env fica com a chave duas vezes; a última vence.
+    writeFileSync(join(dir, ".env"), `${ler(".env")}ANTI_REA_OWNER_VERSION=3\n`);
+    expect(mostrarDono(config, false, {})).toContain(linkDeDono("seusite.com.br", SEGREDO, 3));
+
+    const linhas = mostrarDono(config, true, {});
+    expect(linhas[0]).toMatch(/versão 4/);
+    expect(linhas).toContain(linkDeDono("seusite.com.br", SEGREDO, 4));
+    expect(ler(".env").match(/ANTI_REA_OWNER_VERSION/g)).toHaveLength(1);
+    expect(ler(".env")).toContain("ANTI_REA_OWNER_VERSION=4\n");
+    expect(versaoDoDono(ambienteComEnv(config, {}))).toBe(4);
+    expect(ler(".env")).toContain(`ANTI_REA_SECRET=${SEGREDO}`);
+
+    expect(mostrarDono(config, true, {})[0]).toMatch(/versão 5/);
+    expect(versaoDoDono(ambienteComEnv(config, {}))).toBe(5);
+  });
+
+  it("--novo troca a linha com espaços e CRLF e não mexe na linha comentada", () => {
+    escreverInstalacao(dir, respostas, () => SEGREDO);
+    const config = join(dir, "anti-rea.config.yml");
+    writeFileSync(
+      join(dir, ".env"),
+      `ANTI_REA_SECRET=${SEGREDO}\r\n# ANTI_REA_OWNER_VERSION=9\r\n  ANTI_REA_OWNER_VERSION = 2\r\nANTI_REA_OWNER_VERSION=7\r\n`,
+    );
+    expect(mostrarDono(config, true, {})[0]).toMatch(/versão 8/);
+    expect(ler(".env")).toBe(`ANTI_REA_SECRET=${SEGREDO}\r\n# ANTI_REA_OWNER_VERSION=9\r\nANTI_REA_OWNER_VERSION=8\r\n`);
+    expect(versaoDoDono(ambienteComEnv(config, {}))).toBe(8);
   });
 
   it("--novo acrescenta a versão quando o .env não tem a linha", () => {

@@ -26,7 +26,9 @@ O código do link sai de duas variáveis do `.env`:
   passes, de dono e de visitante.
 - `ANTI_REA_OWNER_VERSION`: a versão do link de dono, um número inteiro a partir de 1 (sem a linha,
   vale 1). `npx anti-rea dono --novo` soma 1 nesse número. Muda só o link e os passes de dono; quem
-  visita o site continua navegando.
+  visita o site continua navegando. Se a linha aparecer mais de uma vez no `.env` (vale a última),
+  o `--novo` deixa uma linha só, com a versão nova, e confere que é ela que vale antes de mostrar o
+  link.
 
 Se a variável também estiver no ambiente do processo (no painel da hospedagem, por exemplo), ela vale
 mais que o `.env`: troque lá também.
