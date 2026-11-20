@@ -2,6 +2,7 @@ import { once } from "node:events";
 import http from "node:http";
 import net from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Resolvedor } from "../../src/robos/dns.js";
 import { CHROME, HTML, esperar, limparTudo, montar, pedir } from "./apoio-servidor.js";
 
 // Operação do porteiro: site lento ou fora do ar, conexões ociosas e desligamento.
@@ -187,6 +188,30 @@ describe("porteiro: desligamento", () => {
     await t.porteiro.fechar();
     expect(t.enviados).toHaveLength(7);
     expect(t.enviados[6]).toMatch(/^Muitas tentativas ao mesmo tempo: 1 tentativas de 1 IPs desde /);
+  });
+
+  it("a tentativa que termina durante a espera também conta: a contagem do repetido sai antes de parar", async () => {
+    let soltarDns: (() => void) | undefined;
+    const dnsPreso: Resolvedor = {
+      reverso: () =>
+        new Promise((ok) => {
+          soltarDns = () => ok(["mentira.example.com"]);
+        }),
+      direto: async () => [],
+    };
+    const t = await montar({ trustProxy: true }, { dns: dnsPreso, prazoDesligarMs: 3_000 });
+    const IP = "198.51.100.240";
+    await t.get("/", { "user-agent": "Wget/1.21", "x-forwarded-for": IP });
+    await esperar(() => t.enviados.length === 1);
+    // Googlebot falso do mesmo IP: a conferência do DNS ainda corre quando o porteiro começa a parar.
+    const falso = pedirStatus(t.porteiro.porta, "/", { "user-agent": "Googlebot/2.1", "x-forwarded-for": IP });
+    await esperar(() => soltarDns !== undefined);
+    const fechado = t.porteiro.fechar();
+    await new Promise((ok) => setTimeout(ok, 50));
+    soltarDns!();
+    await falso;
+    await fechado;
+    expect(t.enviados.at(-1), t.enviados.join(" | ")).toMatch(/^Mais 1 tentativas de 198\.51\.100\.240 em .* desde /);
   });
 });
 

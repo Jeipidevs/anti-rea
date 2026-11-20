@@ -326,7 +326,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
   /**
    * Para de aceitar conexões e fecha as ociosas na hora (e cada uma que fica ociosa depois); os pedidos
    * em andamento têm até o prazo para terminar, e o que sobrar é fechado. Os túneis de WebSocket caem
-   * logo. Enquanto isso, os avisos pendentes saem (`avisos.encerrar`), dentro do mesmo prazo.
+   * logo. Enquanto isso, os avisos pendentes saem (`avisos.encerrar`), dentro do mesmo prazo; depois
+   * de parado, sai o que chegou durante a espera.
    */
   async function desligar(): Promise<void> {
     pararTarefas();
@@ -341,11 +342,14 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
       prazo = setTimeout(resolver, deps.prazoDesligarMs ?? PRAZO_DESLIGAR_MS);
     });
     await Promise.race([Promise.all([parado, avisosPendentes]), esgotado]);
-    clearTimeout(prazo);
     clearInterval(ociosas);
     servidor.closeAllConnections();
     for (const s of tuneis) s.destroy();
     await parado;
+    // A tentativa que terminou durante a espera (o repetido de um IP, o excesso do teto) sai agora, no
+    // que resta do prazo.
+    await Promise.race([deps.avisos.encerrar(relogio()).catch(falhaInterna), esgotado]);
+    clearTimeout(prazo);
     destino.agente.destroy();
   }
 
