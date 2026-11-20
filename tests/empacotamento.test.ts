@@ -16,6 +16,7 @@ import {
 } from "../src/deteccao/servidor/caminhos.js";
 import { SCANNERS } from "../src/deteccao/servidor/ferramentas.js";
 import { ESPERA_GENTE_MS, ESPERA_ROBO_MS, VALIDADE_FALHA_MS } from "../src/porteiro/previa.js";
+import { MIN_SEGREDO } from "../src/cli/start.js";
 import { TEMPO_SITE_MS } from "../src/porteiro/repasse.js";
 import { KEEP_ALIVE_MS, PRAZO_DESLIGAR_MS, RITMO_JANELA_MS, RITMO_LIMITE } from "../src/porteiro/servidor.js";
 import type { Evento } from "../src/registro/registro.js";
@@ -254,6 +255,14 @@ describe("números da documentação vêm do código", () => {
     expect(corrido("docs/08-robos-oficiais.md")).toContain(`espera até ${s(ESPERA_ROBO_MS)} por ela`);
     expect(corrido("docs/08-robos-oficiais.md")).toContain(`a tela sai em até ${s(ESPERA_GENTE_MS)}`);
     expect(corrido("docs/perguntas-frequentes.md")).toContain(`não espera o site por mais de ${s(ESPERA_GENTE_MS)}`);
+  });
+
+  it("segredo: docs/02, docs/07 e o .env.example citam o tamanho mínimo do start e como gerar", () => {
+    for (const arquivo of ["docs/02-instalar.md", "docs/07-modo-dono.md", ".env.example"]) {
+      const texto = ler(arquivo).replace(/\s+/g, " ");
+      expect(texto, arquivo).toContain(`pelo menos ${MIN_SEGREDO} caracteres`);
+      expect(texto, arquivo).toContain("openssl rand -base64 32");
+    }
   });
 
   it("ritmo de navegação: docs/03 cita o limite e a janela de servidor.ts", () => {

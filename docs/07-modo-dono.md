@@ -32,7 +32,9 @@ registro e sem aviso.
 O código do link sai de duas variáveis do `.env`:
 
 - `ANTI_REA_SECRET`: o segredo que assina os passes. Trocar o segredo troca o link e derruba todos os
-  passes, de dono e de visitante.
+  passes, de dono e de visitante. Ele precisa ter pelo menos 32 caracteres: o assistente gera um de
+  43, e à mão você gera um com `openssl rand -base64 32`. Com menos, o `start` recusa e diz isso. Sem
+  ele, o porteiro sobe com um segredo que só vale até reiniciar.
 - `ANTI_REA_OWNER_VERSION`: a versão do link de dono, um número inteiro a partir de 1 (sem a linha,
   vale 1). `npx anti-rea dono --novo` soma 1 nesse número. Muda só o link e os passes de dono; quem
   visita o site continua navegando. Se a linha aparecer mais de uma vez no `.env` (vale a última),

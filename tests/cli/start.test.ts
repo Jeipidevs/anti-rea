@@ -1,6 +1,6 @@
 import http from "node:http";
 import net from "node:net";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -83,6 +83,32 @@ describe("start", () => {
     const { saida } = await rodarStart();
     expect(saida).toContain("Sem ANTI_REA_SECRET: os passes caem a cada reinício.");
     expect(saida).toContain("Porteiro no ar em");
+  });
+
+  it("recusa ANTI_REA_SECRET com menos de 32 caracteres e diz como gerar um, sem mostrar o segredo", async () => {
+    instalar("nenhum");
+    const curto = "segredo-curto-de-31-caracteres!";
+    expect(curto).toHaveLength(31);
+    writeFileSync(join(dir, ".env"), `ANTI_REA_SECRET=${curto}\n`);
+    const erro = await rodarStart().catch((e: unknown) => e as Error);
+    expect(erro).toBeInstanceOf(Error);
+    expect((erro as Error).message).toBe(
+      "ANTI_REA_SECRET tem 31 caracteres e precisa de pelo menos 32. Gere um com: openssl rand -base64 32 " +
+        "(troque a linha no .env; o link de dono muda junto).",
+    );
+    expect((erro as Error).message).not.toContain(curto);
+    // Recusou antes de mexer em qualquer coisa: nem a pasta do registro foi criada.
+    expect(existsSync(join(dir, "registro"))).toBe(false);
+    // O ambiente do processo também conta.
+    await expect(rodarStart({ env: { ANTI_REA_SECRET: "abc" } })).rejects.toThrow(/tem 3 caracteres/);
+  });
+
+  it("aceita ANTI_REA_SECRET com 32 caracteres", async () => {
+    instalar("nenhum");
+    writeFileSync(join(dir, ".env"), `ANTI_REA_SECRET=${"k".repeat(32)}\n`);
+    const { saida } = await rodarStart();
+    expect(saida).toContain("Porteiro no ar em");
+    expect(saida).not.toContain("ANTI_REA_SECRET");
   });
 
   it("resolve shadow.template relativo à pasta da config", async () => {

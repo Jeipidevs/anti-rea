@@ -26,7 +26,9 @@ Traefik, EasyPanel ou Coolify, ou a Cloudflare): é daí que sai o IP de cada vi
 com cuidado. No fim ele cria dois arquivos:
 
 - `anti-rea.config.yml`: a configuração, com um comentário em português em cada linha.
-- `.env`: as senhas dos canais de aviso. **Nunca suba esse arquivo para o GitHub.**
+- `.env`: as senhas dos canais de aviso e o segredo que assina os passes (`ANTI_REA_SECRET`, que
+  precisa ter pelo menos 32 caracteres; à mão, gere com `openssl rand -base64 32`). **Nunca suba esse
+  arquivo para o GitHub.**
 
 Se a pasta já tem um `.env` (o do seu site, por exemplo), o assistente não mexe no que está lá: só
 acrescenta no fim, sob a linha `# ANTI-REA`, as variáveis `ANTI_REA_` que faltam. As `ANTI_REA_` que

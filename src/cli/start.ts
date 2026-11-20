@@ -79,6 +79,26 @@ export function versaoDoDono(env: NodeJS.ProcessEnv): number {
   return Number(v);
 }
 
+/** Tamanho mínimo do ANTI_REA_SECRET. O assistente gera um de 43 caracteres. */
+export const MIN_SEGREDO = 32;
+
+/**
+ * O segredo que assina os passes. Ausente ou vazio: um efêmero (o porteiro sobe e avisa). Presente com
+ * menos de MIN_SEGREDO caracteres: lança, dizendo como gerar um, sem mostrar o que está lá.
+ */
+function segredoDoAmbiente(env: NodeJS.ProcessEnv): string {
+  const informado = env.ANTI_REA_SECRET;
+  if (!informado) return randomBytes(32).toString("base64url");
+  const tamanho = Array.from(informado).length;
+  if (tamanho < MIN_SEGREDO) {
+    throw new Error(
+      `ANTI_REA_SECRET tem ${tamanho} caracteres e precisa de pelo menos ${MIN_SEGREDO}. ` +
+        "Gere um com: openssl rand -base64 32 (troque a linha no .env; o link de dono muda junto).",
+    );
+  }
+  return informado;
+}
+
 /** Lê a config e resolve shadow.template e shadow.logo a partir da pasta do arquivo. */
 function lerConfig(caminho: string): Config {
   const cfg = carregarConfig(caminho);
@@ -123,15 +143,15 @@ function semGravarNoRegistro(pasta: string, erro: Error): string {
 /**
  * O `anti-rea start`: lê config e .env, sobe o porteiro e diz no terminal o que falta. Sobe desarmado:
  * sem canal configurado só registra; sem ANTI_REA_SECRET usa um segredo efêmero; pasta do registro que
- * não aceita gravação só é avisada. Erro de config, de criação da pasta do registro ou de porta lança
- * Error com a mensagem em português.
+ * não aceita gravação só é avisada. Erro de config, ANTI_REA_SECRET curto, erro de criação da pasta do
+ * registro ou de porta lança Error com a mensagem em português.
  */
 export async function subirPorteiro(op: OpcoesStart, extras: ExtrasStart = {}): Promise<Porteiro> {
   const dizer = extras.dizer ?? ((linha: string) => console.log(linha));
   const cfg = lerConfig(op.config);
   const env = ambienteComEnv(op.config, op.env);
   const versaoDono = versaoDoDono(env);
-  const segredo = env.ANTI_REA_SECRET || randomBytes(32).toString("base64url");
+  const segredo = segredoDoAmbiente(env);
 
   const faltas = cfg.alerts.channels.flatMap((canal) =>
     canaisDoAmbiente(env, [canal]).faltando.map((variavel) => `Falta ${variavel} para o canal ${canal}`),

@@ -95,10 +95,10 @@ describe("escreverInstalacao", () => {
   });
 
   it("mantém o segredo e a versão de dono que já estão no .env", () => {
-    writeFileSync(join(dir, ".env"), "APP=1\nANTI_REA_SECRET=antigo-segredo\nANTI_REA_OWNER_VERSION=3");
+    writeFileSync(join(dir, ".env"), "APP=1\nANTI_REA_SECRET=antigo-segredo-com-mais-de-32-caracteres\nANTI_REA_OWNER_VERSION=3");
     const { linkDono } = escreverInstalacao(dir, { ...respostas, canal: "nenhum" }, () => SEGREDO);
-    expect(linkDono).toBe(linkDeDono("seusite.com.br", "antigo-segredo", 3));
-    expect(ler(".env")).toBe("APP=1\nANTI_REA_SECRET=antigo-segredo\nANTI_REA_OWNER_VERSION=3");
+    expect(linkDono).toBe(linkDeDono("seusite.com.br", "antigo-segredo-com-mais-de-32-caracteres", 3));
+    expect(ler(".env")).toBe("APP=1\nANTI_REA_SECRET=antigo-segredo-com-mais-de-32-caracteres\nANTI_REA_OWNER_VERSION=3");
   });
 
   it("rodar duas vezes não duplica as variáveis do porteiro", () => {
@@ -121,9 +121,9 @@ describe("escreverInstalacao", () => {
     expect(ambienteComEnv(join(dir, "anti-rea.config.yml"), {}).ANTI_REA_SECRET).toBe(SEGREDO);
 
     rmSync(join(dir, "anti-rea.config.yml"));
-    writeFileSync(join(dir, ".env"), "ANTI_REA_SECRET=x\nANTI_REA_OWNER_VERSION=dois\n");
+    writeFileSync(join(dir, ".env"), `ANTI_REA_SECRET=${SEGREDO}\nANTI_REA_OWNER_VERSION=dois\n`);
     expect(() => escreverInstalacao(dir, respostas, () => SEGREDO)).toThrow(/ANTI_REA_OWNER_VERSION/);
-    expect(ler(".env")).toBe("ANTI_REA_SECRET=x\nANTI_REA_OWNER_VERSION=dois\n");
+    expect(ler(".env")).toBe(`ANTI_REA_SECRET=${SEGREDO}\nANTI_REA_OWNER_VERSION=dois\n`);
     expect(() => statSync(join(dir, "anti-rea.config.yml"))).toThrow();
   });
 
