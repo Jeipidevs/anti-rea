@@ -1,7 +1,8 @@
 // Ponta a ponta com ferramentas de verdade contra o site de exemplo (tests/e2e/site-exemplo) atrás
 // do porteiro. Cada caso pego termina em "recebeu a sombra, 403 ou 404, e o registro tem o evento".
 // curl, wget e httrack rodam pelo child_process e o caso pula quando o binário falta. O navegador é
-// o Chrome do sistema (channel "chrome") ou, sem ele, o Chromium do Playwright; sem nenhum, pula.
+// o Chrome do sistema (channel "chrome") ou, sem ele, o Chromium do Playwright; sem nenhum, falha no
+// CI e pula com o motivo fora dele.
 // Com tela só quando ANTI_REA_E2E_HEADED=1. O caso do REA roda o CLI `rea` (npm rea-agents) de
 // verdade e pula quando ele ou o Chrome do sistema faltam. Roda com `npm run test:e2e`.
 import { execFile, spawn } from "node:child_process";
@@ -17,6 +18,7 @@ import { validarConfig } from "../../src/config/carregar.js";
 import { iniciarPorteiro } from "../../src/porteiro/servidor.js";
 import { Registro, type Evento } from "../../src/registro/registro.js";
 import { FaixasMeta } from "../../src/robos/faixas-meta.js";
+import { abrirComReserva, emCI, type CanalNavegador } from "./abrir-navegador.js";
 // SINAIS_LIMPOS é a fixture tests/fixtures/sinais/chrome.json sem "manual" e "nonce".
 import { CHROME, HTML, SINAIS_LIMPOS, cookieDe, esperar, pedir } from "../porteiro/apoio-servidor.js";
 
@@ -70,18 +72,17 @@ function rodar(comando: string, args: string[], ms = 30_000): Promise<Saida> {
   });
 }
 
-/** Chrome do sistema primeiro, depois o Chromium do Playwright; null quando nenhum abre. */
-async function abrirNavegador(opcoes: LaunchOptions): Promise<Browser | null> {
-  for (const canal of [{ channel: "chrome" }, {}]) {
-    try {
-      const navegador = await chromium.launch({ timeout: 20_000, ...opcoes, ...canal });
-      limpezas.push(() => navegador.close().catch(() => {}));
-      return navegador;
-    } catch {
-      // Tenta o próximo; sem nenhum, o caso pula.
-    }
-  }
-  return null;
+/**
+ * Chrome do sistema primeiro, depois o Chromium do Playwright. Sem nenhum: no CI o caso falha com o
+ * último erro; fora do CI ele pula com o motivo (ver abrir-navegador.ts).
+ */
+async function abrirNavegador(ctx: TestContext, opcoes: LaunchOptions): Promise<Browser> {
+  const lancar = (canal: CanalNavegador) => chromium.launch({ timeout: 20_000, ...opcoes, ...canal });
+  const r = await abrirComReserva(lancar, [{ channel: "chrome" }, {}], emCI());
+  if (!r.navegador) return ctx.skip(r.motivo);
+  const navegador = r.navegador;
+  limpezas.push(() => navegador.close().catch(() => {}));
+  return navegador;
 }
 
 // ---------- site de exemplo e porteiro ----------
@@ -246,8 +247,7 @@ const SEM_WEBDRIVER: LaunchOptions = { ignoreDefaultArgs: ["--enable-automation"
  * recarga). O código do site nunca chega ao navegador e o registro tem o evento com o motivo.
  */
 async function ateASombra(ctx: TestContext, lancar: LaunchOptions, contexto: BrowserContextOptions, motivo: string) {
-  const navegador = await abrirNavegador(lancar);
-  if (!navegador) return ctx.skip();
+  const navegador = await abrirNavegador(ctx, lancar);
   const t = await montar();
   const pagina = await (await navegador.newContext(contexto)).newPage();
   await pagina.goto(`${t.url}/`);
@@ -259,8 +259,7 @@ async function ateASombra(ctx: TestContext, lancar: LaunchOptions, contexto: Bro
 
 describe("Playwright", () => {
   it("sem tela, do jeito que vem: sombra já no primeiro pedido pelo agente HeadlessChrome", async (ctx) => {
-    const navegador = await abrirNavegador({ headless: true });
-    if (!navegador) return ctx.skip();
+    const navegador = await abrirNavegador(ctx, { headless: true });
     const t = await montar();
     const pagina = await navegador.newPage();
     const r = await pagina.goto(`${t.url}/`);
