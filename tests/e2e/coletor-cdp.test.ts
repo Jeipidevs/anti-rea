@@ -144,36 +144,38 @@ describe.skipIf(!CHROME)("coletor num Chrome de verdade", () => {
   it("sem cliente de depuração: nada pega e a coleta cabe na tela de menos de um segundo", async () => {
     for (let i = 0; i < 3; i++) {
       const s = await coletar(null);
-      expect(s.cdp).toBe(false);
+      expect(s.cdp, JSON.stringify(s)).toBe(false);
       expect(s.devtoolsAberto).toBe(false);
-      // Medido no Mac de 2026 com carga alta: 9 a 46 ms na primeira coleta, uns 4 ms nas seguintes.
-      expect(s.ms).toBeLessThan(200);
+      // Medido no Mac de 2026 com carga alta: 9 a 46 ms na primeira coleta, uns 4 ms nas seguintes; na
+      // CI de 4 núcleos, com a suíte em paralelo, 225 ms. O limite é o da tela: a coleta, o envio e a
+      // recarga cabem em menos de 1 s.
+      expect(s.ms, JSON.stringify(s)).toBeLessThan(500);
     }
   }, 90_000);
 
   it("CPU 6 vezes mais lenta (celular fraco) sem depuração não pega", async () => {
     for (let i = 0; i < 3; i++) {
       const s = await coletar([["Emulation.setCPUThrottlingRate", { rate: 6 }]]);
-      expect(s.cdp).toBe(false);
+      expect(s.cdp, JSON.stringify(s)).toBe(false);
       expect(s.devtoolsAberto).toBe(false);
     }
   }, 90_000);
 
   it("CPU 6 vezes mais lenta com Runtime.enable ainda pega cdp", async () => {
     const s = await coletar([["Emulation.setCPUThrottlingRate", { rate: 6 }], "Runtime.enable"]);
-    expect(s.cdp).toBe(true);
+    expect(s.cdp, JSON.stringify(s)).toBe(true);
   }, 30_000);
 
   it("cliente conectado sem domínio ligado não pega", async () => {
     const s = await coletar([]);
-    expect(s.cdp).toBe(false);
+    expect(s.cdp, JSON.stringify(s)).toBe(false);
     expect(s.devtoolsAberto).toBe(false);
   }, 30_000);
 
   it("Runtime.enable (automação, REA) pega cdp", async () => {
     for (let i = 0; i < 3; i++) {
       const s = await coletar(["Runtime.enable"]);
-      expect(s.cdp).toBe(true);
+      expect(s.cdp, JSON.stringify(s)).toBe(true);
       expect(s.devtoolsAberto).toBe(false);
     }
   }, 90_000);

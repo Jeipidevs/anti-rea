@@ -23,9 +23,9 @@ function (nonce, sondarPausa, memo) {
         if (memo) { memo.linhas = linhas; memo.tabela = tabela; }
       }
       var medir = function () {
-        var t0 = agora(), voltas = 0;
-        do { JSON.parse(JSON.stringify(linhas)); voltas++; } while (agora() - t0 < 2 && voltas < 200);
-        var base = Math.max((agora() - t0) / voltas, 0.1);
+        var t0 = agora(), voltas = 0, base = Infinity;
+        do { var tv = agora(); JSON.parse(JSON.stringify(linhas)); base = Math.min(base, agora() - tv); voltas++; } while ((voltas < 2 || agora() - t0 < 2) && voltas < 200);
+        base = Math.max(base, 0.1);
         var custo = Infinity;
         for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(tabela); custo = Math.min(custo, agora() - t1); }
         return custo > 2 && custo > 20 * base;

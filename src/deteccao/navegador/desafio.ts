@@ -31,7 +31,10 @@ const VALIDADE_NONCE_MS = 120_000;
  *   de 0,5 a 3,1 sem; com a tabela como objeto, em docs/_medicoes/2026-11-guarda.md: no
  *   mínimo 40 com CDP, no máximo 0,25 sem). Limiar: 20 vezes. Só roda em Blink e com
  *   `console.table` nativo (ferramenta do site que embrulha o console poderia encarecer a
- *   chamada). Medição positiva só vale se uma segunda, feita na hora (base nova e duas
+ *   chamada). A base é a ida e volta em JSON mais rápida em 2 ms, com no mínimo 2 voltas: uma
+ *   volta interrompida (pausa do processador, de 14 a 16 ms medidos) passava sozinha dos 2 ms,
+ *   virava a base e a razão caía abaixo de 20 mesmo com CDP. Medição positiva só vale se uma
+ *   segunda, feita na hora (base nova e duas
  *   chamadas de `console.table`), também der positiva: coleta de lixo ou preempção no meio
  *   de uma medição num celular ocupado não revoga o passe de ninguém, e com CDP de verdade
  *   toda medição dá positiva. Sem CDP, a primeira dá negativa e nada se repete. Com a janela
@@ -74,9 +77,9 @@ ${pausa}
         if (memo) { memo.linhas = linhas; memo.tabela = tabela; }
       }
       var medir = function () {
-        var t0 = agora(), voltas = 0;
-        do { JSON.parse(JSON.stringify(linhas)); voltas++; } while (agora() - t0 < 2 && voltas < 200);
-        var base = Math.max((agora() - t0) / voltas, 0.1);
+        var t0 = agora(), voltas = 0, base = Infinity;
+        do { var tv = agora(); JSON.parse(JSON.stringify(linhas)); base = Math.min(base, agora() - tv); voltas++; } while ((voltas < 2 || agora() - t0 < 2) && voltas < 200);
+        base = Math.max(base, 0.1);
         var custo = Infinity;
         for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(tabela); custo = Math.min(custo, agora() - t1); }
         return custo > 2 && custo > 20 * base;

@@ -155,6 +155,8 @@ type Ambiente = {
   tabela?: (linhas: unknown) => void;
   /** `performance.now` (padrão: sempre 0). */
   relogio?: () => number;
+  /** Chamado a cada `JSON.stringify` (a ida e volta da base da sonda), para o relógio falso andar. */
+  copiar?: () => void;
 };
 
 function rodar(codigo: string, a: Ambiente) {
@@ -187,6 +189,17 @@ function rodar(codigo: string, a: Ambiente) {
     innerHeight: 800,
     name: a.nome ?? "",
     performance: { now: a.relogio ?? (() => 0) },
+    ...(a.copiar
+      ? {
+          JSON: {
+            stringify: (v: unknown) => {
+              a.copiar!();
+              return JSON.stringify(v);
+            },
+            parse: JSON.parse,
+          },
+        }
+      : {}),
     console: { table: a.tabela ? a.tabela.bind(null) : () => {} },
     Date: { now: () => a.agora ?? 1_000_000 },
     document: { getElementById: () => ({ set textContent(t: string) { registro.texto = t; } }) },
@@ -308,6 +321,64 @@ describe("sonda de CDP confirmada na hora", () => {
     const cdp = medir([10, 10, 10, 10]);
     expect(cdp.chamadas).toBe(4);
     expect(cdp.s.cdp).toBe(true);
+  });
+
+  it("pausa do processador no meio da base não esconde o CDP: a base é a volta mais rápida", () => {
+    // Cada ida e volta em JSON gasta o que a lista manda; a terceira foi interrompida (5 ms). A média
+    // de poucas voltas subia a base e a razão caía abaixo de 20.
+    let agora = 0;
+    let voltas = 0;
+    const copias = [0.3, 0.3, 5];
+    const s = rodar(`(${COLETOR})("", false, {})`, {
+      ua: UA_DESKTOP_LINUX,
+      chrome: {},
+      plugins: 5,
+      relogio: () => agora,
+      copiar: () => {
+        agora += copias[voltas++] ?? 0.3;
+      },
+      tabela: () => {
+        agora += 10;
+      },
+    }).resultado as SinaisNavegador;
+    expect(s.cdp).toBe(true);
+  });
+
+  it("uma volta só, lenta, não encerra a base: o laço faz no mínimo 2 voltas e vale a mais rápida", () => {
+    // O caso da CI: a primeira ida e volta levou 5 ms (pausa do processador), passou dos 2 ms e a base
+    // era só ela. Com CDP de verdade, a razão caía para 2 e a coleta deixava passar.
+    let agora = 0;
+    let voltas = 0;
+    const s = rodar(`(${COLETOR})("", false, {})`, {
+      ua: UA_DESKTOP_LINUX,
+      chrome: {},
+      plugins: 5,
+      relogio: () => agora,
+      copiar: () => {
+        agora += voltas++ === 0 ? 5 : 0.3;
+      },
+      tabela: () => {
+        agora += 10;
+      },
+    }).resultado as SinaisNavegador;
+    expect(s.cdp).toBe(true);
+  });
+
+  it("sem CDP a base mais rápida não acusa nada: o console.table barato fica abaixo do piso de 2 ms", () => {
+    let agora = 0;
+    const s = rodar(`(${COLETOR})("", false, {})`, {
+      ua: UA_DESKTOP_LINUX,
+      chrome: {},
+      plugins: 5,
+      relogio: () => agora,
+      copiar: () => {
+        agora += 0.05;
+      },
+      tabela: () => {
+        agora += 1.5;
+      },
+    }).resultado as SinaisNavegador;
+    expect(s.cdp).toBe(false);
   });
 
   it("primeira medição negativa não mede de novo: sem CDP, nenhum custo a mais", () => {
