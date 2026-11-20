@@ -13,7 +13,7 @@ import type { Evento } from "../src/registro/registro.js";
 
 const raiz = join(import.meta.dirname, "..");
 const ler = (caminho: string) => readFileSync(join(raiz, caminho), "utf8");
-const TRAVESSAO = "—";
+const TRAVESSAO = "\u2014";
 
 type Passo = { run?: string; uses?: string; with?: Record<string, unknown> };
 type Fluxo = { on: Record<string, unknown>; permissions?: Record<string, string>; jobs: Record<string, { steps: Passo[] }> };
