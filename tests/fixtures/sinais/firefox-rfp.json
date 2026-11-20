@@ -1,0 +1,12 @@
+{
+  "webdriver": false,
+  "headlessUA": false,
+  "semPlugins": false,
+  "temWindowChrome": false,
+  "uaChrome": false,
+  "cdp": false,
+  "devtoolsAberto": false,
+  "linguas": 2,
+  "nonce": "exemplo",
+  "manual": true
+}
