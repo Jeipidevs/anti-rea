@@ -14,6 +14,7 @@ import {
   SEGMENTOS_TRANCADOS,
   SUFIXOS_TRANCADOS,
 } from "../src/deteccao/servidor/caminhos.js";
+import { RITMO_JANELA_MS, RITMO_LIMITE } from "../src/porteiro/servidor.js";
 import type { Evento } from "../src/registro/registro.js";
 
 // Confere a embalagem da v0.1: imagem Docker, CI, roteiro do README e a FAQ. Número que a documentação
@@ -203,6 +204,12 @@ describe("números da documentação vêm do código", () => {
     for (const caminho of caminhos) {
       expect((caminhoDeVarredura(caminho) ?? caminhoTrancado(caminho))?.gravidade, caminho).toBe("varredura");
     }
+  });
+
+  it("ritmo de navegação: docs/03 cita o limite e a janela de servidor.ts", () => {
+    expect(ler("docs/03-configurar.md").replace(/\s+/g, " ")).toContain(
+      `Mais de ${RITMO_LIMITE} navegações em ${RITMO_JANELA_MS / 1000} s com o mesmo passe`,
+    );
   });
 
   it("arquivos trancados: README, README.en, docs/01 e docs/03 listam cada item de caminhos.ts", () => {

@@ -157,11 +157,11 @@ describe("Ritmo", () => {
     const r = new Ritmo(3, 10_000);
     for (let i = 0; i < 10_000; i++) r.registrar(`10.0.${i >> 8}.${i & 255}`, i % 5_000);
     expect(r.varreduras).toBeLessThanOrEqual(1);
-    expect(r.ipsGuardados).toBe(10_000);
+    expect(r.chavesGuardadas).toBe(10_000);
     r.registrar("203.0.113.9", 4_999);
     expect(r.varreduras).toBeLessThanOrEqual(1);
     r.registrar("203.0.113.9", 30_000);
     expect(r.varreduras).toBe(2);
-    expect(r.ipsGuardados).toBe(1);
+    expect(r.chavesGuardadas).toBe(1);
   });
 });

@@ -146,7 +146,7 @@ Depois:  internet  ──►  ANTI-REA  ──►  seu site
 
 > [!WARNING]
 > Sem `trustProxy: true` atrás do painel, todo visitante parece vir do Traefik. O porteiro percebe:
-> não confere os robôs oficiais nem conta o ritmo de pedidos de IP interno, e escreve no log
+> não confere os robôs oficiais nem conta pelo IP o ritmo de quem não tem passe, e escreve no log
 > `pedido de IP interno com X-Forwarded-For: ligue trustProxy`. Mas o registro e os avisos ficam
 > com o IP do Traefik no lugar do de quem tentou.
 

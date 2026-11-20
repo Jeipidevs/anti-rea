@@ -352,6 +352,39 @@ describe("porteiro: repasse", () => {
   });
 });
 
+describe("porteiro: ritmo de navegação", () => {
+  it("conta por passe: pré-carga e iframe não contam, e a 31ª navegação do mesmo passe em 10 s vai à sombra", async () => {
+    const t = await montar();
+    const passe = await t.passe();
+    const ver = (headers: http.OutgoingHttpHeaders) => t.get("/pagina", { accept: HTML, cookie: passe, ...headers });
+    const naoContam = [{ "sec-purpose": "prefetch;prerender" }, { purpose: "prefetch" }, { "x-moz": "prefetch" }, { "x-purpose": "preview" }, { "sec-fetch-dest": "iframe" }];
+    for (let i = 0; i < 40; i++) expect((await ver(naoContam[i % naoContam.length]!)).texto, String(i)).toContain("Olá do site real");
+    for (let i = 0; i < 30; i++) expect((await ver({ "sec-fetch-dest": "document" })).texto, String(i)).toContain("Olá do site real");
+    expect((await ver({})).texto).toContain("Pegamos você");
+    expect(t.eventos().at(-1)).toMatchObject({ motivo: "navegação rápida demais", gravidade: "copia" });
+    // Outro visitante do mesmo IP segue livre.
+    const outro = await t.passe();
+    expect((await t.get("/pagina", { accept: HTML, cookie: outro })).texto).toContain("Olá do site real");
+  });
+
+  it("sem passe, a mesma tela de verificação para 40 pessoas atrás do mesmo IP", async () => {
+    const t = await montar();
+    for (let i = 0; i < 40; i++) expect((await t.get("/", { accept: HTML })).texto, String(i)).toContain("Verificando seu navegador");
+    expect(t.eventos()).toEqual([]);
+  });
+
+  it("leitor de prévia sem Accept ou com o curinga recebe a tela de verificação com a prévia, não 403", async () => {
+    const t = await montar();
+    for (const headers of [{ "user-agent": "Mattermost-Bot/1.1" }, { "user-agent": "ZulipURLPreview/1.0", accept: "*/*" }]) {
+      const r = await t.get("/", headers);
+      expect(r.status).toBe(200);
+      expect(r.texto).toContain('<meta property="og:title" content="Loja de Teste">');
+      expect(r.texto).not.toContain("Olá do site real");
+    }
+    expect(t.eventos()).toEqual([]);
+  });
+});
+
 describe("porteiro: renovação do passe", () => {
   const DIA = 86_400_000;
 

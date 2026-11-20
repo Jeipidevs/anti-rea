@@ -326,31 +326,69 @@ describe("decidir: robôs declarados", () => {
 });
 
 describe("decidir: ritmo", () => {
-  it("31ª navegação em 10 s vai à sombra", async () => {
+  const RAPIDO = sombra("navegação rápida demais", "copia", 200);
+
+  it("com passe, a 31ª navegação em 10 s do mesmo passe vai à sombra; outro passe segue livre", async () => {
     const c = ctx();
+    const cookie = passeVisitante();
     for (let i = 0; i < 30; i++) {
-      expect(await decidir(pedido({ cookie: passeVisitante() }), { ...c, agora: AGORA + i * 100 })).toEqual(repassar(true));
+      expect(await decidir(pedido({ cookie }), { ...c, agora: AGORA + i * 100 })).toEqual(repassar(true));
     }
-    expect(await decidir(pedido({ cookie: passeVisitante() }), { ...c, agora: AGORA + 3_100 })).toEqual(
-      sombra("navegação rápida demais", "copia", 200),
-    );
-    // Outro IP segue livre.
-    expect(await decidir(pedido({ cookie: passeVisitante(), ip: "203.0.113.8" }), { ...c, agora: AGORA + 3_200 })).toEqual(repassar(true));
+    expect(await decidir(pedido({ cookie }), { ...c, agora: AGORA + 3_100 })).toEqual(RAPIDO);
+    // Mesmo passe de outro IP continua contando: a chave é o passe.
+    expect(await decidir(pedido({ cookie, ip: "203.0.113.8" }), { ...c, agora: AGORA + 3_150 })).toEqual(RAPIDO);
+    expect(await decidir(pedido({ cookie: passeVisitante() }), { ...c, agora: AGORA + 3_200 })).toEqual(repassar(true));
   });
 
-  it("IP interno nunca conta para o ritmo: atrás de um proxy sem trustProxy, todo visitante teria o mesmo IP", async () => {
+  it("muita gente atrás do mesmo IP (escritório, CGNAT, Wi-Fi de evento) não soma: cada passe conta sozinho", async () => {
     const c = ctx();
-    for (let i = 0; i < 40; i++) {
-      expect(await decidir(pedido({ cookie: passeVisitante(), ip: "172.18.0.3" }), { ...c, agora: AGORA + i * 10 })).toEqual(repassar(true));
+    for (let i = 0; i < 100; i++) {
+      expect(await decidir(pedido({ cookie: passeVisitante() }), { ...c, agora: AGORA + i * 10 }), String(i)).toEqual(repassar(true));
     }
+  });
+
+  it("sem passe e com a verificação ligada, nada conta: o pedido só recebe a tela de verificação", async () => {
+    const c = ctx();
+    for (let i = 0; i < 100; i++) {
+      expect(await decidir(pedido(), { ...c, agora: AGORA + i * 10 }), String(i)).toEqual({ acao: "verificar" });
+    }
+  });
+
+  it("sem passe e com firstVisit false, conta pelo IP; IP interno fica de fora", async () => {
+    const c = ctx({ cfg: config({ check: { firstVisit: false } }) });
+    const comPasseNovo = { acao: "repassar", injetarGuarda: true, emitirPasse: true };
+    for (let i = 0; i < 30; i++) expect(await decidir(pedido(), { ...c, agora: AGORA + i * 10 })).toEqual(comPasseNovo);
+    expect(await decidir(pedido(), { ...c, agora: AGORA + 310 })).toEqual(RAPIDO);
+    for (let i = 0; i < 40; i++) {
+      expect(await decidir(pedido({ ip: "172.18.0.3" }), { ...c, agora: AGORA + i * 10 })).toEqual(comPasseNovo);
+    }
+  });
+
+  it("pré-carga, pré-renderização e página em iframe não contam", async () => {
+    const c = ctx();
+    const cookie = passeVisitante();
+    const naoContam: Array<Partial<Pedido>> = [
+      { proposito: "prefetch" },
+      { proposito: "prefetch;prerender" },
+      { proposito: "preview" },
+      { proposito: "Prefetch" },
+      { destinoFetch: "iframe" },
+      { destinoFetch: "frame" },
+    ];
+    for (let i = 0; i < 60; i++) {
+      expect(await decidir(pedido({ cookie, ...naoContam[i % naoContam.length] }), c), String(i)).toEqual(repassar(true));
+    }
+    for (let i = 0; i < 30; i++) expect(await decidir(pedido({ cookie, destinoFetch: "document" }), c)).toEqual(repassar(true));
+    expect(await decidir(pedido({ cookie }), c)).toEqual(RAPIDO);
   });
 
   it("só navegação conta: imagens não gastam o ritmo", async () => {
     const c = ctx();
+    const cookie = passeVisitante();
     for (let i = 0; i < 40; i++) {
-      expect(await decidir(pedido({ caminho: `/f${i}.png`, accept: "image/*", cookie: passeVisitante() }), c)).toEqual(publico(true));
+      expect(await decidir(pedido({ caminho: `/f${i}.png`, accept: "image/*", cookie }), c)).toEqual(publico(true));
     }
-    expect(await decidir(pedido({ cookie: passeVisitante() }), c)).toEqual(repassar(true));
+    expect(await decidir(pedido({ cookie }), c)).toEqual(repassar(true));
   });
 });
 
@@ -399,6 +437,22 @@ describe("decidir: passe de visitante e primeira visita", () => {
     expect(await decidir(pedido({ caminho: "/app.js", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 403 });
     expect(await decidir(pedido({ metodo: "POST", caminho: "/", accept: HTML }), ctx())).toEqual({ acao: "recusar", status: 403 });
     expect(await decidir(pedido({ metodo: "HEAD", caminho: "/", accept: HTML }), ctx())).toEqual({ acao: "recusar", status: 403 });
+  });
+
+  it("GET sem passe, sem extensão e sem dizer o formato (Accept ausente ou */*) recebe a tela de verificação", async () => {
+    // Leitor de prévia que não pede HTML: Mattermost (sem Accept) e Zulip (*/*).
+    for (const accept of [undefined, "", "*/*", " */* ", "*/*;q=0.8"]) {
+      for (const caminho of ["/", "/produtos", "/blog/post-1", "/.well-known", "/feed/"]) {
+        expect(await decidir(pedido({ caminho, accept, agente: "Mattermost-Bot/1.1" }), ctx()), `${caminho} ${accept}`).toEqual({ acao: "verificar" });
+      }
+    }
+    // Arquivo com extensão, outro formato pedido e outro método seguem recusados.
+    expect(await decidir(pedido({ caminho: "/app.js", accept: undefined }), ctx())).toEqual({ acao: "recusar", status: 403 });
+    expect(await decidir(pedido({ caminho: "/dados.json", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 403 });
+    expect(await decidir(pedido({ caminho: "/api/produtos", accept: "application/json" }), ctx())).toEqual({ acao: "recusar", status: 403 });
+    expect(await decidir(pedido({ caminho: "/api/produtos", accept: "*/*, application/json" }), ctx())).toEqual({ acao: "recusar", status: 403 });
+    expect(await decidir(pedido({ metodo: "POST", caminho: "/produtos", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 403 });
+    expect(await decidir(pedido({ metodo: "HEAD", caminho: "/produtos", accept: undefined }), ctx())).toEqual({ acao: "recusar", status: 403 });
   });
 
   it("firstVisit false repassa com guarda e emite passe na navegação", async () => {
@@ -503,7 +557,7 @@ describe("decidir: caminhos públicos padrão", () => {
       expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual({ acao: "recusar", status: 400 });
     }
     for (const caminho of ["/blog/sitemap.xml", "/blog/robots.txt", "/.well-known", "/.well-knownx/a", "/manifest.json.js", "/x.webmanifest.js", "/sitemap.xml/app.js", "//robots.txt", "/.well-known%2fx", "/feed", "/feed/", "/rss.xml/app.js", "/x.rss.js", "/myrss.xml"]) {
-      expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual({ acao: "recusar", status: 403 });
+      expect(await decidir(pedido({ caminho, accept: "application/json" }), ctx()), caminho).toEqual({ acao: "recusar", status: 403 });
     }
   });
 });

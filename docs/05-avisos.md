@@ -16,7 +16,7 @@ Cada tentativa barrada pode virar um aviso com: site, página, IP, motivo, horá
 | Arquivo sensível (`.env`, `.git`, backup) pedido por quem já passou pela verificação | Aviso na hora |
 | Robô que diz ser o Google ou a Meta e não é | Aviso na hora |
 | Link de dono errado | Aviso na hora |
-| Pedido direto sem passe, fora da navegação (API ou arquivo buscado por programa) | Só no registro, e o pedido leva 403 |
+| Pedido direto sem passe a arquivo (`/app.js`) ou a outro formato (`application/json`) | Só no registro, e o pedido leva 403 |
 | Varredura genérica (`/phpmyadmin`, `/.env` vindo de robô da internet) | Só no registro |
 | Robô oficial que não deu para conferir (DNS ou lista da Meta fora do ar) | Só no registro |
 

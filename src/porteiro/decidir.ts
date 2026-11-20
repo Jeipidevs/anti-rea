@@ -3,16 +3,29 @@ import type { Config } from "../config/carregar.js";
 import { caminhoDeVarredura, caminhoTrancado } from "../deteccao/servidor/caminhos.js";
 import { ferramentaConhecida, type Sinal } from "../deteccao/servidor/ferramentas.js";
 import type { Ritmo } from "../deteccao/servidor/ritmo.js";
-import { codigoDeDono } from "../passe/passe.js";
+import { codigoDeDono, type Passe } from "../passe/passe.js";
 import { roboDeclarado, type Confirmacao, type Robo } from "../robos/robos.js";
 import { ipInterno } from "./ip.js";
 import { lerCookies, passeDoPedido, temMarcaPego } from "./passes.js";
-import { caminhoAmbiguo, caminhoLiteral, caminhoPublico, ehMidia, ehNavegacao, normalizarCaminho } from "./pedido.js";
+import {
+  caminhoAmbiguo,
+  caminhoLiteral,
+  caminhoPublico,
+  ehMidia,
+  ehNavegacao,
+  ehPreCarga,
+  ehQuadro,
+  normalizarCaminho,
+  semFormato,
+  temExtensao,
+} from "./pedido.js";
 
 /**
  * O pedido como o porteiro o vê. `caminho` é o cru (com query), o mesmo que vai ao site; a detecção
  * usa o normalizado, e caminho que o site poderia ler diferente (ponto-ponto) nunca chega lá.
  * `corsMetodo` é o cabeçalho Access-Control-Request-Method (só conta no OPTIONS do pré-voo).
+ * `proposito` junta Sec-Purpose, Purpose, X-Purpose, X-Sec-Purpose e X-Moz (pré-carga), e
+ * `destinoFetch` é o Sec-Fetch-Dest.
  */
 export type Pedido = {
   metodo: string;
@@ -21,6 +34,8 @@ export type Pedido = {
   accept?: string;
   cookie?: string;
   corsMetodo?: string;
+  proposito?: string;
+  destinoFetch?: string;
   ip: string;
   dominio: string;
   https: boolean;
@@ -193,10 +208,12 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
     if (robo.classe !== "aPedido") return sombra({ motivo: `robô falso: ${robo.nome}`, gravidade: "copia" });
   }
 
-  // 8: ritmo de navegação. IP interno não conta: atrás de um proxy que o porteiro não lê, todo
-  // visitante teria o mesmo IP e o limite valeria para o site inteiro.
+  // 8: ritmo de navegação.
   const navegacao = ehNavegacao(p.metodo, p.accept);
-  if (navegacao && !ipInterno(p.ip) && ctx.ritmo.registrar(p.ip, ctx.agora)) return sombra(RAPIDO_DEMAIS);
+  const chave = chaveDoRitmo(p, passe, ctx);
+  if (navegacao && chave && !ehPreCarga(p.proposito) && !ehQuadro(p.destinoFetch) && ctx.ritmo.registrar(chave, ctx.agora)) {
+    return sombra(RAPIDO_DEMAIS);
+  }
 
   // 9 a 11: passe de visitante, primeira visita.
   const guarda = ctx.cfg.check.devtoolsIsCaught;
@@ -212,5 +229,21 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   }
   if (navegacao) return { acao: "verificar" };
   if (ehMidia(caminho)) return repassar(false);
+  // Leitor de prévia que não diz o formato (Mattermost sem Accept, Zulip com o curinga): caminho sem
+  // extensão é página, e a tela de verificação leva a prévia. Arquivo com extensão segue recusado.
+  if (p.metodo.toUpperCase() === "GET" && semFormato(p.accept) && !temExtensao(caminho)) return { acao: "verificar" };
   return { acao: "recusar", status: 403 };
+}
+
+/**
+ * Chave do ritmo: só conta a navegação que receberia o site. Com passe de visitante, o id do passe
+ * (muita gente atrás do mesmo IP, como escritório, CGNAT e Wi-Fi de evento, nunca soma). Sem passe,
+ * só com firstVisit false, pelo IP; IP interno fica de fora (atrás de um proxy que o porteiro não lê,
+ * todo visitante teria o mesmo IP). Sem passe e com a verificação ligada não conta: o pedido só
+ * recebe a tela de verificação.
+ */
+function chaveDoRitmo(p: Pedido, passe: Passe | null, ctx: ContextoDecisao): string | undefined {
+  if (passe?.tipo === "visitante") return `passe:${passe.id}`;
+  if (passe === null && !ctx.cfg.check.firstVisit && !ipInterno(p.ip)) return `ip:${p.ip}`;
+  return undefined;
 }

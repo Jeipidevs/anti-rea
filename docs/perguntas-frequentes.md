@@ -36,7 +36,8 @@ e depois a cada 1,5 s. Os números estão em [docs/_medicoes](_medicoes/2026-11-
 
 **O ANTI-REA sempre pega o REA?**
 Nem sempre, e a gente prefere dizer isso. Ele pega o navegador que o próprio REA abre (sem tela), a
-busca direta sem passe (leva 403), o pedido do mapa de código (leva a sombra) e, com
+busca direta sem passe (leva 403 ou a tela de verificação, nunca o site), o pedido do mapa de código
+(leva a sombra) e, com
 `devtoolsIsCaught: true` (o padrão), o REA ligado a uma **aba visível** enquanto passa uma
 conferência da guarda: a página vira sombra e o aviso chega. As conferências vêm a cada 0,5 s (até
 uns 0,6 s numa página muito ocupada, das que animam a cada quadro; num aparelho muito lento, ela recua

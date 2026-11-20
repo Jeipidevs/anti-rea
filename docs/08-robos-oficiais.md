@@ -59,4 +59,7 @@ lista, nome que não aponta de volta para o IP, ou IP fora das faixas da Meta.
 ## E a prévia de link de quem não está na lista?
 
 A tela de verificação leva o título, a descrição e a imagem do seu site. Assim, até robô de prévia
-desconhecido monta o cartão certinho, sem ver o resto do site.
+desconhecido monta o cartão certinho, sem ver o resto do site. Ele recebe essa tela quando pede uma
+página: com `Accept` de HTML, ou sem dizer o formato (sem `Accept` ou com o curinga `*/*`) num caminho
+sem extensão de arquivo. Pedido de arquivo (`/app.js`) ou de outro formato (`application/json`) sem
+passe leva 403.

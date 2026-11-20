@@ -45,9 +45,11 @@ export type DepsPorteiro = {
 
 export type Porteiro = { porta: number; fechar(): Promise<void> };
 
-/** 30 navegações por IP a cada 10 s. */
-const RITMO_LIMITE = 30;
-const RITMO_JANELA_MS = 10_000;
+/** Mais de 30 navegações em 10 s com o mesmo passe (ou do mesmo IP, sem verificação) é rápido demais. */
+export const RITMO_LIMITE = 30;
+export const RITMO_JANELA_MS = 10_000;
+/** Onde o navegador diz que o pedido é pré-carga ou pré-renderização. */
+const CABECALHOS_DE_PROPOSITO = ["sec-purpose", "purpose", "x-purpose", "x-sec-purpose", "x-moz"];
 /** Tamanho máximo de caminho e agente no evento do registro. */
 const MAX_CAMPO_EVENTO = 300;
 
@@ -145,6 +147,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
       accept: req.headers.accept,
       cookie: req.headers.cookie,
       corsMetodo: cabecalhoUnico(req.headers["access-control-request-method"]),
+      proposito: CABECALHOS_DE_PROPOSITO.map((nome) => cabecalhoUnico(req.headers[nome]) ?? "").join(" "),
+      destinoFetch: cabecalhoUnico(req.headers["sec-fetch-dest"]),
       ip: ipReal(req, cfg.trustProxy),
       dominio: dominioDoHost(req.headers.host),
       https: pedidoHttps(req, cfg.trustProxy),

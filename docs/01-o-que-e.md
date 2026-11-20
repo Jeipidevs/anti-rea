@@ -28,8 +28,10 @@ cabra** é o REA, o robô copiador, o navegador automatizado e a ferramenta de a
 
 **No servidor, a cada pedido:**
 - se o pedido traz o passe da verificação. Quem busca código ou dados do site direto, sem passar
-  pela tela de verificação, leva **403**. É assim que fica de fora a busca que o REA faz por conta
-  própria, fora do navegador: ela não se apresenta com um nome conhecido, mas também não tem passe;
+  pela tela de verificação, não recebe nada do site: arquivo (`/app.js`) ou outro formato
+  (`application/json`) leva **403**, e página recebe a tela de verificação. É assim que fica de fora a
+  busca que o REA faz por conta própria, fora do navegador: ela não se apresenta com um nome
+  conhecido, mas também não tem passe;
 - se está pedindo um arquivo trancado. Esses ficam trancados para todo mundo, até para quem tem
   passe, em qualquer pasta:
   - **mapa de código** (`.map`);

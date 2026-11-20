@@ -29,9 +29,10 @@ Com `true` ou `cloudflare`, a porta do porteiro só pode ser alcançada pelo pro
 servidor só aceita conexões dos endereços dela. Se não, qualquer um escolhe o próprio IP com um
 cabeçalho. Veja [Instalar](02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).
 
-Na dúvida, o porteiro deixa passar: pedido de IP interno (`10.x`, `172.16.x` a `172.31.x`,
-`192.168.x`, `127.x`, `169.254.x` e os equivalentes em IPv6) nunca conta para o ritmo de navegação, e
-robô oficial vindo de IP interno não é conferido: passa e fica registrado como "robô não confirmado".
+Na dúvida, o porteiro deixa passar: pedido sem passe vindo de IP interno (`10.x`, `172.16.x` a
+`172.31.x`, `192.168.x`, `127.x`, `169.254.x` e os equivalentes em IPv6) nunca conta para o
+[ritmo de navegação](#ritmo-de-navegação), e robô oficial vindo de IP interno não é conferido: passa
+e fica registrado como "robô não confirmado".
 Quando chega um pedido de IP interno com `X-Forwarded-For` e o `trustProxy` está `false`, o porteiro
 escreve uma vez no log `pedido de IP interno com X-Forwarded-For: ligue trustProxy`.
 
@@ -52,6 +53,27 @@ Desligar `firstVisit` deixa o site abrir direto, mas o robô recebe o código an
 Só desligue se souber o que está trocando. Com `firstVisit: false`, toda página aberta pelo
 navegador (resposta 200) entrega um passe, mesmo com `devtoolsIsCaught: false`: é ele que deixa o
 WebSocket do site conectar.
+
+Sem passe, só a navegação (o navegador pedindo uma página, com `Accept` de HTML) recebe a tela de
+verificação. Leitor de prévia que não diz o formato (sem `Accept`, como o do Mattermost, ou com o
+curinga `*/*`, como o do Zulip) também recebe a tela, com a prévia, quando o caminho não tem extensão
+de arquivo. Arquivo (`/app.js`) e outro formato (`application/json`) sem passe levam 403.
+
+### Ritmo de navegação
+
+Mais de 30 navegações em 10 s com o mesmo passe vão à página sombra, como "navegação rápida demais"
+(com aviso). Conta só a navegação que receberia o site:
+
+- com passe, pelo passe: muita gente atrás do mesmo IP (escritório, operadora de celular, Wi-Fi de
+  evento) nunca soma;
+- sem passe, só com `firstVisit: false`, pelo IP (IP interno fica de fora). Com a verificação ligada,
+  quem não tem passe só recebe a tela de verificação e não conta;
+- pré-carga e pré-renderização (o navegador busca a página antes de você clicar: `Sec-Purpose`,
+  `Purpose`, `X-Purpose`, `X-Sec-Purpose` ou `X-Moz` com `prefetch`, `prerender` ou `preview`) e página
+  aberta dentro de um `iframe` não contam.
+
+Um copiador que finge pré-carga ou troca de passe a cada pedido escapa desse limite, mas não da
+verificação nem da guarda.
 
 Os cookies do porteiro (o passe, o passe de dono e a marca de quem foi pego) saem com
 `SameSite=None; Secure` quando o pedido chega por HTTPS (direto ou pelo `X-Forwarded-Proto` do proxy

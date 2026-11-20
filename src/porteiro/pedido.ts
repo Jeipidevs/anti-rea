@@ -127,11 +127,42 @@ export function ehNavegacao(metodo: string, accept: string | undefined): boolean
   return metodo.toUpperCase() === "GET" && (accept ?? "").toLowerCase().includes("text/html");
 }
 
+/** Accept ausente, vazio ou só o curinga de qualquer tipo, com parâmetro ou não: quem pede não disse que formato quer. */
+export function semFormato(accept: string | undefined): boolean {
+  const valor = (accept ?? "").trim();
+  return valor === "" || /^\*\/\*\s*(?:;[^,]*)?$/.test(valor);
+}
+
+/**
+ * Pré-carga ou pré-renderização: o navegador busca a página antes de a pessoa abrir (Speculation
+ * Rules, Turbo, `<link rel=prefetch>`). Vem em Sec-Purpose, Purpose, X-Purpose, X-Sec-Purpose ou
+ * X-Moz, já juntos em `proposito`.
+ */
+export function ehPreCarga(proposito: string | undefined): boolean {
+  return /prefetch|prerender|preview/i.test(proposito ?? "");
+}
+
+/** Página aberta dentro de outra (Sec-Fetch-Dest iframe ou frame). */
+export function ehQuadro(destinoFetch: string | undefined): boolean {
+  return /^\s*i?frame\s*$/i.test(destinoFetch ?? "");
+}
+
 const EXTENSOES_MIDIA = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "woff", "woff2"]);
+
+/** Extensão do último segmento do caminho (já normalizado), em minúsculas; null sem ela ("pagina", ".well-known"). */
+function extensao(caminho: string): string | null {
+  const ultimo = caminho.slice(caminho.lastIndexOf("/") + 1);
+  const ponto = ultimo.lastIndexOf(".");
+  return ponto > 0 && ponto < ultimo.length - 1 ? ultimo.slice(ponto + 1).toLowerCase() : null;
+}
 
 /** Imagem, fonte ou ícone pela extensão do último segmento do caminho (já normalizado). */
 export function ehMidia(caminho: string): boolean {
-  const ultimo = caminho.slice(caminho.lastIndexOf("/") + 1);
-  const ponto = ultimo.lastIndexOf(".");
-  return ponto > 0 && EXTENSOES_MIDIA.has(ultimo.slice(ponto + 1).toLowerCase());
+  const ext = extensao(caminho);
+  return ext !== null && EXTENSOES_MIDIA.has(ext);
+}
+
+/** O último segmento do caminho (já normalizado) tem extensão de arquivo (`app.js`, `dados.json`). */
+export function temExtensao(caminho: string): boolean {
+  return extensao(caminho) !== null;
 }
