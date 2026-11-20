@@ -9,6 +9,7 @@ import { ipInterno } from "./ip.js";
 import { lerCookies, passeDoPedido, temMarcaPego } from "./passes.js";
 import {
   caminhoAmbiguo,
+  caminhoDoPorteiro,
   caminhoLiteral,
   caminhoPublico,
   ehMidia,
@@ -75,7 +76,6 @@ export type ContextoDecisao = {
   agora: number;
 };
 
-const PREFIXO_PORTEIRO = "/.anti-rea";
 const PREFIXO_DONO = "/.anti-rea/dono/";
 const ROTAS = new Map<string, RotaInterna>([
   ["/.anti-rea/verificar", "verificar"],
@@ -147,8 +147,7 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   const rota = ROTAS.get(caminho);
   if (rota) return { acao: "interno", rota };
   // O resto de /.anti-rea/ é do porteiro e nunca vai ao site (nem uma pasta do site com esse nome).
-  const minusculo = caminho.toLowerCase();
-  if (minusculo === PREFIXO_PORTEIRO || minusculo.startsWith(`${PREFIXO_PORTEIRO}/`)) return { acao: "recusar", status: 404 };
+  if (caminhoDoPorteiro(caminho)) return { acao: "recusar", status: 404 };
 
   const cookies = lerCookies(p.cookie);
   const passe = passeDoPedido(cookies, ctx.segredo, ctx.versaoDono, ctx.agora);

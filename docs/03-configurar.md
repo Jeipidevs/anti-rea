@@ -196,7 +196,8 @@ no pré-voo. Um `OPTIONS` sem esse cabeçalho segue as regras comuns.
 
 O porteiro só repassa upgrade para WebSocket, e só com passe válido ou em caminho isento. Qualquer
 outro upgrade (como `h2c`) recebe 400 e fica registrado como varredura: ele abriria um túnel direto
-até o site, por fora do porteiro.
+até o site, por fora do porteiro. Upgrade para um [arquivo trancado](#arquivos-trancados) ou para
+`/.anti-rea/` recebe 404 e nunca chega ao site.
 
 ## Página sombra
 

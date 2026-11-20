@@ -112,6 +112,12 @@ export function caminhoPublico(cru: string): boolean {
   return ehPublicoPadrao(normalizarCaminho(cru)) && ehPublicoPadrao(caminhoLiteral(cru));
 }
 
+/** Caminho (já normalizado) é a pasta /.anti-rea ou está sob ela: é do porteiro, nunca vai ao site. */
+export function caminhoDoPorteiro(caminho: string): boolean {
+  const minusculo = caminho.toLowerCase();
+  return minusculo === "/.anti-rea" || minusculo.startsWith("/.anti-rea/");
+}
+
 /** Host do pedido para o registro: minúsculo, sem porta, só [a-z0-9.-], até 100; vazio vira "desconhecido". */
 export function dominioDoHost(host: string | undefined): string {
   const limpo = (host ?? "")

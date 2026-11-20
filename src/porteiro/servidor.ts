@@ -4,6 +4,7 @@ import type { Avisos } from "../avisos/avisos.js";
 import type { Config } from "../config/carregar.js";
 import { criarNonce, paginaDesafio } from "../deteccao/navegador/desafio.js";
 import { scriptGuarda } from "../deteccao/navegador/guarda.js";
+import { caminhoTrancado } from "../deteccao/servidor/caminhos.js";
 import type { Sinal } from "../deteccao/servidor/ferramentas.js";
 import { Ritmo } from "../deteccao/servidor/ritmo.js";
 import type { Evento, Registro } from "../registro/registro.js";
@@ -22,7 +23,7 @@ import {
   lerCookies,
   passeDoPedido,
 } from "./passes.js";
-import { caminhoAmbiguo, caminhoDoAlvo, dominioDoHost } from "./pedido.js";
+import { caminhoAmbiguo, caminhoDoAlvo, caminhoDoPorteiro, dominioDoHost, normalizarCaminho } from "./pedido.js";
 import { CachePrevia } from "./previa.js";
 import { buscarHtml, criarDestino, recusarUpgrade, repassarPedido, repassarUpgrade } from "./repasse.js";
 import { enviar, responderDesafio, responderRecusa, responderSombra, responderTexto } from "./respostas.js";
@@ -246,7 +247,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
 
   /**
    * Upgrade: só WebSocket, e só com passe válido (visitante ou dono) ou em caminho isento. Outro
-   * valor (h2c e afins) recebe 400 e fica registrado como varredura.
+   * valor (h2c e afins) recebe 400 e fica registrado como varredura. Arquivo trancado e o resto de
+   * /.anti-rea/ recebem 404 e nunca chegam ao site, como no pedido comum.
    */
   function tratarUpgrade(req: IncomingMessage, socket: Duplex, cabeca: Buffer): void {
     socket.on("error", () => socket.destroy());
@@ -255,6 +257,11 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
     if (!ehWebSocket(req.headers.upgrade)) {
       gravar(criarEvento(lerPedido(req, caminho ?? req.url ?? ""), agora, UPGRADE_NAO_SUPORTADO, "recusado"), true);
       recusarUpgrade(socket, "400 Bad Request", "Pedido inválido.");
+      return;
+    }
+    const normalizado = caminho === null ? "" : normalizarCaminho(caminho);
+    if (caminhoDoPorteiro(normalizado) || caminhoTrancado(normalizado) !== null) {
+      recusarUpgrade(socket, "404 Not Found", "Não encontrado.");
       return;
     }
     const comPasse = passeDoPedido(lerCookies(req.headers.cookie), segredo, versaoDono, agora) !== null;

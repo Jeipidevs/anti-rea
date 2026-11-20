@@ -230,11 +230,23 @@ describe("porteiro: WebSocket", () => {
     const pedidoNoSite = t.site.recebidos.find((p) => p.url === "/ws")!;
     expect(pedidoNoSite.headers.cookie).toBeUndefined();
     expect(pedidoNoSite.headers["x-forwarded-for"]).toBe("127.0.0.1");
+    expect(pedidoNoSite.headers["x-real-ip"]).toBe("127.0.0.1");
     ok.socket!.destroy();
 
     const recusado = await abrir(t.porteiro.porta, "/ws");
     expect(recusado.status).toBe(403);
     expect(t.site.recebidos.filter((p) => p.url === "/ws")).toHaveLength(1);
+  });
+
+  it("com passe, upgrade para arquivo trancado ou para /.anti-rea/ sai 404 e nunca chega ao site", async () => {
+    const t = await montar();
+    const passe = await t.passe();
+    const antes = t.site.recebidos.length;
+    for (const caminho of ["/.env", "/api/.env", "/app.js.map", "/.anti-rea/registro", "/.ANTI-REA/x"]) {
+      expect((await abrir(t.porteiro.porta, caminho, { cookie: passe })).status, caminho).toBe(404);
+    }
+    expect((await abrir(t.porteiro.porta, "/api/webhook/.env")).status).toBe(404);
+    expect(t.site.recebidos).toHaveLength(antes);
   });
 
   it("caminho isento abre sem passe", async () => {

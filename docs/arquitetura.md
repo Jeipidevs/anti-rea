@@ -9,11 +9,16 @@ própria aqui.
 1. O **servidor** (`porteiro/servidor.ts`) recebe o pedido e lê o que importa: caminho, agente,
    cookies e o IP real (`porteiro/ip.ts`, conforme o `trustProxy`).
 2. A **decisão** (`porteiro/decidir.ts`) passa o pedido por uma lista de regras, em ordem. A
-   primeira que casar vence: link de dono, rotas internas, arquivo trancado, caminho público,
-   isento, marca de pego, ferramenta conhecida, robô declarado, ritmo, passe e primeira visita.
+   primeira que casar vence: link de dono, rotas internas, o resto de `/.anti-rea/` (404), arquivo
+   trancado (com passe de dono, 404 sem evento), caminho ambíguo (400), pré-voo CORS (ferramenta
+   conhecida antes; só status e cabeçalhos do site), caminho público, passe de dono, isento, marca de
+   pego, ferramenta conhecida ou caminho de varredura, robô declarado, ritmo (pela chave do passe; sem
+   passe, só com `firstVisit: false`, pelo IP), passe de visitante e primeira visita (tela de
+   verificação para a navegação e para o pedido sem formato a caminho sem extensão; mídia passa; o
+   resto leva 403).
 3. Conforme a decisão, o servidor **repassa** ao site (`porteiro/repasse.ts`, com a guarda posta no
    HTML por `porteiro/injecao.ts`), mostra a **tela de verificação**, a **página sombra** ou recusa.
-4. Quem foi pego vira um **evento** no registro e, se for tentativa de cópia, um **aviso**.
+4. Quem foi pego vira um **evento** no registro e, se for tentativa de cópia ou ataque, um **aviso**.
 
 ## Peças
 
