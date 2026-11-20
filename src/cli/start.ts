@@ -87,17 +87,44 @@ function lerConfig(caminho: string): Config {
   return { ...cfg, shadow: { ...cfg.shadow, template: naPasta(cfg.shadow.template), logo: naPasta(cfg.shadow.logo) } };
 }
 
+const codigoDoErro = (erro: unknown) => (erro as NodeJS.ErrnoException | undefined)?.code;
+const mensagemDoErro = (erro: unknown) => (erro instanceof Error ? erro.message : String(erro));
+/** Códigos de "sem permissão" para mexer numa pasta. */
+const SEM_PERMISSAO = new Set(["EACCES", "EPERM", "EROFS"]);
+
 function erroDeEscuta(erro: unknown, porta: number): Error {
-  const codigo = (erro as NodeJS.ErrnoException | undefined)?.code;
+  const codigo = codigoDoErro(erro);
   if (codigo === "EADDRINUSE") return new Error(`A porta ${porta} já está em uso. Escolha outra com --porta.`);
   if (codigo === "EACCES") return new Error(`Sem permissão para usar a porta ${porta}. Escolha outra com --porta.`);
   return erro instanceof Error ? erro : new Error(String(erro));
 }
 
+/** Cria a pasta do registro; erro vira mensagem em português sobre a pasta. */
+function abrirRegistro(pasta: string, retencaoMs: number): Registro {
+  try {
+    return new Registro(pasta, retencaoMs);
+  } catch (erro) {
+    if (SEM_PERMISSAO.has(codigoDoErro(erro) ?? "")) throw new Error(`Sem permissão para criar a pasta do registro ${pasta}.`);
+    throw new Error(`Não consegui criar a pasta do registro ${pasta}: ${mensagemDoErro(erro)}`);
+  }
+}
+
+/** Linha para o terminal quando a pasta do registro existe mas não aceita arquivo novo. */
+function semGravarNoRegistro(pasta: string, erro: Error): string {
+  const inicio = SEM_PERMISSAO.has(codigoDoErro(erro) ?? "")
+    ? `Sem permissão para gravar na pasta do registro ${pasta}`
+    : `Não consigo gravar na pasta do registro ${pasta} (${erro.message})`;
+  return (
+    `${inicio}: as tentativas não ficam guardadas. Dê a pasta ao usuário que roda o porteiro; ` +
+    "no Docker: mkdir -p registro && sudo chown 1000:1000 registro, depois docker compose up -d."
+  );
+}
+
 /**
  * O `anti-rea start`: lê config e .env, sobe o porteiro e diz no terminal o que falta. Sobe desarmado:
- * sem canal configurado só registra; sem ANTI_REA_SECRET usa um segredo efêmero. Erro de config ou de
- * porta lança Error com a mensagem em português.
+ * sem canal configurado só registra; sem ANTI_REA_SECRET usa um segredo efêmero; pasta do registro que
+ * não aceita gravação só é avisada. Erro de config, de criação da pasta do registro ou de porta lança
+ * Error com a mensagem em português.
  */
 export async function subirPorteiro(op: OpcoesStart, extras: ExtrasStart = {}): Promise<Porteiro> {
   const dizer = extras.dizer ?? ((linha: string) => console.log(linha));
@@ -111,13 +138,19 @@ export async function subirPorteiro(op: OpcoesStart, extras: ExtrasStart = {}): 
   );
   const { canais } = canaisDoAmbiente(env, cfg.alerts.channels);
 
+  // Fora do try da escuta: erro da pasta do registro não pode virar mensagem sobre a porta.
+  const pastaRegistro = resolve(op.registro);
+  const registro = abrirRegistro(pastaRegistro, cfg.log.retentionMs);
+  const semGravar = registro.podeGravar();
+  const avisos = new Avisos(cfg.alerts, canais);
+
   let porteiro: Porteiro;
   try {
     porteiro = await iniciarPorteiro(cfg, {
       segredo,
       versaoDono,
-      registro: new Registro(resolve(op.registro), cfg.log.retentionMs),
-      avisos: new Avisos(cfg.alerts, canais),
+      registro,
+      avisos,
       porta: op.porta,
       host: extras.host,
       dns: extras.dns,
@@ -128,6 +161,7 @@ export async function subirPorteiro(op: OpcoesStart, extras: ExtrasStart = {}): 
   }
 
   dizer(`Porteiro no ar em :${porteiro.porta}, protegendo ${cfg.upstream}`);
+  if (semGravar) dizer(semGravarNoRegistro(pastaRegistro, semGravar));
   for (const falta of faltas) dizer(falta);
   if (cfg.alerts.channels.length === 0) dizer("Sem canal de aviso: as tentativas ficam só no registro.");
   if (!env.ANTI_REA_SECRET) dizer("Sem ANTI_REA_SECRET: os passes caem a cada reinício.");

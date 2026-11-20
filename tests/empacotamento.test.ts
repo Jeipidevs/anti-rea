@@ -161,6 +161,37 @@ describe("Perguntas frequentes", () => {
   });
 });
 
+/** Blocos ```yaml de um Markdown que descrevem um docker-compose (têm `services:`), já lidos. */
+function composesDe(arquivo: string): Array<{ services: Record<string, Record<string, unknown>> }> {
+  return [...ler(arquivo).matchAll(/```yaml\n([\s\S]*?)```/g)]
+    .map((m) => m[1]!)
+    .filter((bloco) => /^services:/m.test(bloco))
+    .map((bloco) => parse(bloco) as { services: Record<string, Record<string, unknown>> });
+}
+
+describe("docker-compose dos documentos", () => {
+  // A imagem roda como o usuário node do node:22-alpine (uid 1000), e a pasta do registro montada do
+  // host nasce do root: sem o chown o porteiro sobe e perde todos os eventos.
+  const uidDaImagem = 1000;
+
+  for (const arquivo of ["README.md", "docs/02-instalar.md"]) {
+    it(`${arquivo}: reinício automático e pasta do registro com o dono da imagem`, () => {
+      const composes = composesDe(arquivo);
+      expect(composes.length, arquivo).toBeGreaterThan(0);
+      for (const c of composes) {
+        for (const servico of Object.values(c.services)) {
+          expect(servico.restart, arquivo).toBe("unless-stopped");
+          const volumes = (servico.volumes ?? []) as string[];
+          if (volumes.some((v) => v.startsWith("./registro:"))) {
+            expect(ler(arquivo), arquivo).toContain(`chown ${uidDaImagem}:${uidDaImagem} registro`);
+          }
+        }
+      }
+      expect(ler("Dockerfile")).toMatch(/^USER node$/m);
+    });
+  }
+});
+
 describe("Docker: assistente e troca do link de dono", () => {
   // O env_file do compose só é lido quando o contêiner é criado: `docker compose restart` mantém o
   // ANTI_REA_OWNER_VERSION antigo e o link velho continua valendo. O contêiner também não tem

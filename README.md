@@ -131,12 +131,21 @@ primeira versão publicada; até lá, construa a sua a partir deste repositório
 services:
   anti-rea:
     image: ghcr.io/jeipidevs/anti-rea:latest
+    restart: unless-stopped
     ports:
       - "8080:8080"
     env_file: .env
     volumes:
       - ./anti-rea.config.yml:/app/anti-rea.config.yml:ro
       - ./registro:/app/registro
+```
+
+A imagem roda com um usuário sem poder de administrador (uid 1000). Crie a pasta do registro com esse
+dono antes de subir, senão o porteiro sobe mas não consegue guardar as tentativas:
+
+```bash
+mkdir -p registro && sudo chown 1000:1000 registro
+docker compose up -d
 ```
 
 No Docker, o assistente e o comando `dono` rodam com Node ou pela própria imagem (veja

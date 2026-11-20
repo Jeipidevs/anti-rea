@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -125,6 +125,33 @@ describe("Registro", () => {
     expect(linhas).toHaveLength(1);
     expect(linhas[0]!.startsWith("[anti-rea] registro:")).toBe(true);
     expect(linhas[0]!.endsWith("\n")).toBe(true);
+  });
+
+  it("falha de gravacao avisa uma vez por dia, com o que fazer, e nao uma linha por evento", () => {
+    const pasta = join(dir, "registro");
+    const r = new Registro(pasta, DIA_MS);
+    rmSync(pasta, { recursive: true });
+    writeFileSync(pasta, "agora sou um arquivo");
+    const linhas = espiarStderr();
+    for (let i = 0; i < 200; i++) r.gravar(ev({ quando: "2026-11-20T10:00:00Z" }));
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0]).toContain(`falha ao gravar em ${pasta}`);
+    expect(linhas[0]).toContain("chown 1000:1000");
+    // O dia seguinte tem a própria linha.
+    r.gravar(ev({ quando: "2026-11-21T10:00:00Z" }));
+    r.gravar(ev({ quando: "2026-11-21T11:00:00Z" }));
+    expect(linhas).toHaveLength(2);
+  });
+
+  it("podeGravar diz se a pasta aceita arquivo novo, sem deixar nada nela", () => {
+    const r = new Registro(dir, DIA_MS);
+    expect(r.podeGravar()).toBeNull();
+    expect(readdirSync(dir)).toEqual([]);
+    const pasta = join(dir, "registro");
+    const outro = new Registro(pasta, DIA_MS);
+    rmSync(pasta, { recursive: true });
+    writeFileSync(pasta, "agora sou um arquivo");
+    expect(outro.podeGravar()).toBeInstanceOf(Error);
   });
 
   it("gravar com quando invalido nao lanca e avisa no stderr", () => {

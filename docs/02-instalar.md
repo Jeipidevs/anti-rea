@@ -60,6 +60,7 @@ Depois, use este `docker-compose.yml` na mesma pasta:
 services:
   anti-rea:
     image: ghcr.io/jeipidevs/anti-rea:latest
+    restart: unless-stopped
     ports:
       - "8080:8080"
     env_file: .env
@@ -68,8 +69,12 @@ services:
       - ./registro:/app/registro
 ```
 
+O `restart: unless-stopped` religa o porteiro sozinho se ele cair ou se a máquina reiniciar: com ele
+parado, o site fica fora do ar.
+
 A imagem roda com um usuário sem poder de administrador (uid 1000). Crie a pasta do registro
-antes e dê a ela esse dono, senão o porteiro não consegue gravar as tentativas:
+antes e dê a ela esse dono, senão o porteiro sobe mas não consegue gravar as tentativas (o
+`start` avisa no terminal):
 
 ```bash
 mkdir -p registro && sudo chown 1000:1000 registro

@@ -1,4 +1,5 @@
-import { appendFileSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Gravidade } from "../deteccao/servidor/ferramentas.js";
 
@@ -36,7 +37,8 @@ function inicioDoDia(dia: string): number {
   return Number.isNaN(ms) || new Date(ms).toISOString().slice(0, 10) !== dia ? NaN : ms;
 }
 
-type ContagemDoDia = { total: number; avisado: boolean };
+// `avisado`: a linha do teto já saiu naquele dia; `falhaAvisada`: a linha de falha de gravação já saiu.
+type ContagemDoDia = { total: number; avisado: boolean; falhaAvisada: boolean };
 
 // Linhas ja gravadas num arquivo (0 se nao existe): o teto sobrevive a um reinicio do processo.
 function linhasNoArquivo(caminho: string): number {
@@ -56,7 +58,9 @@ function linhasNoArquivo(caminho: string): number {
  * O dia de cada arquivo e o dia UTC de evento.quando, e a retencao compara esse dia UTC com `agora`.
  * Escrita com appendFileSync: simples e segura para um processo so.
  * Teto de `tetoPorDia` eventos gravados por dia: passado o teto, o evento so e contado
- * e o stderr recebe uma unica linha naquele dia.
+ * e o stderr recebe uma unica linha naquele dia. Falha de gravacao (pasta sem permissao, disco
+ * cheio) tambem sai no stderr uma vez por dia, com o que fazer.
+ * O construtor cria a pasta e lanca o erro do sistema quando nao consegue.
  */
 export class Registro {
   private readonly contagens = new Map<string, ContagemDoDia>();
@@ -78,7 +82,7 @@ export class Registro {
   private contagemDoDia(dia: string): ContagemDoDia {
     let contagem = this.contagens.get(dia);
     if (!contagem) {
-      contagem = { total: linhasNoArquivo(join(this.pasta, `${dia}.jsonl`)), avisado: false };
+      contagem = { total: linhasNoArquivo(join(this.pasta, `${dia}.jsonl`)), avisado: false, falhaAvisada: false };
       this.contagens.set(dia, contagem);
       if (this.contagens.size > DIAS_CONTADOS) this.contagens.delete(this.contagens.keys().next().value!);
     }
@@ -86,18 +90,34 @@ export class Registro {
   }
 
   /**
+   * A pasta aceita arquivo novo? Cria e apaga um arquivo de teste. null quando dá; senão, o erro.
+   */
+  podeGravar(): Error | null {
+    const teste = join(this.pasta, `.anti-rea-teste-${process.pid}-${randomBytes(4).toString("hex")}`);
+    try {
+      writeFileSync(teste, "", { flag: "wx" });
+      unlinkSync(teste);
+      return null;
+    } catch (erro) {
+      return erro instanceof Error ? erro : new Error(String(erro));
+    }
+  }
+
+  /**
    * Acrescenta o evento ao arquivo do dia, ate o teto do dia; depois so conta.
-   * Nunca lanca: erro vira uma linha no stderr.
+   * Nunca lanca: erro vira uma linha no stderr, no maximo uma por dia para falha de gravacao.
    */
   gravar(e: Evento): void {
+    let contagem: ContagemDoDia | undefined;
+    let dia = "";
     try {
       const ms = Date.parse(e.quando);
       if (Number.isNaN(ms)) {
         avisar(`evento com data invalida, nao gravado: ${JSON.stringify(e.quando)}`);
         return;
       }
-      const dia = new Date(ms).toISOString().slice(0, 10);
-      const contagem = this.contagemDoDia(dia);
+      dia = new Date(ms).toISOString().slice(0, 10);
+      contagem = this.contagemDoDia(dia);
       contagem.total++;
       if (contagem.total > this.tetoPorDia) {
         if (!contagem.avisado) {
@@ -109,7 +129,13 @@ export class Registro {
       // JSON.stringify escapa \n e \r dentro das strings: um evento ocupa sempre uma linha.
       appendFileSync(join(this.pasta, `${dia}.jsonl`), JSON.stringify(e) + "\n", "utf8");
     } catch (erro) {
-      avisar(`falha ao gravar: ${mensagem(erro)}`);
+      if (contagem?.falhaAvisada) return;
+      if (contagem) contagem.falhaAvisada = true;
+      avisar(
+        `falha ao gravar em ${this.pasta}: ${mensagem(erro)}. Os eventos ${dia ? `de ${dia} ` : ""}que falharem ` +
+          "nao ficam guardados (esta linha sai uma vez por dia). Confira se o usuario do porteiro pode gravar " +
+          "na pasta; no Docker, a pasta do host precisa ser do uid 1000: sudo chown 1000:1000 registro.",
+      );
     }
   }
 

@@ -1,5 +1,6 @@
 import http from "node:http";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import net from "node:net";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -18,8 +19,12 @@ beforeEach(() => {
 });
 afterEach(async () => {
   while (abertos.length > 0) await abertos.pop()!.fechar();
+  chmodSync(dir, 0o755);
   rmSync(dir, { recursive: true, force: true });
 });
+
+// Como root, chmod não tira a permissão: os testes de pasta sem permissão não fazem sentido.
+const comoRoot = process.getuid?.() === 0;
 
 function instalar(canal: "telegram" | "nenhum" = "telegram"): string {
   escreverInstalacao(
@@ -103,6 +108,48 @@ describe("start", () => {
     writeFileSync(join(dir, "anti-rea.config.yml"), "upstream: nada\ndomains: []\n");
     await expect(rodarStart()).rejects.toThrow(/Configuração inválida/);
     await expect(rodarStart({ config: join(dir, "nao-existe.yml") })).rejects.toThrow(/Não consegui ler/);
+  });
+
+  it("porta em uso vira erro em português sobre a porta", async () => {
+    instalar();
+    const ocupado = net.createServer();
+    await new Promise<void>((r) => ocupado.listen(0, "127.0.0.1", () => r()));
+    const porta = (ocupado.address() as net.AddressInfo).port;
+    try {
+      await expect(rodarStart({ porta })).rejects.toThrow(`A porta ${porta} já está em uso. Escolha outra com --porta.`);
+    } finally {
+      await new Promise<void>((r) => ocupado.close(() => r()));
+    }
+  });
+
+  it.skipIf(comoRoot)("pasta do registro que não pode ser criada vira erro sobre a pasta, não sobre a porta", async () => {
+    instalar();
+    const pai = join(dir, "trancada");
+    mkdirSync(pai);
+    chmodSync(pai, 0o555);
+    const registro = join(pai, "registro");
+    try {
+      const erro = await rodarStart({ registro }).catch((e: unknown) => e as Error);
+      expect(erro).toBeInstanceOf(Error);
+      expect((erro as Error).message).toBe(`Sem permissão para criar a pasta do registro ${registro}.`);
+    } finally {
+      chmodSync(pai, 0o755);
+    }
+  });
+
+  it.skipIf(comoRoot)("pasta do registro sem gravação: sobe e diz o que fazer", async () => {
+    instalar();
+    const registro = join(dir, "registro");
+    mkdirSync(registro);
+    chmodSync(registro, 0o555);
+    try {
+      const { saida } = await rodarStart({ registro });
+      expect(saida).toContain("Porteiro no ar em");
+      expect(saida).toContain(`Sem permissão para gravar na pasta do registro ${registro}`);
+      expect(saida).toContain("sudo chown 1000:1000");
+    } finally {
+      chmodSync(registro, 0o755);
+    }
   });
 
   it("versão de dono inválida vira erro em português", async () => {
