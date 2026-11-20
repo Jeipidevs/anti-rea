@@ -15,7 +15,16 @@ export type Destino = {
   /** Caminho base do upstream, sem barra no fim ("" na raiz). */
   base: string;
   agente: http.Agent;
+  /** Quanto o site tem para mandar os cabeçalhos da resposta, contado do último pedaço do pedido. */
+  tempoMs: number;
+  /** Uma linha no stderr sobre a falha do site (código ou tempo esgotado), no máximo uma por minuto. */
+  falhou(motivo: string): void;
 };
+
+/** Tempo máximo até os cabeçalhos do site; passado isso, o visitante recebe 504. */
+export const TEMPO_SITE_MS = 60_000;
+/** Intervalo mínimo entre duas linhas de falha do site no stderr. */
+export const INTERVALO_FALHA_MS = 60_000;
 
 /**
  * O que o repasse precisa saber do pedido, já resolvido pelo servidor. `cloudflare`: trustProxy
@@ -50,16 +59,41 @@ const SOMEM_DA_RESPOSTA = new Set(["server", "x-powered-by"]);
 // Nomear estes no Connection não os tira: sem eles o corpo chegaria ao site sem enquadramento.
 const NUNCA_DE_SALTO = new Set(["content-length", "host"]);
 
-export function criarDestino(upstream: string): Destino {
+/** Segundos em português ("60", "0,3"). */
+const segundos = (ms: number) => String(ms / 1000).replace(".", ",");
+
+/**
+ * O destino do `upstream`. `tempoMs` (padrão TEMPO_SITE_MS) e `agora` existem para os testes. A
+ * linha de falha leva só protocolo, host e porta do site, nunca usuário e senha da URL.
+ */
+export function criarDestino(upstream: string, opcoes: { tempoMs?: number; agora?: () => number } = {}): Destino {
   const url = new URL(upstream);
   const seguro = url.protocol === "https:";
+  const agora = opcoes.agora ?? Date.now;
+  const endereco = `${url.protocol}//${url.host}`;
+  let ultimaFalha = Number.NEGATIVE_INFINITY;
   return {
     pedir: seguro ? (o) => https.request(o) : (o) => http.request(o),
     host: url.hostname.replace(/^\[(.*)\]$/, "$1"),
     porta: url.port ? Number(url.port) : seguro ? 443 : 80,
     base: url.pathname.replace(/\/+$/, ""),
     agente: seguro ? new https.Agent({ keepAlive: false }) : new http.Agent({ keepAlive: false }),
+    tempoMs: opcoes.tempoMs ?? TEMPO_SITE_MS,
+    falhou(motivo) {
+      const t = agora();
+      if (t - ultimaFalha < INTERVALO_FALHA_MS) return;
+      ultimaFalha = t;
+      process.stderr.write(
+        `[anti-rea] falha no site ${endereco}: ${motivo}. O visitante recebeu a página de indisponível ` +
+          "(no máximo uma linha destas por minuto).\n",
+      );
+    },
   };
+}
+
+/** O código do erro de conexão (ECONNREFUSED, ENOTFOUND...), ou a mensagem quando não há código. */
+function motivoDoErro(erro: Error): string {
+  return (erro as NodeJS.ErrnoException).code ?? erro.message;
 }
 
 /** Nomes listados no cabeçalho Connection (também são de salto). */
@@ -207,7 +241,9 @@ export type OpcoesRepasse = { injetarGuarda: boolean; cookiesNovos: string[]; pr
 
 /**
  * Repassa o pedido ao site com o corpo em fluxo. Site fora do ar ou falha de conexão: 502 simples
- * (sem evento nem aviso). Visitante que desiste: o pedido ao site é cortado, sem derrubar nada.
+ * (sem evento nem aviso). Site que não manda os cabeçalhos em `destino.tempoMs` depois do último pedaço
+ * do pedido: 504, com a mesma página. Os dois casos viram uma linha no stderr (`destino.falhou`).
+ * Visitante que desiste: o pedido ao site é cortado, sem derrubar nada e sem linha no stderr.
  */
 export function repassarPedido(
   req: IncomingMessage,
@@ -234,11 +270,31 @@ export function repassarPedido(
     responderIndisponivel(res);
     return;
   }
-  pedidoSite.on("error", () => {
-    if (!res.headersSent) responderIndisponivel(res);
-    else if (!res.writableFinished) res.destroy();
+  let esgotado = false;
+  const relogio = setTimeout(() => {
+    esgotado = true;
+    destino.falhou(`sem resposta em ${segundos(destino.tempoMs)} s`);
+    pedidoSite.destroy();
+    responderIndisponivel(res, 504);
+  }, destino.tempoMs);
+  // Cada pedaço do corpo que chega renova o prazo: um envio longo não vira 504.
+  const adiar = () => relogio.refresh();
+  const pararRelogio = () => {
+    clearTimeout(relogio);
+    req.off("data", adiar);
+  };
+  req.on("data", adiar);
+  pedidoSite.on("error", (erro) => {
+    pararRelogio();
+    // Depois do 504, ou com o visitante já fora, o erro é o próprio corte: nada a responder.
+    if (esgotado || res.destroyed) return;
+    if (!res.headersSent) {
+      destino.falhou(motivoDoErro(erro));
+      responderIndisponivel(res);
+    } else if (!res.writableFinished) res.destroy();
   });
   pedidoSite.on("response", (resposta) => {
+    pararRelogio();
     try {
       entregar(resposta, res, injetar, opcoes);
     } catch {
@@ -248,6 +304,7 @@ export function repassarPedido(
     }
   });
   res.on("close", () => {
+    pararRelogio();
     if (!res.writableFinished) pedidoSite.destroy();
   });
   req.on("error", () => pedidoSite.destroy());
@@ -322,8 +379,10 @@ export function repassarUpgrade(
     resposta.resume();
     recusarUpgrade(socket, `${resposta.statusCode ?? 502} ${resposta.statusMessage ?? ""}`.trim());
   });
-  pedidoSite.on("error", () => {
-    if (!ligado) recusarUpgrade(socket, "502 Bad Gateway");
+  pedidoSite.on("error", (erro) => {
+    if (ligado || socket.destroyed) return;
+    destino.falhou(motivoDoErro(erro));
+    recusarUpgrade(socket, "502 Bad Gateway");
   });
   pedidoSite.end();
 }

@@ -42,6 +42,10 @@ export type DepsPorteiro = {
   dns?: Resolvedor;
   meta?: FaixasMeta;
   agora?: () => number;
+  /** Quanto o site tem para começar a responder; padrão TEMPO_SITE_MS (60 s). */
+  tempoDoSiteMs?: number;
+  /** Quanto o desligamento espera os pedidos em andamento; padrão PRAZO_DESLIGAR_MS (8 s). */
+  prazoDesligarMs?: number;
 };
 
 export type Porteiro = { porta: number; fechar(): Promise<void> };
@@ -51,6 +55,15 @@ export const RITMO_LIMITE = 30;
 export const RITMO_JANELA_MS = 10_000;
 /** Onde o navegador diz que o pedido é pré-carga ou pré-renderização. */
 const CABECALHOS_DE_PROPOSITO = ["sec-purpose", "purpose", "x-purpose", "x-sec-purpose", "x-moz"];
+/**
+ * Conexão ociosa fica aberta mais que no proxy da frente (Traefik guarda 90 s): quem fecha é ele, e
+ * ele nunca manda um pedido numa conexão que o porteiro acabou de fechar.
+ */
+export const KEEP_ALIVE_MS = 95_000;
+/** Tempo para os cabeçalhos de um pedido chegarem; fica acima do keep-alive, como o Node pede. */
+export const CABECALHOS_MS = 96_000;
+/** O desligamento espera até 8 s pelos pedidos em andamento: o Docker mata o processo em 10 s. */
+export const PRAZO_DESLIGAR_MS = 8_000;
 /** Tamanho máximo de caminho e agente no evento do registro. */
 const MAX_CAMPO_EVENTO = 300;
 
@@ -86,14 +99,15 @@ function falhaInterna(erro: unknown): void {
 
 /**
  * Sobe o porteiro: decide cada pedido, responde sombra, desafio ou recusa, ou repassa ao site em
- * fluxo. `fechar()` para o servidor, as tarefas periódicas, os túneis e as conexões abertas.
+ * fluxo. `fechar()` para o servidor, as tarefas periódicas e os túneis, espera os pedidos em andamento
+ * (até PRAZO_DESLIGAR_MS) e manda os avisos pendentes.
  */
 export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<Porteiro> {
   const relogio = deps.agora ?? Date.now;
   const dns = deps.dns ?? criarResolvedorDns();
   const meta = deps.meta ?? new FaixasMeta(() => buscarFaixasMeta());
   const ritmo = new Ritmo(RITMO_LIMITE, RITMO_JANELA_MS);
-  const destino = criarDestino(cfg.upstream);
+  const destino = criarDestino(cfg.upstream, { tempoMs: deps.tempoDoSiteMs, agora: relogio });
   const previas = new CachePrevia(relogio);
   const fechamento = new AbortController();
   const tuneis = new Set<Duplex>();
@@ -281,6 +295,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
       else res.destroy();
     });
   });
+  servidor.keepAliveTimeout = KEEP_ALIVE_MS;
+  servidor.headersTimeout = CABECALHOS_MS;
   servidor.on("upgrade", (req: IncomingMessage, socket: Duplex, cabeca: Buffer) => {
     try {
       tratarUpgrade(req, socket, cabeca);
@@ -302,18 +318,37 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
   meta.aquecer(relogio());
   const pararTarefas = agendarTarefas({ scans: cfg.alerts.scans, registro: deps.registro, avisos: deps.avisos, agora: relogio });
 
+  /**
+   * Para de aceitar conexões e fecha as ociosas na hora (e cada uma que fica ociosa depois); os pedidos
+   * em andamento têm até o prazo para terminar, e o que sobrar é fechado. Os túneis de WebSocket caem
+   * logo. Enquanto isso, os avisos pendentes saem (`avisos.encerrar`), dentro do mesmo prazo.
+   */
+  async function desligar(): Promise<void> {
+    pararTarefas();
+    fechamento.abort();
+    for (const s of tuneis) s.destroy();
+    const parado = new Promise<void>((resolver) => servidor.close(() => resolver()));
+    servidor.closeIdleConnections();
+    const ociosas = setInterval(() => servidor.closeIdleConnections(), 50);
+    const avisosPendentes = deps.avisos.encerrar(relogio()).catch(falhaInterna);
+    let prazo: NodeJS.Timeout | undefined;
+    const esgotado = new Promise<void>((resolver) => {
+      prazo = setTimeout(resolver, deps.prazoDesligarMs ?? PRAZO_DESLIGAR_MS);
+    });
+    await Promise.race([Promise.all([parado, avisosPendentes]), esgotado]);
+    clearTimeout(prazo);
+    clearInterval(ociosas);
+    servidor.closeAllConnections();
+    for (const s of tuneis) s.destroy();
+    await parado;
+    destino.agente.destroy();
+  }
+
   let fechado: Promise<void> | undefined;
   return {
     porta: (servidor.address() as { port: number }).port,
     fechar(): Promise<void> {
-      fechado ??= new Promise<void>((resolver) => {
-        pararTarefas();
-        fechamento.abort();
-        servidor.close(() => resolver());
-        servidor.closeAllConnections();
-        for (const s of tuneis) s.destroy();
-        destino.agente.destroy();
-      });
+      fechado ??= desligar();
       return fechado;
     },
   };

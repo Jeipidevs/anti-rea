@@ -25,6 +25,16 @@ que o visitante mandar (`X-Real-IP`, `True-Client-IP`, `X-Client-IP`, `X-Forward
 `X-Forwarded-Prefix`, `X-Forwarded-Server`, `X-Original-URL`, `X-Rewrite-URL` e `Forwarded`) não chegam
 ao site. O `CF-Connecting-IP` só segue com `trustProxy: cloudflare`.
 
+Se o site estiver fora do ar, o visitante recebe a página "Site temporariamente indisponível" (com
+o código 502). Se o site aceitar o pedido e não começar a responder em 60 s, o visitante recebe a
+mesma página, com o código 504. Página que leva mais de 60 s para começar a responder (um relatório
+pesado, uma conexão de espera longa) não funciona atrás do porteiro. Nos dois casos o porteiro
+escreve uma linha no log, no máximo uma por minuto:
+
+```
+[anti-rea] falha no site http://localhost:3000: ECONNREFUSED. O visitante recebeu a página de indisponível (no máximo uma linha destas por minuto).
+```
+
 A página HTML que o site manda comprimida (gzip, deflate ou br) chega comprimida ao visitante: o
 porteiro abre a página, põe a guarda e comprime de novo do mesmo jeito (o br com qualidade 4),
 pedaço por pedaço, sem esperar a página inteira. O `Content-Encoding` e o `Vary` do site ficam como

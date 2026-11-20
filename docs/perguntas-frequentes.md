@@ -90,6 +90,12 @@ problema.
 O site fica fora do ar, como acontece com qualquer proxy na frente. Use reinício automático
 (`restart: unless-stopped` no Docker) e um monitor de uptime.
 
+**E se o meu site cair ou ficar lento?**
+O porteiro continua de pé e mostra a página "Site temporariamente indisponível": na hora, se o site
+recusa a conexão, ou depois de 60 s sem começar a responder. O log ganha uma linha por falha, no
+máximo uma por minuto, com o motivo (`ECONNREFUSED`, `sem resposta em 60 s`). Isso não vira aviso
+nem entra no registro de tentativas.
+
 **Posso usar em site de cliente?**
 Pode. Lembre de citar a coleta de IP na política de privacidade do site.
 

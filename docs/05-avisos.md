@@ -63,6 +63,9 @@ Muitas tentativas ao mesmo tempo: 14 tentativas de 14 IPs desde 10:05 (agrupadas
 A contagem de um IP que não cabe no teto entra nesse mesmo aviso agrupado. Tudo continua no
 registro, com o detalhe de cada pedido. O resumo diário das varreduras não entra no teto.
 
+Ao desligar o porteiro (`docker compose down`, `Ctrl+C`), o que estava pendente sai antes de ele
+parar: o aviso agrupado, mesmo com o teto cheio, e a contagem das janelas ainda abertas.
+
 ## Horário e fuso
 
 O `Quando:` sai no fuso do servidor, com o fuso escrito no fim: `UTC-3` é o horário de Brasília.

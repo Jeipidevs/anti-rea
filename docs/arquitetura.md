@@ -26,19 +26,22 @@ própria aqui.
 ```
 src/
   porteiro/              o proxy reverso
-    servidor.ts          sobe o servidor HTTP, liga as peças e atende cada pedido
+    servidor.ts          sobe o servidor HTTP, liga as peças, atende cada pedido e desliga sem
+                         cortar o pedido em andamento
     decidir.ts           a lista de regras, em ordem: a primeira que casar vence
     pedido.ts            leitura do caminho (normalizado e ao pé da letra), domínio, navegação,
                          mídia e caminhos públicos padrão
     ip.ts                IP real do visitante (trustProxy), HTTPS e IP interno
     passes.ts            cookies do porteiro: passe de visitante, passe de dono, marca de pego
     rotas.ts             rotas internas: /.anti-rea/verificar, /.anti-rea/pego e /.anti-rea/guarda.js
-    repasse.ts           repasse ao site em fluxo e WebSocket
+    repasse.ts           repasse ao site em fluxo e WebSocket; tempo máximo do site e linha de
+                         falha no log
     injecao.ts           põe o script da guarda no HTML do site; abre e comprime de novo o HTML
                          comprimido pelo site (gzip, deflate, br)
     previa.ts            busca no site o título, a descrição e a imagem da página para a tela de
                          verificação, com cache
     respostas.ts         respostas prontas: sombra, tela de verificação, recusa, site fora do ar
+                         (502) ou sem resposta (504)
     tarefas.ts           tarefas de tempo em tempo: retenção do registro, avisos agrupados, resumo do dia
   deteccao/
     servidor/            sinais de cada pedido

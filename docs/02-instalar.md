@@ -80,6 +80,10 @@ como na seção do [nginx](#com-nginx-na-frente): a porta do porteiro só pode s
 O `restart: unless-stopped` religa o porteiro sozinho se ele cair ou se a máquina reiniciar: com ele
 parado, o site fica fora do ar.
 
+Ao parar (`docker compose down`, `docker compose up -d` com mudança, ou `Ctrl+C` fora do Docker), o
+porteiro deixa de aceitar conexões, espera até 8 s os pedidos em andamento terminarem (o Docker
+encerra o processo em 10 s), fecha o que sobrar e manda os avisos que estavam pendentes.
+
 A imagem roda com um usuário sem poder de administrador (uid 1000). Crie a pasta do registro
 antes e dê a ela esse dono, senão o porteiro sobe mas não consegue gravar as tentativas (o
 `start` avisa no terminal):
@@ -143,7 +147,8 @@ Depois:  internet  ──►  ANTI-REA  ──►  seu site
    o IP de cada visitante. Se a Cloudflare também está na frente (nuvem laranja ligada), use
    `cloudflare` (veja [Atrás da Cloudflare](#atrás-da-cloudflare)).
 4. Não publique a porta 8080 do porteiro (nada em "Portas" ou "Ports"): ligue só o domínio, que o
-   painel entrega pelo Traefik.
+   painel entrega pelo Traefik. O porteiro guarda a conexão ociosa por 95 s, mais que os 90 s do
+   Traefik: quem fecha é o proxy, e um pedido nunca cai numa conexão que o porteiro acabou de fechar.
 5. Mova o domínio do serviço do site para o serviço do ANTI-REA.
 6. Abra o site no navegador e confira que carrega normal.
 

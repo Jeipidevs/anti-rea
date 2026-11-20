@@ -65,11 +65,11 @@ const INDISPONIVEL = `<!doctype html>
 </html>
 `;
 
-/** 502 simples quando o site não responde. Sem evento e sem aviso. */
-export function responderIndisponivel(res: ServerResponse): void {
+/** 502 quando o site está fora do ar, 504 quando ele não responde a tempo. Sem evento e sem aviso. */
+export function responderIndisponivel(res: ServerResponse, status: 502 | 504 = 502): void {
   enviar(
     res,
-    502,
+    status,
     { "content-type": HTML, "content-security-policy": CSP_SOMBRA, "x-robots-tag": "noindex", "cache-control": "no-store" },
     INDISPONIVEL,
   );

@@ -15,7 +15,8 @@ import {
   SUFIXOS_TRANCADOS,
 } from "../src/deteccao/servidor/caminhos.js";
 import { SCANNERS } from "../src/deteccao/servidor/ferramentas.js";
-import { RITMO_JANELA_MS, RITMO_LIMITE } from "../src/porteiro/servidor.js";
+import { TEMPO_SITE_MS } from "../src/porteiro/repasse.js";
+import { KEEP_ALIVE_MS, PRAZO_DESLIGAR_MS, RITMO_JANELA_MS, RITMO_LIMITE } from "../src/porteiro/servidor.js";
 import type { Evento } from "../src/registro/registro.js";
 
 // Confere a embalagem da v0.1: imagem Docker, CI, roteiro do README e a FAQ. Número que a documentação
@@ -232,6 +233,14 @@ describe("números da documentação vêm do código", () => {
     const linha = ler("docs/05-avisos.md").split("\n").find((l) => l.startsWith("| Scanner apontado"))!;
     expect(linha).toContain("Ataque barrado");
     for (const nome of SCANNERS) expect(linha, nome).toContain(nome);
+  });
+
+  it("operação: docs/03 e a FAQ citam o tempo do site, docs/02 o keep-alive e o prazo do desligamento", () => {
+    const corrido = (arquivo: string) => ler(arquivo).replace(/\s+/g, " ");
+    expect(corrido("docs/03-configurar.md")).toContain(`não começar a responder em ${TEMPO_SITE_MS / 1000} s`);
+    expect(corrido("docs/perguntas-frequentes.md")).toContain(`depois de ${TEMPO_SITE_MS / 1000} s sem começar a responder`);
+    expect(corrido("docs/02-instalar.md")).toContain(`conexão ociosa por ${KEEP_ALIVE_MS / 1000} s`);
+    expect(corrido("docs/02-instalar.md")).toContain(`espera até ${PRAZO_DESLIGAR_MS / 1000} s os pedidos em andamento`);
   });
 
   it("ritmo de navegação: docs/03 cita o limite e a janela de servidor.ts", () => {

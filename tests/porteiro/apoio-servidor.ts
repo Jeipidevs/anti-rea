@@ -187,6 +187,9 @@ async function subirSite() {
         case "/eco":
           res.writeHead(200, { "content-type": "application/json" });
           return res.end(JSON.stringify(req.headers));
+        case "/mudo":
+          // Aceita o pedido e nunca responde.
+          return;
         case "/lento":
           setTimeout(() => {
             if (!res.destroyed) res.end("tarde");
@@ -243,7 +246,10 @@ const dnsDoGoogle: Resolvedor = {
   direto: async () => [IP_GOOGLE],
 };
 
-export async function montar(extra: Record<string, unknown> = {}, opcoes: { dns?: Resolvedor } = {}) {
+/** Ganchos do porteiro para os testes: DNS, relógio e os tempos de espera encurtados. */
+type OpcoesMontar = { dns?: Resolvedor; agora?: () => number; tempoDoSiteMs?: number; prazoDesligarMs?: number };
+
+export async function montar(extra: Record<string, unknown> = {}, opcoes: OpcoesMontar = {}) {
   const site = await subirSite();
   const cfg = validarConfig({
     upstream: `http://127.0.0.1:${site.porta}`,
@@ -270,6 +276,9 @@ export async function montar(extra: Record<string, unknown> = {}, opcoes: { dns?
     host: "127.0.0.1",
     dns: opcoes.dns ?? dnsDoGoogle,
     meta: new FaixasMeta(async () => ["192.0.2.0/24"]),
+    agora: opcoes.agora,
+    tempoDoSiteMs: opcoes.tempoDoSiteMs,
+    prazoDesligarMs: opcoes.prazoDesligarMs,
   });
   limpezas.push(async () => {
     await porteiro.fechar();
