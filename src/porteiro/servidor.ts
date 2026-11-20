@@ -22,7 +22,7 @@ import {
   lerCookies,
   passeDoPedido,
 } from "./passes.js";
-import { caminhoDoAlvo, dominioDoHost, normalizarCaminho } from "./pedido.js";
+import { caminhoAmbiguo, caminhoDoAlvo, dominioDoHost } from "./pedido.js";
 import { CachePrevia } from "./previa.js";
 import { buscarHtml, criarDestino, recusarUpgrade, repassarPedido, repassarUpgrade } from "./repasse.js";
 import { enviar, responderDesafio, responderRecusa, responderSombra, responderTexto } from "./respostas.js";
@@ -52,6 +52,7 @@ const RITMO_JANELA_MS = 10_000;
 const MAX_CAMPO = 300;
 
 const SEM_PASSE: Sinal = { motivo: "sem passe", gravidade: "varredura" };
+const AMBIGUO: Sinal = { motivo: "caminho ambíguo", gravidade: "varredura" };
 const DONO_ERRADO: Sinal = { motivo: "link de dono errado", gravidade: "copia" };
 
 function cortar(texto: string, max: number): string {
@@ -93,9 +94,14 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
     return dominios.has(dominioDoHost(host)) ? host : undefined;
   }
 
+  /**
+   * Tela de verificação com a prévia do caminho. A prévia é buscada sem a query: link de uso único
+   * (login por e-mail, troca de senha) leva o código na query e seria gasto antes da pessoa passar.
+   */
   async function desafio(req: IncomingMessage, caminho: string, agora: number): Promise<string> {
     const host = hostDaPrevia(req.headers.host);
-    const previa = await previas.obter(`${host ?? ""} ${caminho}`, () => buscarHtml(destino, caminho, host, fechamento.signal));
+    const semQuery = caminho.split(/[?#]/, 1)[0] ?? "/";
+    const previa = await previas.obter(`${host ?? ""} ${semQuery}`, () => buscarHtml(destino, semQuery, host, fechamento.signal));
     return paginaDesafio({
       nonce: criarNonce(segredo, agora),
       previa,
@@ -148,6 +154,10 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
         gravar(evento(d.sinal, "sombra"), true);
         return sombra(d.status);
       case "recusar":
+        if (d.status === 400) {
+          gravar(evento(AMBIGUO, "recusado"), true);
+          return responderTexto(res, 400, "Pedido inválido.");
+        }
         gravar(evento(SEM_PASSE, "recusado"), true);
         return responderRecusa(res);
       case "verificar":
@@ -180,7 +190,13 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
         const cookiesNovos = d.emitirPasse
           ? [cookieDoPorteiro(COOKIE_PASSE, criarPasseVisitante(segredo, duracao, agora), duracao, https)]
           : [];
-        return repassarPedido(req, res, destino, { caminho, ip: p.ip, https }, { injetarGuarda: d.injetarGuarda, cookiesNovos });
+        return repassarPedido(
+          req,
+          res,
+          destino,
+          { caminho, ip: p.ip, https },
+          { injetarGuarda: d.injetarGuarda, cookiesNovos, privada: !d.publico },
+        );
       }
     }
   }
@@ -191,7 +207,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
     const caminho = caminhoDoAlvo(req.url ?? "");
     const agora = relogio();
     const comPasse = passeDoPedido(lerCookies(req.headers.cookie), segredo, versaoDono, agora) !== null;
-    if (caminho === null || fechamento.signal.aborted || !(comPasse || caminhoIsento(normalizarCaminho(caminho), cfg.exempt))) {
+    const liberado = caminho !== null && !caminhoAmbiguo(caminho) && (comPasse || caminhoIsento(caminho, cfg.exempt));
+    if (caminho === null || fechamento.signal.aborted || !liberado) {
       recusarUpgrade(socket, "403 Forbidden", "Acesso negado.");
       return;
     }

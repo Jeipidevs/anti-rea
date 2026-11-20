@@ -99,7 +99,9 @@ async function subirSite() {
     req.on("end", () => {
       const comum = { server: "site-teste/1.0", "x-powered-by": "PHP/8.3" };
       const html = { ...comum, "content-type": "text/html; charset=utf-8" };
-      switch (req.url) {
+      // Roteia como os roteadores baseados em WHATWG URL (Hono, Bun, Deno): resolve "." e ".." sem
+      // decodificar %2F. É o caso em que o caminho do site e o do porteiro podiam divergir.
+      switch (new URL(req.url!, "http://site").pathname) {
         case "/":
         case "/pagina":
           res.writeHead(200, { ...html, "set-cookie": "sessao=abc; Path=/" });
@@ -121,8 +123,11 @@ async function subirSite() {
           res.writeHead(200, { ...comum, "content-type": "image/png" });
           return res.end(PNG);
         case "/app.js":
-          res.writeHead(200, { ...comum, "content-type": "text/javascript" });
+          res.writeHead(200, { ...comum, "content-type": "text/javascript", "cache-control": "public, max-age=31536000" });
           return res.end("console.log(1)");
+        case "/.env":
+          res.writeHead(200, { "content-type": "text/plain" });
+          return res.end("DB_PASS=xyz");
         case "/upload":
         case "/api/webhook/x":
           res.writeHead(200, { "content-type": "application/json" });

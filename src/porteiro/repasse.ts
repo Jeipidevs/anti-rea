@@ -42,6 +42,8 @@ const SALTO = new Set([
 const DO_PORTEIRO = new Set(["x-forwarded-for", "x-forwarded-proto", "x-forwarded-host", "forwarded"]);
 // Não contam ao mundo o que roda atrás.
 const SOMEM_DA_RESPOSTA = new Set(["server", "x-powered-by"]);
+// Nomear estes no Connection não os tira: sem eles o corpo chegaria ao site sem enquadramento.
+const NUNCA_DE_SALTO = new Set(["content-length", "host"]);
 
 export function criarDestino(upstream: string): Destino {
   const url = new URL(upstream);
@@ -68,7 +70,9 @@ function listadosNoConnection(valor: string | string[] | undefined): Set<string>
 
 /**
  * Cabeçalhos do pedido para o site: sem os de salto, sem os cookies do porteiro, com X-Forwarded-*
- * escritos pelo porteiro (o IP é o real, já resolvido) e o Host original.
+ * escritos pelo porteiro (o IP é o real, já resolvido) e o Host original. Corpo que veio em chunked
+ * vai em chunked: o Node não enquadra sozinho o corpo de GET, HEAD, DELETE e OPTIONS, e o corpo
+ * cru viraria um segundo pedido no site.
  */
 export function cabecalhosParaOSite(
   req: IncomingMessage,
@@ -78,10 +82,12 @@ export function cabecalhosParaOSite(
   const saida: OutgoingHttpHeaders = {};
   const doConnection = listadosNoConnection(req.headers.connection);
   for (const [nome, valor] of Object.entries(req.headers)) {
-    if (valor === undefined || SALTO.has(nome) || doConnection.has(nome) || DO_PORTEIRO.has(nome)) continue;
+    if (valor === undefined || SALTO.has(nome) || DO_PORTEIRO.has(nome)) continue;
+    if (doConnection.has(nome) && !NUNCA_DE_SALTO.has(nome)) continue;
     if (nome === "cookie") continue;
     saida[nome] = valor;
   }
+  if (!opcoes.upgrade && req.headers["transfer-encoding"] !== undefined) saida["transfer-encoding"] = "chunked";
   const cookie = cookiesParaOSite(req.headers.cookie);
   if (cookie) saida.cookie = cookie;
   if (origem.ip) saida["x-forwarded-for"] = origem.ip;
@@ -99,13 +105,35 @@ export function cabecalhosParaOSite(
   return saida;
 }
 
-/** Cabeçalhos da resposta para o visitante: sem os de salto, sem Server e X-Powered-By, mais os cookies do porteiro. */
-function cabecalhosParaOVisitante(resposta: IncomingMessage, cookiesNovos: string[]): OutgoingHttpHeaders {
+/**
+ * Cache-Control que só o navegador guarda: tira `public` e `s-maxage` e acrescenta `private`
+ * (sem cabeçalho, fica só `private`). `no-store` já basta e fica como veio.
+ */
+export function cacheSoDoNavegador(valor: string | string[] | undefined): string {
+  const diretivas = (Array.isArray(valor) ? valor.join(",") : (valor ?? ""))
+    .split(",")
+    .map((d) => d.trim())
+    .filter((d) => d !== "" && !/^public$/i.test(d) && !/^s-maxage\s*=/i.test(d));
+  if (diretivas.some((d) => /^(private|no-store)$/i.test(d))) return diretivas.join(", ");
+  return ["private", ...diretivas].join(", ");
+}
+
+/**
+ * Cabeçalhos da resposta para o visitante: sem os de salto, sem Server e X-Powered-By, mais os
+ * cookies do porteiro. Resposta `privada` (liberada por passe ou por ser robô) não pode ir para
+ * cache compartilhado: senão a CDN entrega o JS do visitante verificado a qualquer um.
+ */
+function cabecalhosParaOVisitante(resposta: IncomingMessage, cookiesNovos: string[], privada: boolean): OutgoingHttpHeaders {
   const saida: OutgoingHttpHeaders = {};
   const doConnection = listadosNoConnection(resposta.headers.connection);
   for (const [nome, valor] of Object.entries(resposta.headers)) {
     if (valor === undefined || SALTO.has(nome) || doConnection.has(nome) || SOMEM_DA_RESPOSTA.has(nome)) continue;
     saida[nome] = valor;
+  }
+  if (privada) {
+    saida["cache-control"] = cacheSoDoNavegador(resposta.headers["cache-control"]);
+    saida["cdn-cache-control"] = "no-store";
+    saida["cloudflare-cdn-cache-control"] = "no-store";
   }
   if (cookiesNovos.length > 0) {
     const doSite = saida["set-cookie"];
@@ -120,13 +148,13 @@ function ehHtml(resposta: IncomingMessage): boolean {
 }
 
 /** Manda a resposta do site ao visitante, em fluxo; HTML que leva guarda passa pelo injetor. */
-function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boolean, cookiesNovos: string[]): void {
+function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boolean, opcoes: OpcoesRepasse): void {
   if (res.destroyed) {
     resposta.destroy();
     return;
   }
   const status = resposta.statusCode ?? 502;
-  const cabecalhos = cabecalhosParaOVisitante(resposta, cookiesNovos);
+  const cabecalhos = cabecalhosParaOVisitante(resposta, opcoes.cookiesNovos, opcoes.privada);
   const podeInjetar = injetar && status === 200 && ehHtml(resposta);
   const abrir = podeInjetar ? descompressor(resposta.headers["content-encoding"]) : undefined;
   const aoTerminar = (erro: Error | null) => {
@@ -144,6 +172,9 @@ function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boole
   pipeline(resposta, res, aoTerminar);
 }
 
+/** `privada`: a resposta dependeu de passe ou de robô e não vai para cache compartilhado. */
+export type OpcoesRepasse = { injetarGuarda: boolean; cookiesNovos: string[]; privada: boolean };
+
 /**
  * Repassa o pedido ao site com o corpo em fluxo. Site fora do ar ou falha de conexão: 502 simples
  * (sem evento nem aviso). Visitante que desiste: o pedido ao site é cortado, sem derrubar nada.
@@ -153,7 +184,7 @@ export function repassarPedido(
   res: ServerResponse,
   destino: Destino,
   origem: Origem,
-  opcoes: { injetarGuarda: boolean; cookiesNovos: string[] },
+  opcoes: OpcoesRepasse,
 ): void {
   // O visitante foi embora enquanto o porteiro decidia: nada a repassar.
   if (res.destroyed) return;
@@ -179,7 +210,7 @@ export function repassarPedido(
   });
   pedidoSite.on("response", (resposta) => {
     try {
-      entregar(resposta, res, injetar, opcoes.cookiesNovos);
+      entregar(resposta, res, injetar, opcoes);
     } catch {
       resposta.destroy();
       if (!res.headersSent) responderIndisponivel(res);

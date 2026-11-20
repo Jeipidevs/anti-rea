@@ -36,6 +36,14 @@ exempt:
 ```
 
 Os arquivos trancados (`.env`, `.git`, mapas de código) continuam trancados mesmo em caminho isento.
+O caminho isento precisa casar como chega, letra por letra: `/api%2Fwebhook/x`, `//api/webhook/x`
+e `/api/webhook;x/y` não contam como `/api/webhook/*`. Caminho com `.` ou `..` em qualquer forma
+(`/../`, `%2e%2e`, `..;`, barra invertida) recebe 400 antes de qualquer outra regra, porque o site
+poderia ler outro arquivo que não o conferido. Navegador nunca manda caminho assim.
+
+Link de uso único com o código no próprio caminho (por exemplo `/login/magico/<código>`) deve
+entrar em `exempt`: a tela de verificação busca a prévia do caminho no site e gastaria o código.
+Código na query (`?token=...`) não corre esse risco, porque a prévia é buscada sem a query.
 
 ## Página sombra
 

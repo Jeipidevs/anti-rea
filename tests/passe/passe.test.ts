@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { codigoDeDono, conferirPasse, criarPasse, revogarPasse } from "../../src/passe/passe.js";
+import { codigoDeDono, conferirPasse, criarPasse, MAX_REVOGADOS, revogarPasse, totalRevogados } from "../../src/passe/passe.js";
 
 const s = "segredo-de-teste";
 
@@ -66,5 +66,28 @@ describe("passe", () => {
     expect(codigoDeDono(s, 1)).not.toBe(codigoDeDono(s, 2));
     expect(codigoDeDono("outro", 1)).not.toBe(codigoDeDono(s, 1));
     expect(codigoDeDono(s, 1)).toMatch(/^[A-Za-z0-9_-]{24}$/);
+  });
+});
+
+describe("lista de revogados", () => {
+  it("revogado vencido sai da lista na próxima revogação depois de 1 minuto", () => {
+    const antes = totalRevogados();
+    for (let i = 0; i < 3; i++) revogarPasse(`vence-${i}`, 5_000, 1_000);
+    expect(totalRevogados()).toBe(antes + 3);
+    revogarPasse("novo", 500_000, 1_000 + 60_000);
+    expect(totalRevogados()).toBe(antes + 1);
+  });
+
+  it("revogado ainda válido continua barrado depois da limpeza", () => {
+    const v = criarPasse(s, "visitante", 600_000, 1_000);
+    const p = conferirPasse(s, v, 2_000)!;
+    revogarPasse(p.id, p.expira, 2_000);
+    revogarPasse("outro", 600_000, 2_000 + 120_000);
+    expect(conferirPasse(s, v, 2_000 + 120_000)).toBeNull();
+  });
+
+  it("a lista nunca passa do teto, mesmo com passes longos", () => {
+    for (let i = 0; i < MAX_REVOGADOS + 50; i++) revogarPasse(`longo-${i}`, Number.MAX_SAFE_INTEGER, 10_000_000);
+    expect(totalRevogados()).toBe(MAX_REVOGADOS);
   });
 });

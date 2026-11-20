@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { caminhoDoAlvo, dominioDoHost, ehMidia, ehNavegacao, normalizarCaminho } from "../../src/porteiro/pedido.js";
+import { caminhoAmbiguo, caminhoDoAlvo, caminhoLiteral, dominioDoHost, ehMidia, ehNavegacao, normalizarCaminho } from "../../src/porteiro/pedido.js";
 
 describe("caminhoDoAlvo", () => {
   it("forma de origem fica como veio", () => {
@@ -49,6 +49,51 @@ describe("normalizarCaminho", () => {
   it("mantém maiúsculas", () => {
     expect(normalizarCaminho("/API/Webhook")).toBe("/API/Webhook");
   });
+
+  it("tira o parâmetro de matriz (;...) de cada segmento antes de resolver ponto-ponto, como Tomcat e Jetty", () => {
+    expect(normalizarCaminho("/api/webhook/..;/app.js")).toBe("/api/app.js");
+    expect(normalizarCaminho("/app.js;.png")).toBe("/app.js");
+    expect(normalizarCaminho("/.git;/config")).toBe("/.git/config");
+    expect(normalizarCaminho("/pagina;jsessionid=ABC")).toBe("/pagina");
+    expect(normalizarCaminho("/;x/.env")).toBe("/.env");
+  });
+});
+
+describe("caminhoAmbiguo", () => {
+  it("ponto-ponto, ponto ou barra invertida em qualquer forma deixam o caminho ambíguo", () => {
+    for (const c of [
+      "/x/../y",
+      "/x/./y",
+      "/x/..",
+      "/x/%2e%2e/y",
+      "/x/.%2E/y",
+      "/api/webhook/a%2fb%2fc/../../../app.js",
+      "/api/webhook/a%2f..%2f..%2fapp.js",
+      "/api/webhook/..;/app.js",
+      "/api/webhook/.;x/app.js",
+      "/a\\b",
+      "/a%5c..%5cb",
+    ]) {
+      expect(caminhoAmbiguo(c), c).toBe(true);
+    }
+  });
+
+  it("caminho comum, %2F sem ponto-ponto, barra dobrada, parâmetro de matriz e query não são ambíguos", () => {
+    for (const c of ["/", "/a/b", "/a/b/", "/a;jsessionid=1/b", "/a%2Fb", "//a", "/a?x=../..", "/arquivo..txt", "/...", "/.well-known/x"]) {
+      expect(caminhoAmbiguo(c), c).toBe(false);
+    }
+  });
+});
+
+describe("caminhoLiteral", () => {
+  it("decodifica %xx uma vez sem criar separador, não junta barras nem tira parâmetro de matriz", () => {
+    expect(caminhoLiteral("/api%2Fwebhook%2Fx")).toBe("/api%2Fwebhook%2Fx");
+    expect(caminhoLiteral("/api%5cwebhook")).toBe("/api%5Cwebhook");
+    expect(caminhoLiteral("/a//b")).toBe("/a//b");
+    expect(caminhoLiteral("/caf%C3%A9?x=1")).toBe("/café");
+    expect(caminhoLiteral("/a;b/c")).toBe("/a;b/c");
+    expect(caminhoLiteral("/%E0%A4%A/x")).toBe("/%E0%A4%A/x");
+  });
 });
 
 describe("dominioDoHost", () => {
@@ -76,5 +121,7 @@ describe("ehNavegacao e ehMidia", () => {
       expect(ehMidia(c), c).toBe(true);
     }
     for (const c of ["/app.js", "/", "/png", "/a.png.js", "/x.css", "/.png/x"]) expect(ehMidia(c), c).toBe(false);
+    // Conferida sempre no caminho normalizado: o parâmetro de matriz já saiu.
+    expect(ehMidia(normalizarCaminho("/app.js;.png"))).toBe(false);
   });
 });

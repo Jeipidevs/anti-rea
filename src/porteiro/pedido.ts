@@ -26,15 +26,31 @@ function decodificarUmaVez(caminho: string): string {
   });
 }
 
+/** Caminho sem query nem fragmento. */
+function semQuery(cru: string): string {
+  return cru.split(/[?#]/, 1)[0] ?? "";
+}
+
+/** Parte do segmento antes do parâmetro de matriz (";..."), que Tomcat, Jetty e Spring tiram antes de resolver "..". */
+function semMatriz(segmento: string): string {
+  return segmento.split(";", 1)[0] ?? "";
+}
+
+/** Segmentos lidos do jeito mais largo: %xx decodificado uma vez, e barra, barra invertida, %2F e %5C separam. */
+function segmentosLargos(cru: string): string[] {
+  return decodificarUmaVez(semQuery(cru)).replace(/\\/g, "/").split("/").slice(1);
+}
+
 /**
- * Caminho usado em toda conferência (trancado, varredura, isento, extensão, rotas internas):
- * sem query nem fragmento, %xx decodificado uma vez, barra invertida vira barra, barras repetidas
- * viram uma e segmentos "." e ".." resolvidos. Maiúsculas ficam: quem compara decide.
+ * Caminho usado nas conferências que barram (trancado, varredura, rotas internas) e na de mídia: sem
+ * query nem fragmento, %xx decodificado uma vez, barra invertida vira barra, barras repetidas viram
+ * uma, parâmetro de matriz sai de cada segmento e segmentos "." e ".." são resolvidos. Maiúsculas
+ * ficam: quem compara decide.
  */
 export function normalizarCaminho(cru: string): string {
-  const semQuery = cru.split(/[?#]/, 1)[0] ?? "";
-  const plano = decodificarUmaVez(semQuery).replace(/\\/g, "/").replace(/\/{2,}/g, "/");
-  const segmentos = plano.split("/").slice(1);
+  const segmentos = segmentosLargos(cru)
+    .map(semMatriz)
+    .filter((s, i, todos) => s !== "" || i === todos.length - 1);
   const saida: string[] = [];
   segmentos.forEach((s, i) => {
     const ultimo = i === segmentos.length - 1;
@@ -46,6 +62,31 @@ export function normalizarCaminho(cru: string): string {
     saida.push(s);
   });
   return "/" + saida.join("/");
+}
+
+/**
+ * O site pode resolver este caminho diferente do porteiro: tem barra invertida crua ou um segmento
+ * "." ou ".." em alguma leitura (decodificado, separado por %2F ou %5C, ou sem o parâmetro de
+ * matriz). Navegador nunca manda isso: ele resolve os pontos antes de pedir.
+ */
+export function caminhoAmbiguo(cru: string): boolean {
+  if (semQuery(cru).includes("\\")) return true;
+  return segmentosLargos(cru).some((s) => {
+    const nome = semMatriz(s);
+    return nome === "." || nome === "..";
+  });
+}
+
+/**
+ * Caminho lido ao pé da letra, para a conferência que libera (isento): %xx decodificado uma vez,
+ * mas %2F e %5C continuam codificados (decodificar nunca cria separador), sem juntar barras e sem
+ * tirar parâmetro de matriz. Só serve para caminho que não é ambíguo.
+ */
+export function caminhoLiteral(cru: string): string {
+  return semQuery(cru)
+    .split("/")
+    .map((s) => decodificarUmaVez(s).replace(/\//g, "%2F").replace(/\\/g, "%5C"))
+    .join("/");
 }
 
 /** Host do pedido para o registro: minúsculo, sem porta, só [a-z0-9.-], até 100; vazio vira "desconhecido". */

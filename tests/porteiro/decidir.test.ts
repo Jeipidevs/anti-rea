@@ -62,6 +62,8 @@ const passeDono = (versao = 1) => `anti_rea_passe=${criarPasseDono(SEGREDO, vers
 const marcaPego = () => `anti_rea_pego=${criarMarcaPego(SEGREDO, AGORA)}`;
 
 const repassar = (injetarGuarda: boolean): Decisao => ({ acao: "repassar", injetarGuarda });
+/** Repasse cuja resposta é a mesma para todo mundo (isento ou mídia): a CDN pode guardar. */
+const publico = (injetarGuarda: boolean): Decisao => ({ acao: "repassar", injetarGuarda, publico: true });
 const sombra = (motivo: string, gravidade: "copia" | "varredura", status: 200 | 404): Decisao => ({
   acao: "sombra",
   sinal: { motivo, gravidade },
@@ -145,15 +147,42 @@ describe("decidir: passe de dono e isentos", () => {
   });
 
   it("isento /api/webhook/x com agente curl repassa sem guarda", async () => {
-    expect(await decidir(pedido({ metodo: "POST", caminho: "/api/webhook/x", agente: "curl/8.7.1", accept: "*/*" }), ctx())).toEqual(repassar(false));
-    expect(await decidir(pedido({ caminho: "/health?x=1", agente: "curl/8.7.1", accept: "*/*" }), ctx())).toEqual(repassar(false));
+    expect(await decidir(pedido({ metodo: "POST", caminho: "/api/webhook/x", agente: "curl/8.7.1", accept: "*/*" }), ctx())).toEqual(publico(false));
+    expect(await decidir(pedido({ caminho: "/health?x=1", agente: "curl/8.7.1", accept: "*/*" }), ctx())).toEqual(publico(false));
+    expect(await decidir(pedido({ caminho: "/api/webhook/x;jsessionid=1", agente: "curl/8.7.1" }), ctx())).toEqual(publico(false));
   });
 
   it("isento não casa por prefixo solto nem por ponto-ponto", async () => {
     expect(await decidir(pedido({ caminho: "/healthz", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("curl", "copia", 200));
-    expect(await decidir(pedido({ caminho: "/api/webhook/../../app.js", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("curl", "copia", 200));
-    expect(await decidir(pedido({ caminho: "/api/webhook/%2e%2e/%2e%2e/app.js", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 403 });
+    expect(await decidir(pedido({ caminho: "/api/webhook/../../app.js", agente: "curl/8.7.1" }), ctx())).toEqual({ acao: "recusar", status: 400 });
+    expect(await decidir(pedido({ caminho: "/api/webhook/%2e%2e/%2e%2e/app.js", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 400 });
     expect(await decidir(pedido({ caminho: "/API/webhook/x", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("curl", "copia", 200));
+  });
+
+  it("isento só vale quando o caminho casa lido dos dois jeitos (%2F, barra dobrada e matriz não criam isento)", async () => {
+    for (const caminho of ["/api%2Fwebhook%2Fx", "/api/webhook;x/y", "//api/webhook/x", "/api//webhook/x"]) {
+      expect(await decidir(pedido({ caminho, agente: "curl/8.7.1" }), ctx()), caminho).toEqual(sombra("curl", "copia", 200));
+    }
+  });
+});
+
+describe("decidir: caminho ambíguo", () => {
+  it("ponto-ponto que o site poderia resolver diferente vira 400, com ou sem passe", async () => {
+    for (const caminho of ["/api/webhook/..;/app.js", "/api/webhook/a%2fb%2fc/../../../app.js", "/api/webhook/a%2fb%2fc/../../../.env", "/x/./y"]) {
+      expect(await decidir(pedido({ caminho, agente: "curl/8.7.1" }), ctx()), caminho).toEqual({ acao: "recusar", status: 400 });
+    }
+    expect(await decidir(pedido({ caminho: "/x/a%2fb/../../.env", cookie: passeVisitante() }), ctx())).toEqual({ acao: "recusar", status: 400 });
+    expect(await decidir(pedido({ caminho: "/x/a%2fb/../../.env", cookie: passeDono() }), ctx())).toEqual({ acao: "recusar", status: 400 });
+  });
+
+  it("arquivo trancado continua na sombra antes do 400", async () => {
+    expect(await decidir(pedido({ caminho: "/.git;/config", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+    expect(await decidir(pedido({ caminho: "/x/../.env", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+  });
+
+  it("parâmetro de matriz não transforma JS em imagem", async () => {
+    expect(await decidir(pedido({ caminho: "/app.js;.png", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 403 });
+    expect(await decidir(pedido({ caminho: "/logo.png;jsessionid=1", accept: "*/*" }), ctx())).toEqual(publico(false));
   });
 });
 
@@ -164,7 +193,7 @@ describe("decidir: marca de pego", () => {
       sombra("pego na verificação", "copia", 200),
     );
     expect(await decidir(pedido({ cookie: `${marcaPego()}; ${passeDono()}` }), ctx())).toEqual(repassar(false));
-    expect(await decidir(pedido({ caminho: "/health", cookie: marcaPego() }), ctx())).toEqual(repassar(false));
+    expect(await decidir(pedido({ caminho: "/health", cookie: marcaPego() }), ctx())).toEqual(publico(false));
   });
 
   it("marca vencida ou adulterada não conta", async () => {
@@ -227,7 +256,7 @@ describe("decidir: robôs declarados", () => {
   it("WhatsApp/2.24 em / vai a verificar; imagem de prévia passa", async () => {
     const c = ctx();
     expect(await decidir(pedido({ agente: "WhatsApp/2.24", accept: "*/*" }), c)).toEqual({ acao: "verificar" });
-    expect(await decidir(pedido({ agente: "WhatsApp/2.24", caminho: "/og.png", accept: "image/*" }), c)).toEqual(repassar(false));
+    expect(await decidir(pedido({ agente: "WhatsApp/2.24", caminho: "/og.png", accept: "image/*" }), c)).toEqual(publico(false));
     expect(await decidir(pedido({ agente: "TelegramBot (like TwitterBot)", caminho: "/app.js", accept: "*/*" }), c)).toEqual({ acao: "verificar" });
     expect(c.robosPerguntados).toEqual([]);
   });
@@ -249,7 +278,7 @@ describe("decidir: ritmo", () => {
   it("só navegação conta: imagens não gastam o ritmo", async () => {
     const c = ctx();
     for (let i = 0; i < 40; i++) {
-      expect(await decidir(pedido({ caminho: `/f${i}.png`, accept: "image/*", cookie: passeVisitante() }), c)).toEqual(repassar(true));
+      expect(await decidir(pedido({ caminho: `/f${i}.png`, accept: "image/*", cookie: passeVisitante() }), c)).toEqual(publico(true));
     }
     expect(await decidir(pedido({ cookie: passeVisitante() }), c)).toEqual(repassar(true));
   });
@@ -275,9 +304,9 @@ describe("decidir: passe de visitante e primeira visita", () => {
 
   it("sem passe: / vira verificar, /og.png repassa, /app.js recusa 403", async () => {
     expect(await decidir(pedido(), ctx())).toEqual({ acao: "verificar" });
-    expect(await decidir(pedido({ caminho: "/og.png", accept: "image/avif,image/webp,*/*" }), ctx())).toEqual(repassar(false));
+    expect(await decidir(pedido({ caminho: "/og.png", accept: "image/avif,image/webp,*/*" }), ctx())).toEqual(publico(false));
     for (const caminho of ["/a.JPG", "/b.jpeg", "/c.gif", "/d.webp", "/e.avif", "/f.svg", "/favicon.ico", "/g.woff", "/h.woff2"]) {
-      expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual(repassar(false));
+      expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual(publico(false));
     }
     expect(await decidir(pedido({ caminho: "/app.js", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 403 });
     expect(await decidir(pedido({ metodo: "POST", caminho: "/", accept: HTML }), ctx())).toEqual({ acao: "recusar", status: 403 });

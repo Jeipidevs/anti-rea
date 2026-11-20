@@ -6,9 +6,12 @@ import type { Ritmo } from "../deteccao/servidor/ritmo.js";
 import { codigoDeDono } from "../passe/passe.js";
 import { roboDeclarado, type Confirmacao, type Robo } from "../robos/robos.js";
 import { lerCookies, passeDoPedido, temMarcaPego } from "./passes.js";
-import { ehMidia, ehNavegacao, normalizarCaminho } from "./pedido.js";
+import { caminhoAmbiguo, caminhoLiteral, ehMidia, ehNavegacao, normalizarCaminho } from "./pedido.js";
 
-/** O pedido como o porteiro o vê. `caminho` é o cru (com query); a detecção usa o normalizado. */
+/**
+ * O pedido como o porteiro o vê. `caminho` é o cru (com query), o mesmo que vai ao site; a detecção
+ * usa o normalizado, e caminho que o site poderia ler diferente (ponto-ponto) nunca chega lá.
+ */
 export type Pedido = {
   metodo: string;
   caminho: string;
@@ -27,12 +30,16 @@ export type RotaInterna = "verificar" | "guarda" | "pego";
  * - `repassar.registrar`: passa, mas grava um evento "registrado" sem aviso (robô não confirmado).
  * - `repassar.emitirPasse`: passa e entrega um passe de visitante (firstVisit false), para a guarda
  *   poder revogar alguma coisa se pegar F12 ou automação.
+ * - `repassar.publico`: a resposta é a mesma para qualquer um (caminho isento ou mídia), então a CDN
+ *   pode guardar. Sem ele, a resposta dependeu de passe ou de robô e não pode ir para cache
+ *   compartilhado.
+ * - `recusar` 400: caminho ambíguo; 403: sem passe.
  */
 export type Decisao =
-  | { acao: "repassar"; injetarGuarda: boolean; emitirPasse?: true; registrar?: Sinal }
+  | { acao: "repassar"; injetarGuarda: boolean; emitirPasse?: true; registrar?: Sinal; publico?: true }
   | { acao: "sombra"; sinal: Sinal; status: 200 | 404 }
   | { acao: "verificar" }
-  | { acao: "recusar"; status: 403 }
+  | { acao: "recusar"; status: 400 | 403 }
   | { acao: "dono"; valido: boolean }
   | { acao: "interno"; rota: RotaInterna };
 
@@ -55,9 +62,17 @@ const ROTAS = new Map<string, RotaInterna>([
 const PEGO: Sinal = { motivo: "pego na verificação", gravidade: "copia" };
 const RAPIDO_DEMAIS: Sinal = { motivo: "navegação rápida demais", gravidade: "copia" };
 
-/** Caminho (normalizado) casa com um dos isentos: `*` no fim casa o prefixo; sem `*`, só igual. */
-export function caminhoIsento(caminho: string, isentos: string[]): boolean {
+function casaIsento(caminho: string, isentos: string[]): boolean {
   return isentos.some((padrao) => (padrao.endsWith("*") ? caminho.startsWith(padrao.slice(0, -1)) : caminho === padrao));
+}
+
+/**
+ * Caminho cru (não ambíguo) casa com um dos isentos: `*` no fim casa o prefixo; sem `*`, só igual.
+ * Precisa casar lido dos dois jeitos, normalizado e ao pé da letra, para valer qualquer que seja o
+ * jeito como o site lê %2F, barras dobradas e parâmetro de matriz.
+ */
+export function caminhoIsento(cru: string, isentos: string[]): boolean {
+  return casaIsento(normalizarCaminho(cru), isentos) && casaIsento(caminhoLiteral(cru), isentos);
 }
 
 function mesmoCodigo(recebido: string, esperado: string): boolean {
@@ -71,6 +86,15 @@ const sombra = (sinal: Sinal, status: 200 | 404 = 200): Decisao => ({ acao: "som
 
 /** O pipeline de decisão: a primeira regra que casar vence. */
 export async function decidir(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> {
+  const d = await primeiraRegra(p, ctx);
+  // Isento e mídia saem iguais para todo mundo; o resto dependeu de passe ou de robô.
+  if (d.acao === "repassar" && (caminhoIsento(p.caminho, ctx.cfg.exempt) || ehMidia(normalizarCaminho(p.caminho)))) {
+    return { ...d, publico: true };
+  }
+  return d;
+}
+
+async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> {
   const caminho = normalizarCaminho(p.caminho);
 
   // 1 e 2: link de dono e rotas internas.
@@ -91,9 +115,12 @@ export async function decidir(p: Pedido, ctx: ContextoDecisao): Promise<Decisao>
     return sombra(deDentro ? { ...trancado, gravidade: "copia" } : trancado, 404);
   }
 
+  // Ponto-ponto em alguma leitura: o site poderia resolver outro arquivo que não o conferido aqui.
+  if (caminhoAmbiguo(p.caminho)) return { acao: "recusar", status: 400 };
+
   // 4 e 5: dono e caminho isento passam sem guarda.
   if (passe?.tipo === "dono") return repassar(false);
-  if (caminhoIsento(caminho, ctx.cfg.exempt)) return repassar(false);
+  if (caminhoIsento(p.caminho, ctx.cfg.exempt)) return repassar(false);
 
   // Pego na verificação ou pela guarda: sombra enquanto a marca valer.
   if (temMarcaPego(cookies, ctx.segredo, ctx.agora)) return sombra(PEGO);

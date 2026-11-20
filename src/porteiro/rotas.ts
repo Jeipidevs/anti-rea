@@ -139,7 +139,7 @@ export async function rotaPego(req: IncomingMessage, res: ServerResponse, c: Con
   if (!sinais) return;
   const sinal = avaliarNavegador(sinais, { devtoolsIsCaught: c.cfg.check.devtoolsIsCaught });
   if (!sinal) return responderJson(res, 200, { ok: true });
-  revogarPasse(passe.id);
+  revogarPasse(passe.id, passe.expira, c.agora);
   c.registrar(sinal);
   return responderVazio(res, 204, {
     "set-cookie": [

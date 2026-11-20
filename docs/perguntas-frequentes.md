@@ -17,6 +17,18 @@ Só a primeira visita tem a verificação de menos de 1 segundo.
 **Funciona com WordPress? E com site estático?**
 Sim. O porteiro não depende de como o site foi feito.
 
+**Posso usar com Cloudflare ou outra CDN na frente?**
+Pode, com `trustProxy: cloudflare`. Toda resposta que só sai com passe leva
+`CDN-Cache-Control: no-store`, `Cloudflare-CDN-Cache-Control: no-store` e `Cache-Control: private`,
+para a CDN não guardar o JS de um visitante verificado e entregar a qualquer um. Regra de cache que
+força tempo na borda ("Cache Everything" com Edge TTL) passa por cima disso: desligue essa regra nos
+caminhos do site, ou deixe só imagens e fontes em cache.
+
+**O link de login por e-mail parou de funcionar. Por quê?**
+Se o código vem no próprio caminho (`/login/magico/<código>`), a tela de verificação busca a prévia
+desse caminho e o código é gasto. Ponha o caminho em `exempt`. Código na query não tem esse
+problema.
+
 **E se o ANTI-REA cair?**
 O site fica fora do ar, como acontece com qualquer proxy na frente. Use reinício automático
 (`restart: unless-stopped` no Docker) e um monitor de uptime.

@@ -2,7 +2,13 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 export type Passe = { id: string; tipo: "visitante" | "dono"; expira: number };
 
-const revogados = new Set<string>();
+/** Teto da lista de revogados: passou dele, sai o mais antigo. */
+export const MAX_REVOGADOS = 100_000;
+const LIMPEZA_MS = 60_000;
+
+/** id do passe revogado -> quando o passe vence (depois disso ele já não vale e sai da lista). */
+const revogados = new Map<string, number>();
+let ultimaLimpeza = Number.NEGATIVE_INFINITY;
 
 function assinar(segredo: string, carga: string): Buffer {
   return createHmac("sha256", segredo).update(carga).digest();
@@ -50,8 +56,24 @@ export function conferirPasse(
   return { id, tipo, expira };
 }
 
-export function revogarPasse(id: string): void {
-  revogados.add(id);
+/**
+ * Revoga o passe até ele vencer. A lista fica só na memória: revogado vencido sai numa limpeza feita
+ * no máximo uma vez por minuto, e a lista nunca passa de MAX_REVOGADOS (sai o revogado mais antigo).
+ */
+export function revogarPasse(id: string, expira: number = Number.POSITIVE_INFINITY, agora: number = Date.now()): void {
+  // Relógio que voltou (ajuste de hora) também limpa, para a limpeza não parar até ele alcançar.
+  if (agora < ultimaLimpeza || agora - ultimaLimpeza >= LIMPEZA_MS) {
+    for (const [revogado, vence] of revogados) if (vence <= agora) revogados.delete(revogado);
+    ultimaLimpeza = agora;
+  }
+  revogados.delete(id);
+  revogados.set(id, expira);
+  while (revogados.size > MAX_REVOGADOS) revogados.delete(revogados.keys().next().value!);
+}
+
+/** Quantos passes estão na lista de revogados agora. */
+export function totalRevogados(): number {
+  return revogados.size;
 }
 
 export function codigoDeDono(segredo: string, versao: number): string {
