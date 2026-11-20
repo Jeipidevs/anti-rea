@@ -8,32 +8,52 @@ const VALIDADE_NONCE_MS = 120_000;
 /**
  * Coletor de sinais do navegador. Fonte única, usada pela tela de desafio e pela
  * guarda; copiado sem mudança em tests/fixtures/coletor.js (um teste confere).
+ * Chamada: `coletor(nonce, sondarPausa)`. Provas no Chrome real: tests/e2e/coletor-cdp.test.ts.
  *
- * - `cdp` e `devtoolsAberto` usam o mesmo getter em `stack` de um `Error` passado a
- *   `console.debug`: o getter só roda quando um protocolo de depuração serializa o
- *   objeto. Com a janela encolhida em mais de 160 px (F12 acoplado) é F12; sem isso
- *   é depuração remota. A diferença de tamanho sozinha (zoom, barra lateral) não pega.
+ * - Pausa (`sondarPausa`): `debugger;` só para quando o domínio Debugger está ligado
+ *   (F12 aberto). Exige duas pausas seguidas de mais de 50 ms, para relógio arredondado
+ *   não enganar. Pausa é F12, nunca `cdp`, para respeitar `devtoolsIsCaught: false`.
+ * - Runtime (automação por CDP, como o REA): com `Runtime.enable` o Chrome monta a prévia
+ *   de cada linha de `console.table`, que passa a custar dezenas de vezes o tempo de
+ *   copiar as mesmas linhas em JSON (medido no Chrome 157: razão de 70 a 134 com CDP,
+ *   de 0,5 a 3,1 sem). Limiar: 20 vezes. Só roda em Blink e com `console.table` nativo
+ *   (ferramenta do site que embrulha o console poderia encarecer a chamada). Com a
+ *   janela encolhida mais de 160 px (F12 acoplado com pausas desligadas) conta como F12.
+ * - O getter em `Error.stack` passado a `console.debug` não serve mais: no Chrome 157
+ *   ele não roda nem com `Runtime.enable`.
  * - `uaChrome` só vale para Chrome de computador: celular e WebView (navegador
  *   embutido do Instagram, WhatsApp) ficam de fora, porque lá `window.chrome` e os
  *   plugins faltam de verdade.
  */
-export const COLETOR = `function (nonce) {
+export const COLETOR = `function (nonce, sondarPausa) {
   var n = navigator, w = window, ua = String(n.userAgent || "");
-  var getter = false;
-  try {
-    var e = new Error("anti-rea");
-    Object.defineProperty(e, "stack", { configurable: true, get: function () { getter = true; return ""; } });
-    console.debug(e);
-  } catch (x) {}
+  var agora = function () { return w.performance && performance.now ? performance.now() : Date.now(); };
+  var temChrome = typeof w.chrome === "object" && w.chrome !== null;
   var encolhida = w.outerWidth - w.innerWidth > 160 || w.outerHeight - w.innerHeight > 160;
+  var pausa = function () { var t = agora(); debugger; return agora() - t > 50; };
+  var pausou = !!sondarPausa && pausa() && pausa();
+  var runtime = false;
+  try {
+    var nativo = /\\[native code\\]/.test(Function.prototype.toString.call(console.table));
+    if ((temChrome || !!n.userAgentData) && nativo) {
+      var linhas = [];
+      for (var i = 0; i < 1000; i++) linhas.push({ a: i, b: "x" + i, c: i % 7 });
+      var t0 = agora(), voltas = 0;
+      do { JSON.parse(JSON.stringify(linhas)); voltas++; } while (agora() - t0 < 2 && voltas < 200);
+      var base = Math.max((agora() - t0) / voltas, 0.1);
+      var tabela = Infinity;
+      for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(linhas); tabela = Math.min(tabela, agora() - t1); }
+      runtime = tabela > 2 && tabela > 20 * base;
+    }
+  } catch (x) {}
   return {
     webdriver: n.webdriver === true,
     headlessUA: /HeadlessChrome/.test(ua),
     semPlugins: !n.plugins || n.plugins.length === 0,
-    temWindowChrome: typeof w.chrome === "object" && w.chrome !== null,
+    temWindowChrome: temChrome,
     uaChrome: /\\bChrome\\/\\d/.test(ua) && !/Android|Mobile|; wv\\)/.test(ua),
-    cdp: getter && !encolhida,
-    devtoolsAberto: getter && encolhida,
+    cdp: runtime && !pausou && !encolhida,
+    devtoolsAberto: pausou || (runtime && encolhida),
     linguas: n.languages ? n.languages.length : 0,
     nonce: String(nonce || "")
   };
@@ -102,7 +122,7 @@ export function paginaDesafio(opts: { nonce: string; previa: Previa; idioma: "pt
   const t = TEXTOS[opts.idioma];
   const titulo = escaparHtml(opts.previa.titulo || t.verificando);
   const script =
-    `(function(){var s=(${COLETOR})(${jsSeguro(opts.nonce)});` +
+    `(function(){var s=(${COLETOR})(${jsSeguro(opts.nonce)},true);` +
     `fetch("/.anti-rea/verificar",{method:"POST",credentials:"same-origin",` +
     `headers:{"content-type":"application/json"},body:JSON.stringify(s)})` +
     `.then(function(){location.reload()},function(){document.getElementById("m").textContent=${jsSeguro(t.falha)}})})();`;

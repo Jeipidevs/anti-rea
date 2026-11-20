@@ -80,7 +80,7 @@ describe("paginaDesafio", () => {
     expect(html).toContain('<meta name="robots" content="noindex">');
     expect(html).toContain("Verificando seu navegador");
     expect(html).toContain("<noscript>");
-    expect(html).toContain(JSON.stringify(n));
+    expect(html).toContain(JSON.stringify(n) + ",true)");
   });
 
   it("escapa aspas e e-comercial na descrição", () => {
@@ -114,6 +114,8 @@ describe("scriptGuarda", () => {
     const js = scriptGuarda();
     expect(js).toContain("/.anti-rea/pego");
     expect(js).toContain("1500");
+    expect(js).toContain("%4===0");
+    expect(js).toContain("requestIdleCallback");
     expect(js).toContain("status===204");
     expect(js).toContain('credentials:"same-origin"');
     expect(js).not.toMatch(/https?:\/\//);
