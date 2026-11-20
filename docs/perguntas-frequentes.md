@@ -21,7 +21,9 @@ Para você e sua equipe, o caminho é o [link de dono](07-modo-dono.md).
 **Por que aparecem duas tabelas no console?**
 São do ANTI-REA. Enquanto confere o navegador, ele imprime duas tabelas de 1000 linhas com
 `console.table` e mede o tempo: com um cliente de depuração remota ligado, montar essas tabelas fica
-dezenas de vezes mais lento. Com `devtoolsIsCaught: true` (o padrão), a conferência se repete a
+dezenas de vezes mais lento. Quando a medida parece de depuração remota, ele mede de novo na hora
+(mais duas tabelas) e só conta se as duas concordarem: um tranco do aparelho no meio de uma medida
+não derruba ninguém. Com `devtoolsIsCaught: true` (o padrão), a conferência se repete a
 cada 0,5 s na página do site enquanto a aba está visível, então as tabelas vão se acumulando no
 console de quem o deixa aberto. Não é erro do seu site. Só acontece em navegador baseado no Chrome
 (Chrome, Edge, Brave, Opera), e nunca com o passe de dono.

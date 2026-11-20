@@ -153,6 +153,8 @@ type Ambiente = {
   linguas?: string[];
   /** `console.table` que parece nativo (função ligada): o coletor só imprime a tabela assim. */
   tabela?: (linhas: unknown) => void;
+  /** `performance.now` (padrão: sempre 0). */
+  relogio?: () => number;
 };
 
 function rodar(codigo: string, a: Ambiente) {
@@ -184,7 +186,7 @@ function rodar(codigo: string, a: Ambiente) {
     outerHeight: 800,
     innerHeight: 800,
     name: a.nome ?? "",
-    performance: { now: () => 0 },
+    performance: { now: a.relogio ?? (() => 0) },
     console: { table: a.tabela ? a.tabela.bind(null) : () => {} },
     Date: { now: () => a.agora ?? 1_000_000 },
     document: { getElementById: () => ({ set textContent(t: string) { registro.texto = t; } }) },
@@ -275,6 +277,43 @@ describe("coletor com memo (docs/_medicoes/2026-11-guarda.md)", () => {
     expect(String(t)).toBe("[object Object]");
     expect(Object.keys(t)).toHaveLength(1000);
     expect(t[999]).toEqual({ a: 999, b: "x999", c: 5 });
+  });
+});
+
+describe("sonda de CDP confirmada na hora", () => {
+  // Relógio falso: o JSON da base não gasta tempo (base de 0,1 ms) e cada console.table gasta o que a
+  // lista manda. Uma medição são duas chamadas; vale a menor.
+  function medir(custos: number[]) {
+    let agora = 0;
+    let chamadas = 0;
+    const s = rodar(`(${COLETOR})("", false, {})`, {
+      ua: UA_DESKTOP_LINUX,
+      chrome: {},
+      plugins: 5,
+      relogio: () => agora,
+      tabela: () => {
+        agora += custos[chamadas++] ?? 0;
+      },
+    }).resultado as SinaisNavegador;
+    return { s, chamadas };
+  }
+
+  it("volta positiva só vale se a segunda medição, feita na hora, também der positiva", () => {
+    // Coleta de lixo ou preempção no meio da primeira medição num celular ocupado: na dúvida, passa.
+    const ruido = medir([10, 10, 0, 0]);
+    expect(ruido.chamadas).toBe(4);
+    expect(ruido.s.cdp).toBe(false);
+    expect(avaliarNavegador(ruido.s, op)).toBeNull();
+    // Com CDP de verdade a razão fica alta em toda medição: a captura não cai.
+    const cdp = medir([10, 10, 10, 10]);
+    expect(cdp.chamadas).toBe(4);
+    expect(cdp.s.cdp).toBe(true);
+  });
+
+  it("primeira medição negativa não mede de novo: sem CDP, nenhum custo a mais", () => {
+    const limpo = medir([0, 0, 10, 10]);
+    expect(limpo.chamadas).toBe(2);
+    expect(limpo.s.cdp).toBe(false);
   });
 });
 

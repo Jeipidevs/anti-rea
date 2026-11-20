@@ -31,8 +31,11 @@ const VALIDADE_NONCE_MS = 120_000;
  *   de 0,5 a 3,1 sem; com a tabela como objeto, em docs/_medicoes/2026-11-guarda.md: no
  *   mínimo 40 com CDP, no máximo 0,25 sem). Limiar: 20 vezes. Só roda em Blink e com
  *   `console.table` nativo (ferramenta do site que embrulha o console poderia encarecer a
- *   chamada). Com a janela encolhida mais de 160 px (F12 acoplado com pausas desligadas)
- *   conta como F12.
+ *   chamada). Medição positiva só vale se uma segunda, feita na hora (base nova e duas
+ *   chamadas de `console.table`), também der positiva: coleta de lixo ou preempção no meio
+ *   de uma medição num celular ocupado não revoga o passe de ninguém, e com CDP de verdade
+ *   toda medição dá positiva. Sem CDP, a primeira dá negativa e nada se repete. Com a janela
+ *   encolhida mais de 160 px (F12 acoplado com pausas desligadas) conta como F12.
  * - O getter em `Error.stack` passado a `console.debug` não serve mais: no Chrome 157
  *   ele não roda nem com `Runtime.enable`.
  * - `uaChrome` só vale para Chrome de computador: celular e WebView (navegador
@@ -70,12 +73,15 @@ ${pausa}
         for (var i = 0; i < 1000; i++) { linhas.push({ a: i, b: "x" + i, c: i % 7 }); tabela[i] = linhas[i]; }
         if (memo) { memo.linhas = linhas; memo.tabela = tabela; }
       }
-      var t0 = agora(), voltas = 0;
-      do { JSON.parse(JSON.stringify(linhas)); voltas++; } while (agora() - t0 < 2 && voltas < 200);
-      var base = Math.max((agora() - t0) / voltas, 0.1);
-      var custo = Infinity;
-      for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(tabela); custo = Math.min(custo, agora() - t1); }
-      runtime = custo > 2 && custo > 20 * base;
+      var medir = function () {
+        var t0 = agora(), voltas = 0;
+        do { JSON.parse(JSON.stringify(linhas)); voltas++; } while (agora() - t0 < 2 && voltas < 200);
+        var base = Math.max((agora() - t0) / voltas, 0.1);
+        var custo = Infinity;
+        for (var k = 0; k < 2; k++) { var t1 = agora(); console.table(tabela); custo = Math.min(custo, agora() - t1); }
+        return custo > 2 && custo > 20 * base;
+      };
+      runtime = medir() && medir();
     }
   } catch (x) {}
   return {
