@@ -29,12 +29,12 @@ A página vai com a query sem os valores, como no registro: `/entrar?token=abc12
 | Robô copiador (wget, HTTrack e afins) | Aviso na hora |
 | Scanner apontado para o site (sqlmap, nikto, nuclei, dirbuster, gobuster, ffuf, wpscan, feroxbuster, wfuzz, openvas, w3af, arachni, commix) | Aviso na hora, com o título "Ataque barrado" |
 | Pedido de mapa de código | Aviso na hora |
-| Arquivo sensível (`.env`, `.git`, configuração e chaves) pedido por quem já passou pela verificação | Aviso na hora |
+| Arquivo sensível (`.env`, `.git`, configuração e chaves, e a cópia deles, como `.env~`) pedido por quem já passou pela verificação | Aviso na hora |
 | Robô que diz ser o Google ou a Meta e não é | Aviso na hora |
 | Link de dono errado | Aviso na hora |
 | Pedido direto sem passe a arquivo (`/app.js`) ou a outro formato (`application/json`) | Só no registro, e o pedido leva 403 |
 | Varredura genérica (`/phpmyadmin`, `/.env` vindo de robô da internet, masscan e zgrab varrendo a internet inteira) | Só no registro |
-| Cópia ou backup (`.bak`, `.sql`, `backup.zip`), com ou sem passe | Só no registro, e o pedido leva a sombra com 404 |
+| Outra cópia ou backup (`.bak`, `.sql`, `backup.zip`), com ou sem passe | Só no registro, e o pedido leva a sombra com 404 |
 | Robô oficial que não deu para conferir (DNS ou lista da Meta fora do ar) | Só no registro |
 
 Varredura genérica acontece o dia inteiro em qualquer site público. Se virasse aviso, seu celular

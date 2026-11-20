@@ -135,11 +135,13 @@ Só na raiz do site: os compactados chamados `site`, `www`, `web`, `html`, `publ
 `wwwroot`, `db`, `database` ou `dump` (por exemplo `/site.zip` e `/www.tar.gz`; `/downloads/site.zip`
 passa).
 
-Mapa de código pedido é sempre tentativa de cópia, com aviso. Os segredos (`.env`, `.git`, configuração
-e chaves), pedidos por quem já passou pela verificação, também. Cópias e backups (os sufixos e os
-compactados) ficam como varredura, só no registro, mesmo com passe: podem ser um download do próprio
-site. Pedidos por robô da internet sem passe também ficam como varredura. Com o [passe de dono](07-modo-dono.md) o arquivo continua trancado, mas sai um 404 simples,
-sem registro e sem aviso: é o F12 do dono buscando os mapas de código sozinho.
+Mapa de código pedido é sempre tentativa de cópia, com aviso. Os segredos (`.env`, `.git`,
+configuração e chaves, e também a cópia deles, como `.env~` e `.htpasswd.bak`), pedidos por quem já
+passou pela verificação, também. As outras cópias e backups (os sufixos e os compactados) ficam como
+varredura, só no registro, mesmo com passe: podem ser um download do próprio site. Pedidos por robô
+da internet sem passe também ficam como varredura. Com o [passe de dono](07-modo-dono.md) o arquivo
+continua trancado, mas sai um 404 simples, sem registro e sem aviso: é o F12 do dono buscando os
+mapas de código sozinho.
 
 Se o seu site serve de propósito um arquivo com um desses nomes (um `backup.zip` para download, por
 exemplo), troque o nome: não há como isentar.
