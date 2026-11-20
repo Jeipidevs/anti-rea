@@ -71,10 +71,14 @@ export function temMarcaPego(cookies: Map<string, string[]>, segredo: string, ag
   return (cookies.get(COOKIE_PEGO) ?? []).some((v) => conferirPasse(k, v, agora) !== null);
 }
 
-/** Set-Cookie do porteiro: HttpOnly, SameSite=Lax, Path=/ e Secure quando o pedido veio por HTTPS. */
+/**
+ * Set-Cookie do porteiro: HttpOnly e Path=/. Por HTTPS sai com SameSite=None; Secure, para o passe
+ * chegar no POST que volta de outro site (pagamento, login); o passe não autoriza nada no site, então
+ * não abre CSRF. Em HTTP simples o navegador recusa SameSite=None sem Secure, então fica Lax.
+ */
 export function cookieDoPorteiro(nome: string, valor: string, duracaoMs: number, https: boolean): string {
   const segundos = Math.max(0, Math.floor(duracaoMs / 1000));
-  return `${nome}=${valor}; Max-Age=${segundos}; Path=/; HttpOnly; SameSite=Lax${https ? "; Secure" : ""}`;
+  return `${nome}=${valor}; Max-Age=${segundos}; Path=/; HttpOnly; ${https ? "SameSite=None; Secure" : "SameSite=Lax"}`;
 }
 
 /** Cabeçalho Cookie sem os cookies do porteiro; undefined quando não sobra nada. */

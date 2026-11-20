@@ -206,6 +206,8 @@ um passe e não sente diferença.
 <summary><b>E os webhooks de pagamento e o app de celular que chamam minha API?</b></summary>
 
 Você lista esses caminhos como isentos. O assistente pergunta por eles na instalação.
+`robots.txt`, sitemaps, o manifesto do PWA e `/.well-known/` já passam sozinhos. Veja
+[Configurar](docs/03-configurar.md#caminhos-públicos-padrão).
 </details>
 
 <details>

@@ -176,6 +176,46 @@ describe("porteiro: WebSocket", () => {
     ok.socket!.destroy();
   });
 
+  it("só websocket é repassado: h2c recebe 400, fecha o socket e fica registrado como varredura", async () => {
+    const t = await montar();
+    const passe = await t.passe();
+    for (const [caminho, headers] of [
+      ["/api/webhook/x", { upgrade: "h2c", "http2-settings": "AAMAAABkAAQAAP__" }],
+      ["/ws", { upgrade: "h2c", "http2-settings": "AAMAAABkAAQAAP__", cookie: passe }],
+      ["/ws", { upgrade: "foo/1, websocket", cookie: passe }],
+    ] as const) {
+      const r = await abrir(t.porteiro.porta, caminho, headers);
+      expect(r.status, `${caminho} ${headers.upgrade}`).toBe(400);
+    }
+    expect(t.site.recebidos.filter((p) => p.url !== "/")).toEqual([]);
+    expect(t.eventos()).toHaveLength(3);
+    expect(t.eventos().every((e) => e.motivo === "upgrade não suportado" && e.gravidade === "varredura" && e.destino === "recusado")).toBe(true);
+    expect(t.eventos().map((e) => e.caminho)).toEqual(["/api/webhook/x", "/ws", "/ws"]);
+
+    // websocket em maiúsculas continua valendo e chega ao site como websocket.
+    const ok = await abrir(t.porteiro.porta, "/ws", { upgrade: "WebSocket", cookie: passe });
+    expect(ok.status).toBe(101);
+    expect(await eco(ok.socket!, "ping")).toBe("ping");
+    expect(t.site.recebidos.find((p) => p.url === "/ws")!.headers.upgrade).toBe("websocket");
+    ok.socket!.destroy();
+  });
+
+  it("firstVisit false e devtoolsIsCaught false: a primeira navegação dá passe e o WebSocket abre", async () => {
+    const t = await montar({ check: { firstVisit: false, devtoolsIsCaught: false } });
+    expect((await abrir(t.porteiro.porta, "/ws")).status).toBe(403);
+    const r = await t.get("/", { accept: HTML });
+    expect(r.texto).toBe(PAGINA);
+    const passe = cookieDe(r, "anti_rea_passe");
+    expect(passe).toBeDefined();
+    const ok = await abrir(t.porteiro.porta, "/ws", { cookie: passe! });
+    expect(ok.status).toBe(101);
+    expect(await eco(ok.socket!, "oi")).toBe("oi");
+    ok.socket!.destroy();
+    // Só navegação com resposta 200 ganha passe.
+    expect(cookieDe(await t.get("/nada", { accept: HTML }), "anti_rea_passe")).toBeUndefined();
+    expect(cookieDe(await t.get("/app.js", { accept: "*/*" }), "anti_rea_passe")).toBeUndefined();
+  });
+
   it("fechar() derruba túneis abertos e o servidor", async () => {
     const t = await montar();
     const passe = await t.passe();

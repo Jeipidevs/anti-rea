@@ -54,10 +54,21 @@ const MAX_CAMPO = 300;
 const SEM_PASSE: Sinal = { motivo: "sem passe", gravidade: "varredura" };
 const AMBIGUO: Sinal = { motivo: "caminho ambíguo", gravidade: "varredura" };
 const DONO_ERRADO: Sinal = { motivo: "link de dono errado", gravidade: "copia" };
+const UPGRADE_NAO_SUPORTADO: Sinal = { motivo: "upgrade não suportado", gravidade: "varredura" };
 
 function cortar(texto: string, max: number): string {
   const pontos = Array.from(texto);
   return pontos.length > max ? pontos.slice(0, max).join("") : texto;
+}
+
+/** Valor de cabeçalho como texto único (um nome repetido vira lista separada por vírgula). */
+function cabecalhoUnico(valor: string | string[] | undefined): string | undefined {
+  return Array.isArray(valor) ? valor.join(", ") : valor;
+}
+
+/** Upgrade que o porteiro repassa: só WebSocket. h2c e afins abririam um túnel que pula o porteiro. */
+function ehWebSocket(upgrade: string | string[] | undefined): boolean {
+  return (cabecalhoUnico(upgrade) ?? "").trim().toLowerCase() === "websocket";
 }
 
 function falhaInterna(erro: unknown): void {
@@ -110,24 +121,23 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
     });
   }
 
-  async function tratar(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    req.on("error", () => {});
-    res.on("error", () => {});
-    const agora = relogio();
-    const caminho = caminhoDoAlvo(req.url ?? "");
-    if (caminho === null) return responderTexto(res, 400, "Pedido inválido.");
-    const https = pedidoHttps(req, cfg.trustProxy);
-    const p: Pedido = {
+  /** O pedido como `decidir` o vê. */
+  function lerPedido(req: IncomingMessage, caminho: string): Pedido {
+    return {
       metodo: req.method ?? "GET",
       caminho,
       agente: req.headers["user-agent"],
       accept: req.headers.accept,
       cookie: req.headers.cookie,
+      corsMetodo: cabecalhoUnico(req.headers["access-control-request-method"]),
       ip: ipReal(req, cfg.trustProxy),
       dominio: dominioDoHost(req.headers.host),
-      https,
+      https: pedidoHttps(req, cfg.trustProxy),
     };
-    const evento = (sinal: Sinal, destinoEvento: Evento["destino"]): Evento => ({
+  }
+
+  function criarEvento(p: Pedido, agora: number, sinal: Sinal, destinoEvento: Evento["destino"]): Evento {
+    return {
       quando: new Date(agora).toISOString(),
       ip: p.ip,
       dominio: p.dominio,
@@ -136,7 +146,18 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
       motivo: sinal.motivo,
       gravidade: sinal.gravidade,
       destino: destinoEvento,
-    });
+    };
+  }
+
+  async function tratar(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    req.on("error", () => {});
+    res.on("error", () => {});
+    const agora = relogio();
+    const caminho = caminhoDoAlvo(req.url ?? "");
+    if (caminho === null) return responderTexto(res, 400, "Pedido inválido.");
+    const p = lerPedido(req, caminho);
+    const { https } = p;
+    const evento = (sinal: Sinal, destinoEvento: Evento["destino"]) => criarEvento(p, agora, sinal, destinoEvento);
     const sombra = (status: 200 | 404) =>
       responderSombra(res, paginaSombra(cfg.shadow, { ip: p.ip, caminho, quando: new Date(agora) }), status);
 
@@ -201,11 +222,19 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
     }
   }
 
-  /** WebSocket e outros upgrades: só com passe válido (visitante ou dono) ou em caminho isento. */
+  /**
+   * Upgrade: só WebSocket, e só com passe válido (visitante ou dono) ou em caminho isento. Outro
+   * valor (h2c e afins) recebe 400 e fica registrado como varredura.
+   */
   function tratarUpgrade(req: IncomingMessage, socket: Duplex, cabeca: Buffer): void {
     socket.on("error", () => socket.destroy());
     const caminho = caminhoDoAlvo(req.url ?? "");
     const agora = relogio();
+    if (!ehWebSocket(req.headers.upgrade)) {
+      gravar(criarEvento(lerPedido(req, caminho ?? req.url ?? ""), agora, UPGRADE_NAO_SUPORTADO, "recusado"), true);
+      recusarUpgrade(socket, "400 Bad Request", "Pedido inválido.");
+      return;
+    }
     const comPasse = passeDoPedido(lerCookies(req.headers.cookie), segredo, versaoDono, agora) !== null;
     const liberado = caminho !== null && !caminhoAmbiguo(caminho) && (comPasse || caminhoIsento(caminho, cfg.exempt));
     if (caminho === null || fechamento.signal.aborted || !liberado) {

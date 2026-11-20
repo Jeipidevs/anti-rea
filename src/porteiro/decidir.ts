@@ -6,11 +6,12 @@ import type { Ritmo } from "../deteccao/servidor/ritmo.js";
 import { codigoDeDono } from "../passe/passe.js";
 import { roboDeclarado, type Confirmacao, type Robo } from "../robos/robos.js";
 import { lerCookies, passeDoPedido, temMarcaPego } from "./passes.js";
-import { caminhoAmbiguo, caminhoLiteral, ehMidia, ehNavegacao, normalizarCaminho } from "./pedido.js";
+import { caminhoAmbiguo, caminhoLiteral, caminhoPublico, ehMidia, ehNavegacao, normalizarCaminho } from "./pedido.js";
 
 /**
  * O pedido como o porteiro o vê. `caminho` é o cru (com query), o mesmo que vai ao site; a detecção
  * usa o normalizado, e caminho que o site poderia ler diferente (ponto-ponto) nunca chega lá.
+ * `corsMetodo` é o cabeçalho Access-Control-Request-Method (só conta no OPTIONS do pré-voo).
  */
 export type Pedido = {
   metodo: string;
@@ -18,6 +19,7 @@ export type Pedido = {
   agente?: string;
   accept?: string;
   cookie?: string;
+  corsMetodo?: string;
   ip: string;
   dominio: string;
   https: boolean;
@@ -29,8 +31,8 @@ export type RotaInterna = "verificar" | "guarda" | "pego";
  * O que fazer com o pedido.
  * - `repassar.registrar`: passa, mas grava um evento "registrado" sem aviso (robô não confirmado).
  * - `repassar.emitirPasse`: passa e entrega um passe de visitante (firstVisit false), para a guarda
- *   poder revogar alguma coisa se pegar F12 ou automação.
- * - `repassar.publico`: a resposta é a mesma para qualquer um (caminho isento ou mídia), então a CDN
+ *   poder revogar alguma coisa se pegar F12 ou automação e para o WebSocket do site abrir.
+ * - `repassar.publico`: a resposta é a mesma para qualquer um (isento, público padrão ou mídia), então a CDN
  *   pode guardar. Sem ele, a resposta dependeu de passe ou de robô e não pode ir para cache
  *   compartilhado.
  * - `recusar` 400: caminho ambíguo; 403: sem passe.
@@ -87,8 +89,10 @@ const sombra = (sinal: Sinal, status: 200 | 404 = 200): Decisao => ({ acao: "som
 /** O pipeline de decisão: a primeira regra que casar vence. */
 export async function decidir(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> {
   const d = await primeiraRegra(p, ctx);
-  // Isento e mídia saem iguais para todo mundo; o resto dependeu de passe ou de robô.
-  if (d.acao === "repassar" && (caminhoIsento(p.caminho, ctx.cfg.exempt) || ehMidia(normalizarCaminho(p.caminho)))) {
+  // Isento, público padrão e mídia saem iguais para todo mundo; o resto dependeu de passe ou de robô.
+  const igualParaTodos = () =>
+    caminhoIsento(p.caminho, ctx.cfg.exempt) || caminhoPublico(p.caminho) || ehMidia(normalizarCaminho(p.caminho));
+  if (d.acao === "repassar" && igualParaTodos()) {
     return { ...d, publico: true };
   }
   return d;
@@ -117,6 +121,12 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
 
   // Ponto-ponto em alguma leitura: o site poderia resolver outro arquivo que não o conferido aqui.
   if (caminhoAmbiguo(p.caminho)) return { acao: "recusar", status: 400 };
+
+  // Pré-voo CORS: o navegador nunca manda cookie nele e o site só responde se aceita a origem.
+  if (p.metodo.toUpperCase() === "OPTIONS" && p.corsMetodo !== undefined) return repassar(false);
+
+  // robots.txt, sitemaps, manifesto do PWA, /.well-known/: o navegador e as integrações pedem sem cookie.
+  if (caminhoPublico(p.caminho)) return repassar(false);
 
   // 4 e 5: dono e caminho isento passam sem guarda.
   if (passe?.tipo === "dono") return repassar(false);
@@ -152,7 +162,8 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   const guarda = ctx.cfg.check.devtoolsIsCaught;
   if (passe) return repassar(guarda);
   if (!ctx.cfg.check.firstVisit) {
-    return navegacao && guarda ? { acao: "repassar", injetarGuarda: true, emitirPasse: true } : repassar(guarda);
+    // Toda navegação ganha passe, com ou sem guarda: sem ele nenhum WebSocket do site abriria.
+    return navegacao ? { acao: "repassar", injetarGuarda: guarda, emitirPasse: true } : repassar(guarda);
   }
   if (navegacao) return { acao: "verificar" };
   if (ehMidia(caminho)) return repassar(false);

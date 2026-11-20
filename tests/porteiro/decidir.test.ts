@@ -318,6 +318,86 @@ describe("decidir: passe de visitante e primeira visita", () => {
     expect(await decidir(pedido(), c)).toEqual({ acao: "repassar", injetarGuarda: true, emitirPasse: true });
     expect(await decidir(pedido({ caminho: "/app.js", accept: "*/*" }), c)).toEqual(repassar(true));
     const semNada = ctx({ cfg: config({ check: { firstVisit: false, devtoolsIsCaught: false } }) });
-    expect(await decidir(pedido(), semNada)).toEqual(repassar(false));
+    expect(await decidir(pedido(), semNada)).toEqual({ acao: "repassar", injetarGuarda: false, emitirPasse: true });
+    expect(await decidir(pedido({ caminho: "/app.js", accept: "*/*" }), semNada)).toEqual(repassar(false));
+    expect(await decidir(pedido({ cookie: passeVisitante() }), semNada)).toEqual(repassar(false));
+  });
+});
+
+describe("decidir: pré-voo CORS", () => {
+  it("OPTIONS com Access-Control-Request-Method passa sem passe, sem guarda e sem registro", async () => {
+    const preVoo = (parcial: Partial<Pedido> = {}) =>
+      pedido({ metodo: "OPTIONS", caminho: "/api/dados", accept: "*/*", corsMetodo: "POST", ...parcial });
+    expect(await decidir(preVoo(), ctx())).toEqual(repassar(false));
+    expect(await decidir(preVoo({ metodo: "options" }), ctx())).toEqual(repassar(false));
+    expect(await decidir(preVoo({ cookie: marcaPego() }), ctx())).toEqual(repassar(false));
+  });
+
+  it("caminho trancado continua valendo e OPTIONS sem o cabeçalho continua recusado", async () => {
+    const preVoo = (caminho: string) => pedido({ metodo: "OPTIONS", caminho, accept: "*/*", corsMetodo: "GET" });
+    expect(await decidir(preVoo("/.env"), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+    expect(await decidir(preVoo("/app.js.map"), ctx())).toEqual(sombra("mapa de código", "copia", 404));
+    expect(await decidir(preVoo("/x/../app.js"), ctx())).toEqual({ acao: "recusar", status: 400 });
+    expect(await decidir(pedido({ metodo: "OPTIONS", caminho: "/api/dados", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 403 });
+    // O cabeçalho só conta no OPTIONS.
+    expect(await decidir(pedido({ caminho: "/app.js", accept: "*/*", corsMetodo: "GET" }), ctx())).toEqual({ acao: "recusar", status: 403 });
+  });
+});
+
+describe("decidir: parâmetro de matriz na classificação", () => {
+  it("/api/webhook/..;/app.js não é isento e /app.js.map;x=1 é trancado", async () => {
+    expect(await decidir(pedido({ caminho: "/api/webhook/..;/app.js", agente: "curl/8.7.1", accept: "*/*" }), ctx())).toEqual({
+      acao: "recusar",
+      status: 400,
+    });
+    expect(await decidir(pedido({ caminho: "/api/webhook/..;/app.js", cookie: passeDono() }), ctx())).toEqual({ acao: "recusar", status: 400 });
+    for (const caminho of ["/app.js.map;x=1", "/app.js.map;", "/static;v=2/app.js.map", "/%61pp.js.map;x=1?y=2"]) {
+      expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual(sombra("mapa de código", "copia", 404));
+      expect(await decidir(pedido({ caminho, cookie: passeDono() }), ctx()), caminho).toEqual(sombra("mapa de código", "copia", 404));
+    }
+    expect(await decidir(pedido({ caminho: "/.env;x=1", agente: "curl/8.7.1" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+  });
+});
+
+describe("decidir: caminhos públicos padrão", () => {
+  const PUBLICOS = [
+    "/robots.txt",
+    "/sitemap.xml",
+    "/sitemap-produtos.xml",
+    "/sitemap_index.xml",
+    "/ads.txt",
+    "/app-ads.txt",
+    "/favicon.ico",
+    "/manifest.json",
+    "/site.webmanifest",
+    "/static/app.webmanifest",
+    "/.well-known/security.txt",
+    "/.well-known/assetlinks.json",
+    "/.well-known/apple-app-site-association",
+    "/.well-known/openid-configuration",
+    "/robots.txt?x=1",
+  ];
+
+  it("passam sem passe, sem guarda e sem registro, para qualquer agente", async () => {
+    for (const caminho of PUBLICOS) {
+      expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual(publico(false));
+      expect(await decidir(pedido({ caminho, agente: "Wget/1.21", accept: "*/*" }), ctx()), caminho).toEqual(publico(false));
+      expect(await decidir(pedido({ caminho, cookie: marcaPego() }), ctx()), caminho).toEqual(publico(false));
+    }
+  });
+
+  it("o caminho trancado vale antes", async () => {
+    expect(await decidir(pedido({ caminho: "/robots.txt.bak", accept: "*/*" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+    expect(await decidir(pedido({ caminho: "/.well-known/.git/config", accept: "*/*" }), ctx())).toEqual(sombra("arquivo sensível", "varredura", 404));
+    expect(await decidir(pedido({ caminho: "/.well-known/app.js.map", accept: "*/*" }), ctx())).toEqual(sombra("mapa de código", "copia", 404));
+  });
+
+  it("ponto-ponto não sai de /.well-known/ e nada fora da lista vira público", async () => {
+    for (const caminho of ["/.well-known/../app.js", "/.well-known/%2e%2e/app.js", "/.well-known/..;/app.js", "/.well-known\\..\\app.js"]) {
+      expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual({ acao: "recusar", status: 400 });
+    }
+    for (const caminho of ["/blog/sitemap.xml", "/blog/robots.txt", "/.well-known", "/.well-knownx/a", "/manifest.json.js", "/x.webmanifest.js", "/sitemap.xml/app.js", "//robots.txt", "/.well-known%2fx"]) {
+      expect(await decidir(pedido({ caminho, accept: "*/*" }), ctx()), caminho).toEqual({ acao: "recusar", status: 403 });
+    }
   });
 });

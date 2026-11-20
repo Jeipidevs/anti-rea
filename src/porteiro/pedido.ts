@@ -89,6 +89,24 @@ export function caminhoLiteral(cru: string): string {
     .join("/");
 }
 
+/** Caminhos que o navegador e as integrações pedem sem cookie e que não têm código de valor. */
+function ehPublicoPadrao(caminho: string): boolean {
+  return (
+    caminho.startsWith("/.well-known/") ||
+    /^\/(?:robots\.txt|ads\.txt|app-ads\.txt|favicon\.ico|manifest\.json|sitemap[^/]*\.xml)$/.test(caminho) ||
+    /\/[^/]*\.webmanifest$/.test(caminho)
+  );
+}
+
+/**
+ * Caminho público padrão: /robots.txt, /sitemap.xml e /sitemap*.xml na raiz, /ads.txt, /app-ads.txt,
+ * /favicon.ico, /manifest.json, qualquer *.webmanifest e tudo sob /.well-known/. Como o isento, precisa
+ * casar lido dos dois jeitos (normalizado e ao pé da letra). Só serve para caminho que não é ambíguo.
+ */
+export function caminhoPublico(cru: string): boolean {
+  return ehPublicoPadrao(normalizarCaminho(cru)) && ehPublicoPadrao(caminhoLiteral(cru));
+}
+
 /** Host do pedido para o registro: minúsculo, sem porta, só [a-z0-9.-], até 100; vazio vira "desconhecido". */
 export function dominioDoHost(host: string | undefined): string {
   const limpo = (host ?? "")

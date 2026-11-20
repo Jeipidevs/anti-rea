@@ -22,7 +22,14 @@ check:
 ```
 
 Desligar `firstVisit` deixa o site abrir direto, mas o robô recebe o código antes de ser pego.
-Só desligue se souber o que está trocando.
+Só desligue se souber o que está trocando. Com `firstVisit: false`, toda página aberta pelo
+navegador (resposta 200) entrega um passe, mesmo com `devtoolsIsCaught: false`: é ele que deixa o
+WebSocket do site conectar.
+
+Os cookies do porteiro (o passe, o passe de dono e a marca de quem foi pego) saem com
+`SameSite=None; Secure` quando o pedido chega por HTTPS (direto ou pelo `X-Forwarded-Proto` do proxy
+confiável, conforme `trustProxy`). Assim o retorno de um pagamento ou de um login que volta por POST
+de outro site chega com o passe. Em HTTP simples eles ficam `SameSite=Lax`.
 
 ## Caminhos isentos
 
@@ -44,6 +51,30 @@ poderia ler outro arquivo que não o conferido. Navegador nunca manda caminho as
 Link de uso único com o código no próprio caminho (por exemplo `/login/magico/<código>`) deve
 entrar em `exempt`: a tela de verificação busca a prévia do caminho no site e gastaria o código.
 Código na query (`?token=...`) não corre esse risco, porque a prévia é buscada sem a query.
+
+## Caminhos públicos padrão
+
+Alguns arquivos o navegador e as integrações pedem sem cookie, e nenhum deles tem código de valor.
+Eles passam sem passe, sem verificação e sem registro, sem precisar entrar em `exempt`:
+
+- `/robots.txt`, `/sitemap.xml` e qualquer `/sitemap*.xml` na raiz (por exemplo `/sitemap-produtos.xml`)
+- `/ads.txt` e `/app-ads.txt`
+- `/favicon.ico`, `/manifest.json` e qualquer arquivo terminado em `.webmanifest` (manifesto do PWA)
+- tudo sob `/.well-known/` (links de app, OAuth, `security.txt`)
+
+Como nos isentos, o caminho precisa casar como chega: `/blog/sitemap.xml` ou `//robots.txt` não
+contam, e `/.well-known/../app.js` recebe 400. Arquivo trancado continua trancado também aqui
+(`/robots.txt.bak`, `/.well-known/app.js.map`).
+
+Também passa sem passe e sem registro o pré-voo CORS (`OPTIONS` com o cabeçalho
+`Access-Control-Request-Method`): o navegador nunca manda cookie nele, e é o site que decide se aceita
+a outra origem. Um `OPTIONS` sem esse cabeçalho segue as regras comuns.
+
+## WebSocket
+
+O porteiro só repassa upgrade para WebSocket, e só com passe válido ou em caminho isento. Qualquer
+outro upgrade (como `h2c`) recebe 400 e fica registrado como varredura: ele abriria um túnel direto
+até o site, por fora do porteiro.
 
 ## Página sombra
 

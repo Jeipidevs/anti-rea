@@ -99,8 +99,9 @@ export function cabecalhosParaOSite(
     else delete saida["accept-encoding"];
   }
   if (opcoes.upgrade) {
+    // Só WebSocket chega aqui (o servidor recusa o resto); h2c e afins nunca vão ao site.
     saida.connection = "Upgrade";
-    saida.upgrade = req.headers.upgrade ?? "websocket";
+    saida.upgrade = "websocket";
   }
   return saida;
 }
@@ -120,10 +121,12 @@ export function cacheSoDoNavegador(valor: string | string[] | undefined): string
 
 /**
  * Cabeçalhos da resposta para o visitante: sem os de salto, sem Server e X-Powered-By, mais os
- * cookies do porteiro. Resposta `privada` (liberada por passe ou por ser robô) não pode ir para
+ * cookies do porteiro (só numa resposta 200). Resposta `privada` (liberada por passe ou por ser robô) não pode ir para
  * cache compartilhado: senão a CDN entrega o JS do visitante verificado a qualquer um.
  */
-function cabecalhosParaOVisitante(resposta: IncomingMessage, cookiesNovos: string[], privada: boolean): OutgoingHttpHeaders {
+function cabecalhosParaOVisitante(resposta: IncomingMessage, opcoes: OpcoesRepasse): OutgoingHttpHeaders {
+  const { privada } = opcoes;
+  const cookiesNovos = resposta.statusCode === 200 ? opcoes.cookiesNovos : [];
   const saida: OutgoingHttpHeaders = {};
   const doConnection = listadosNoConnection(resposta.headers.connection);
   for (const [nome, valor] of Object.entries(resposta.headers)) {
@@ -154,7 +157,7 @@ function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boole
     return;
   }
   const status = resposta.statusCode ?? 502;
-  const cabecalhos = cabecalhosParaOVisitante(resposta, opcoes.cookiesNovos, opcoes.privada);
+  const cabecalhos = cabecalhosParaOVisitante(resposta, opcoes);
   const podeInjetar = injetar && status === 200 && ehHtml(resposta);
   const abrir = podeInjetar ? descompressor(resposta.headers["content-encoding"]) : undefined;
   const aoTerminar = (erro: Error | null) => {
@@ -172,7 +175,10 @@ function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boole
   pipeline(resposta, res, aoTerminar);
 }
 
-/** `privada`: a resposta dependeu de passe ou de robô e não vai para cache compartilhado. */
+/**
+ * `privada`: a resposta dependeu de passe ou de robô e não vai para cache compartilhado.
+ * `cookiesNovos`: cookies do porteiro, postos só se o site responder 200.
+ */
 export type OpcoesRepasse = { injetarGuarda: boolean; cookiesNovos: string[]; privada: boolean };
 
 /**
