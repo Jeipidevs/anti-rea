@@ -15,7 +15,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
-RUN mkdir -p /app/registro && chown node:node /app/registro
+RUN mkdir -p /app/registro && chown node:node /app/registro && chmod 700 /app/registro
 USER node
 EXPOSE 8080
 CMD ["node", "dist/cli/index.js", "start", "--config", "/app/anti-rea.config.yml"]

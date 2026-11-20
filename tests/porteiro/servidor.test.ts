@@ -453,6 +453,16 @@ describe("porteiro: sombra, eventos e avisos", () => {
     expect(ev).toMatchObject({ motivo: "wget", gravidade: "copia", destino: "sombra" });
   });
 
+  it("registro e aviso guardam o caminho com a query sem os valores (código de login, e-mail)", async () => {
+    const t = await montar();
+    await t.get("/entrar?token=segredo123&email=pessoa%40exemplo.com&lembrar", { "user-agent": "Wget/1.21" });
+    expect(t.eventos().at(-1)!.caminho).toBe("/entrar?token=...&email=...&lembrar");
+    await esperar(() => t.enviados.length === 1);
+    expect(t.enviados[0]).toContain("Página: /entrar?token=...&email=...&lembrar");
+    expect(t.enviados[0]).not.toContain("segredo123");
+    expect(JSON.stringify(t.eventos())).not.toContain("segredo123");
+  });
+
   it("arquivo trancado: 404 na sombra, também com caminho disfarçado e forma absoluta", async () => {
     const t = await montar();
     for (const caminho of ["/.env", "//.env", "/%2e%65nv", "/x/../.env", "/.env?x=1", "http://outro.host/.env"]) {
@@ -461,7 +471,7 @@ describe("porteiro: sombra, eventos e avisos", () => {
       expect(r.texto, caminho).toContain("Pegamos você");
     }
     expect(t.site.recebidos).toHaveLength(0);
-    expect(t.eventos().map((e) => e.caminho)).toEqual(["/.env", "//.env", "/%2e%65nv", "/x/../.env", "/.env?x=1", "/.env"]);
+    expect(t.eventos().map((e) => e.caminho)).toEqual(["/.env", "//.env", "/%2e%65nv", "/x/../.env", "/.env?x=...", "/.env"]);
     expect(t.eventos().every((e) => e.gravidade === "varredura")).toBe(true);
   });
 

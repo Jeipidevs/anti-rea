@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -50,6 +50,14 @@ describe("Registro", () => {
     expect(r.apagarVencidos(new Date("2026-11-20T12:00:00Z"))).toBe(1);
     expect(existsSync(join(dir, "2026-11-20.jsonl"))).toBe(true);
     expect(existsSync(join(dir, "2026-11-10.jsonl"))).toBe(false);
+  });
+
+  it("pasta nova só do dono (0700) e arquivo do dia só do dono (0600): IP, caminho e agente são dado pessoal", () => {
+    const pasta = join(dir, "novo", "registro");
+    const r = new Registro(pasta, DIA_MS);
+    r.gravar(ev());
+    expect(statSync(pasta).mode & 0o777).toBe(0o700);
+    expect(statSync(join(pasta, "2026-11-20.jsonl")).mode & 0o777).toBe(0o600);
   });
 
   it("cria a pasta, inclusive aninhada, se nao existir", () => {

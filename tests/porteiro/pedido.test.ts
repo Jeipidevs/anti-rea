@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { caminhoAmbiguo, caminhoDoAlvo, caminhoLiteral, dominioDoHost, ehMidia, ehNavegacao, normalizarCaminho } from "../../src/porteiro/pedido.js";
+import {
+  caminhoAmbiguo,
+  caminhoDoAlvo,
+  caminhoLiteral,
+  caminhoParaORegistro,
+  dominioDoHost,
+  ehMidia,
+  ehNavegacao,
+  normalizarCaminho,
+} from "../../src/porteiro/pedido.js";
+
+describe("caminhoParaORegistro", () => {
+  it("troca o valor de cada parâmetro da query por ... e deixa os nomes", () => {
+    expect(caminhoParaORegistro("/entrar?token=abc123&email=a%40b.com")).toBe("/entrar?token=...&email=...");
+    expect(caminhoParaORegistro("/senha/nova?codigo=9f8e7d&passo=2")).toBe("/senha/nova?codigo=...&passo=...");
+    expect(caminhoParaORegistro("/x?a=b=c")).toBe("/x?a=...");
+    expect(caminhoParaORegistro("/x?a=1&&b=2")).toBe("/x?a=...&&b=...");
+  });
+
+  it("valor vazio, nome sem valor e caminho sem query ficam como vieram", () => {
+    expect(caminhoParaORegistro("/x?a=&b")).toBe("/x?a=&b");
+    expect(caminhoParaORegistro("/x?")).toBe("/x?");
+    expect(caminhoParaORegistro("/.env")).toBe("/.env");
+    expect(caminhoParaORegistro("/a%3Fb=1")).toBe("/a%3Fb=1");
+  });
+});
 
 describe("caminhoDoAlvo", () => {
   it("forma de origem fica como veio", () => {

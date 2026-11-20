@@ -271,7 +271,8 @@ Mais perguntas: [Perguntas frequentes](docs/perguntas-frequentes.md) · Termos d
 - O exame (que vem a seguir) só vai rodar em site que você prova controlar. Ele não serve para
   varrer site dos outros.
 - **IP é dado pessoal** pela LGPD (e pelo GDPR). Se você usar o ANTI-REA, cite a coleta na política
-  de privacidade do seu site. O registro apaga sozinho depois do prazo que você escolher.
+  de privacidade do seu site. O registro apaga sozinho depois do prazo que você escolher, só o usuário
+  do porteiro lê os arquivos dele, e o endereço guardado perde os valores da query (`?token=...`).
 
 ## Contribuir
 

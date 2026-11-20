@@ -91,7 +91,8 @@ or anyone can pick their own IP with a header.
 
 ANTI-REA defends. The shadow page never runs anything against the visitor. The self-scan (coming next) will
 only run on domains you prove you control and will only read. IP addresses are personal data (GDPR, LGPD): mention
-the collection in your privacy policy.
+the collection in your privacy policy. The log is readable only by the gatekeeper's user (folder 0700, files 0600),
+and the logged address keeps the query names but drops their values (`/login?token=...`).
 
 ## Credits
 

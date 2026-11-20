@@ -15,6 +15,24 @@ export function caminhoDoAlvo(alvo: string): string | null {
   }
 }
 
+/**
+ * Caminho para o registro e o aviso: a query fica com os nomes e perde os valores, trocados por "..."
+ * (código de login, token de troca de senha e e-mail não vão para o disco nem para o WhatsApp). Valor
+ * vazio e nome sem valor ficam como vieram.
+ */
+export function caminhoParaORegistro(cru: string): string {
+  const i = cru.indexOf("?");
+  if (i < 0) return cru;
+  const parametros = cru
+    .slice(i + 1)
+    .split("&")
+    .map((p) => {
+      const igual = p.indexOf("=");
+      return igual < 0 || igual === p.length - 1 ? p : `${p.slice(0, igual)}=...`;
+    });
+  return `${cru.slice(0, i)}?${parametros.join("&")}`;
+}
+
 /** Decodifica cada sequência de %xx uma vez; sequência que não forma UTF-8 válido fica crua. */
 function decodificarUmaVez(caminho: string): string {
   return caminho.replace(/(?:%[0-9a-f]{2})+/gi, (trecho) => {

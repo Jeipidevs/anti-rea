@@ -102,7 +102,8 @@ Pode. Lembre de citar a coleta de IP na política de privacidade do site.
 
 **Guardar IP é permitido?**
 É dado pessoal pela LGPD. Pode guardar para segurança, com prazo e transparência: cite na política
-de privacidade e configure `log.retention`.
+de privacidade e configure `log.retention`. O registro só é lido pelo usuário do porteiro e guarda o
+endereço sem os valores da query (veja [Registro](03-configurar.md#registro)).
 
 **O ANTI-REA é do mesmo autor do REA?**
 Não. É um projeto independente que estudou a lógica do REA para se defender dela.

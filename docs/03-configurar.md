@@ -250,6 +250,15 @@ log:
   retention: 30d           # apaga tentativas mais velhas que isso (LGPD)
 ```
 
+Cada tentativa guarda o IP, o domínio, o endereço pedido, o agente, o motivo e o destino. O endereço
+vai com a query sem os valores: `/entrar?token=abc123&email=a%40b.com` fica
+`/entrar?token=...&email=...`, para código de login, token de troca de senha e e-mail não irem para o
+disco nem para o aviso. Os nomes ficam, e valor vazio ou nome sem valor ficam como vieram.
+
+A pasta que o porteiro cria para o registro sai `0700` e cada arquivo do dia sai `0600`: só o usuário
+que roda o porteiro lê. Uma pasta que já existia (como a `registro` montada no Docker) fica com as
+permissões que tem; para fechar, `sudo chmod 700 registro`.
+
 O registro grava no máximo 50000 tentativas por dia. Numa varredura em massa, passado esse teto,
 o porteiro só conta as tentativas do resto do dia, sem gravar no disco, e escreve uma única linha
 no log do contêiner:

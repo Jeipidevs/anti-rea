@@ -23,7 +23,7 @@ import {
   lerCookies,
   passeDoPedido,
 } from "./passes.js";
-import { caminhoAmbiguo, caminhoDoAlvo, caminhoDoPorteiro, dominioDoHost, normalizarCaminho } from "./pedido.js";
+import { caminhoAmbiguo, caminhoDoAlvo, caminhoDoPorteiro, caminhoParaORegistro, dominioDoHost, normalizarCaminho } from "./pedido.js";
 import { buscarHtml, CachePrevia, ESPERA_GENTE_MS, ESPERA_ROBO_MS } from "./previa.js";
 import { criarDestino, recusarUpgrade, repassarPedido, repassarUpgrade } from "./repasse.js";
 import { enviar, responderDesafio, responderRecusa, responderSombra, responderTexto } from "./respostas.js";
@@ -174,12 +174,13 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
     };
   }
 
+  /** O evento do pedido; o caminho vai com a query sem os valores. */
   function criarEvento(p: Pedido, agora: number, sinal: Sinal, destinoEvento: Evento["destino"]): Evento {
     return {
       quando: new Date(agora).toISOString(),
       ip: p.ip,
       dominio: p.dominio,
-      caminho: cortar(p.caminho, MAX_CAMPO_EVENTO),
+      caminho: cortar(caminhoParaORegistro(p.caminho), MAX_CAMPO_EVENTO),
       agente: cortar(p.agente ?? "", MAX_CAMPO_EVENTO),
       motivo: sinal.motivo,
       gravidade: sinal.gravidade,

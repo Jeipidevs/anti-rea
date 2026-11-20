@@ -18,6 +18,9 @@ Quando: 20/11/2026 14:32 (UTC-3)
 Destino: página sombra
 ```
 
+A página vai com a query sem os valores, como no registro: `/entrar?token=abc123` aparece como
+`/entrar?token=...`.
+
 ## O que vira aviso e o que não vira
 
 | Acontecimento | Padrão |

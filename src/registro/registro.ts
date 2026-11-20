@@ -54,7 +54,8 @@ function linhasNoArquivo(caminho: string): number {
 }
 
 /**
- * Registro local em JSONL, um arquivo por dia: <pasta>/AAAA-MM-DD.jsonl.
+ * Registro local em JSONL, um arquivo por dia: <pasta>/AAAA-MM-DD.jsonl. A pasta criada aqui sai 0700 e
+ * cada arquivo novo sai 0600.
  * O dia de cada arquivo e o dia UTC de evento.quando, e a retencao compara esse dia UTC com `agora`.
  * Escrita com appendFileSync: simples e segura para um processo so.
  * Teto de `tetoPorDia` eventos gravados por dia: passado o teto, o evento so e contado
@@ -70,7 +71,9 @@ export class Registro {
     private readonly retencaoMs: number,
     private readonly tetoPorDia: number = TETO_EVENTOS_POR_DIA,
   ) {
-    mkdirSync(pasta, { recursive: true });
+    // IP, caminho e agente são dado pessoal: só o usuário do porteiro lê. A pasta que já existia fica
+    // como está (pode ser a pasta montada do Docker, de outro dono).
+    mkdirSync(pasta, { recursive: true, mode: 0o700 });
   }
 
   /** Eventos recebidos no dia "AAAA-MM-DD" (UTC), gravados ou so contados depois do teto. */
@@ -127,7 +130,7 @@ export class Registro {
         return;
       }
       // JSON.stringify escapa \n e \r dentro das strings: um evento ocupa sempre uma linha.
-      appendFileSync(join(this.pasta, `${dia}.jsonl`), JSON.stringify(e) + "\n", "utf8");
+      appendFileSync(join(this.pasta, `${dia}.jsonl`), JSON.stringify(e) + "\n", { encoding: "utf8", mode: 0o600 });
     } catch (erro) {
       if (contagem?.falhaAvisada) return;
       if (contagem) contagem.falhaAvisada = true;
