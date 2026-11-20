@@ -56,4 +56,25 @@ describe("Ritmo", () => {
     expect(r.registrar("203.0.113.1", 20_000)).toBe(false);
     expect(r.registrar("203.0.113.2", 5)).toBe(false);
   });
+  it("guarda no maximo limite+1 instantes por IP", () => {
+    const r = new Ritmo(3, 10_000);
+    const respostas = Array.from({ length: 1000 }, (_, i) => r.registrar("203.0.113.1", i));
+    expect(r.instantesGuardados("203.0.113.1")).toBeLessThanOrEqual(4);
+    expect(respostas.slice(0, 3)).toEqual([false, false, false]);
+    expect(respostas.slice(3).every((x) => x)).toBe(true);
+    expect(r.registrar("203.0.113.1", 10_995)).toBe(true);
+    expect(r.registrar("203.0.113.1", 10_998)).toBe(false);
+    expect(r.registrar("203.0.113.1", 50_000)).toBe(false);
+  });
+  it("varre IPs inativos no maximo uma vez por meia janela", () => {
+    const r = new Ritmo(3, 10_000);
+    for (let i = 0; i < 10_000; i++) r.registrar(`10.0.${i >> 8}.${i & 255}`, i % 5_000);
+    expect(r.varreduras).toBeLessThanOrEqual(1);
+    expect(r.ipsGuardados).toBe(10_000);
+    r.registrar("203.0.113.9", 4_999);
+    expect(r.varreduras).toBeLessThanOrEqual(1);
+    r.registrar("203.0.113.9", 30_000);
+    expect(r.varreduras).toBe(2);
+    expect(r.ipsGuardados).toBe(1);
+  });
 });
