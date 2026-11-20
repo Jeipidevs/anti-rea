@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { Avisos, TETO_AVISOS, TETO_JANELA_MS } from "../src/avisos/avisos.js";
+import { Avisos, TETO_AVISOS, TETO_JANELA_MS, textoDoAviso } from "../src/avisos/avisos.js";
 import { INTERVALO_MAX_MS, INTERVALO_MS } from "../src/deteccao/navegador/guarda.js";
 import {
   caminhoDeVarredura,
@@ -198,6 +198,27 @@ describe("números da documentação vêm do código", () => {
     expect(ler("docs/05-avisos.md")).toContain(agrupado.slice(0, agrupado.indexOf(":") + 1));
   });
 
+  it("docs/05 mostra o aviso como textoDoAviso monta: com o agente e o fuso no Quando", () => {
+    const evento: Evento = {
+      quando: "2026-11-20T17:32:00.000Z",
+      ip: "203.0.113.42",
+      dominio: "seusite.com.br",
+      caminho: "/produtos",
+      agente: "Wget/1.21.4",
+      motivo: "wget",
+      gravidade: "copia",
+      destino: "sombra",
+    };
+    const fusoAntes = process.env.TZ;
+    process.env.TZ = "America/Sao_Paulo";
+    try {
+      expect(ler("docs/05-avisos.md")).toContain("```text\n" + textoDoAviso(evento, 0) + "\n```");
+    } finally {
+      if (fusoAntes === undefined) delete process.env.TZ;
+      else process.env.TZ = fusoAntes;
+    }
+  });
+
   it("docs/05 cita como varredura genérica só caminho que o porteiro trata como varredura", () => {
     const linha = ler("docs/05-avisos.md").split("\n").find((l) => l.includes("Varredura genérica ("))!;
     const caminhos = [...linha.matchAll(/`(\/[^`]+)`/g)].map((m) => m[1]!);
@@ -281,6 +302,16 @@ describe("docker-compose dos documentos", () => {
         }
       }
       expect(ler("Dockerfile")).toMatch(/^USER node$/m);
+    });
+
+    it(`${arquivo}: o compose traz o TZ comentado, pronto para o horário de Brasília`, () => {
+      const blocos = [...ler(arquivo).matchAll(/```yaml\n([\s\S]*?)```/g)].map((m) => m[1]!).filter((b) => /^services:/m.test(b));
+      for (const bloco of blocos) {
+        expect(bloco, arquivo).toContain("    # environment:\n    #   - TZ=America/Sao_Paulo\n");
+        expect(parse(bloco.replace("# environment:", "environment:").replace("#   - TZ", "  - TZ")).services["anti-rea"].environment).toEqual([
+          "TZ=America/Sao_Paulo",
+        ]);
+      }
     });
   }
 });

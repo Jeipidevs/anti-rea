@@ -46,24 +46,53 @@ function espiarStderr(): string[] {
   return linhas;
 }
 
+const FUSO_ORIGINAL = process.env.TZ;
+
+/** Roda `fn` com o fuso do processo trocado (o Node relê o TZ na hora). */
+function comFuso<T>(fuso: string, fn: () => T): T {
+  process.env.TZ = fuso;
+  try {
+    return fn();
+  } finally {
+    if (FUSO_ORIGINAL === undefined) delete process.env.TZ;
+    else process.env.TZ = FUSO_ORIGINAL;
+  }
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe("textoDoAviso", () => {
-  it("monta as linhas exatas, na ordem, com a data local dd/mm/aaaa hh:mm", () => {
-    const quando = new Date(2026, 10, 20, 9, 7).toISOString();
-    expect(textoDoAviso(ev({ quando }), 0)).toBe(
+  it("monta as linhas exatas, na ordem, com o agente e a data local dd/mm/aaaa hh:mm com o fuso", () => {
+    const texto = comFuso("America/Sao_Paulo", () => textoDoAviso(ev({ quando: "2026-11-20T12:07:00.000Z" }), 0));
+    expect(texto).toBe(
       [
         "Tentativa de cópia barrada",
         "Site: seusite.com.br",
         "Página: /produtos",
         "IP: 203.0.113.1",
         "Motivo: ferramenta: curl",
-        "Quando: 20/11/2026 09:07",
+        "Agente: curl/8.7.1",
+        "Quando: 20/11/2026 09:07 (UTC-3)",
         "Destino: página sombra",
       ].join("\n"),
     );
+  });
+
+  it("a linha Quando diz o fuso do servidor: UTC no contêiner sem TZ, UTC+5:30 na Índia", () => {
+    const quando = "2026-11-20T12:07:00.000Z";
+    const linha = (fuso: string) => comFuso(fuso, () => textoDoAviso(ev({ quando }), 0).split("\n")[6]);
+    expect(linha("UTC")).toBe("Quando: 20/11/2026 12:07 (UTC)");
+    expect(linha("America/Sao_Paulo")).toBe("Quando: 20/11/2026 09:07 (UTC-3)");
+    expect(linha("Asia/Kolkata")).toBe("Quando: 20/11/2026 17:37 (UTC+5:30)");
+    expect(linha("America/St_Johns")).toBe("Quando: 20/11/2026 08:37 (UTC-3:30)");
+  });
+
+  it("agente vazio vira (nenhum) e agente longo fica em 200 caracteres", () => {
+    expect(textoDoAviso(ev({ agente: "" }), 0).split("\n")[5]).toBe("Agente: (nenhum)");
+    const longo = textoDoAviso(ev({ agente: "Wget/1.21 " + "x".repeat(400) }), 0).split("\n")[5]!;
+    expect(longo).toBe("Agente: Wget/1.21 " + "x".repeat(189) + "\u2026");
   });
 
   it("usa o título de varredura e acrescenta a linha dos repetidos", () => {
@@ -91,7 +120,7 @@ describe("textoDoAviso", () => {
     const caminho = "/x\r\nDestino: falso\u0085\u2028\u202Eabc\u2066\u200F\u0000\u007F\u009B";
     const texto = textoDoAviso(ev({ caminho, dominio: "a\nSite: b" }), 0);
     const linhas = texto.split("\n");
-    expect(linhas).toHaveLength(7);
+    expect(linhas).toHaveLength(8);
     expect(linhas.filter((l) => l.startsWith("Destino:"))).toEqual(["Destino: página sombra"]);
     expect(linhas[1]).toBe("Site: aSite: b");
     expect(texto).not.toMatch(/[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200E\u200F\u2028\u2029\u202A-\u202E\u2066-\u2069]/);
@@ -104,10 +133,11 @@ describe("textoDoAviso", () => {
   });
 
   it("caminho com quebra de linha e Destino: forjado não cria linha nova", () => {
-    const texto = textoDoAviso(ev({ caminho: "/a\nDestino: forjado", agente: "x\r\ny" }), 0);
+    const texto = textoDoAviso(ev({ caminho: "/a\nDestino: forjado", agente: "x\r\nDestino: y" }), 0);
     const linhas = texto.split("\n");
-    expect(linhas).toHaveLength(7);
+    expect(linhas).toHaveLength(8);
     expect(linhas[2]).toBe("Página: /aDestino: forjado");
+    expect(linhas[5]).toBe("Agente: xDestino: y");
     expect(linhas.filter((l) => l.startsWith("Destino:"))).toEqual(["Destino: página sombra"]);
   });
 
@@ -238,6 +268,98 @@ describe("Avisos: agrupamento por IP", () => {
     t = 3 * HORA;
     await a.receber(ev({ ip: "203.0.113.250" }));
     expect((a as unknown as { porIp: Map<string, unknown> }).porIp.size).toBe(1);
+  });
+});
+
+describe("Avisos: contagem quando a janela do IP fecha", () => {
+  const contagem = (n: number, desde: number) =>
+    `Mais ${n} tentativas de 203.0.113.1 em seusite.com.br desde ${horaMinuto(desde)} (agrupadas).`;
+
+  it("descarregar manda um aviso curto com a contagem, e o aviso seguinte do IP não repete a contagem", async () => {
+    const canal = canalQueGuarda();
+    let t = 0;
+    const a = new Avisos(cfg(), [canal], () => t);
+    for (let i = 0; i < 4; i++) await a.receber(ev());
+    expect(canal.enviados).toHaveLength(1);
+    await a.descarregar(HORA - 1);
+    expect(canal.enviados).toHaveLength(1);
+    await a.descarregar(HORA);
+    expect(canal.enviados).toHaveLength(2);
+    expect(canal.enviados[1]).toBe(contagem(3, 0));
+    expect(canal.eventos[1]).toBeUndefined();
+    await a.descarregar(HORA + MIN);
+    expect(canal.enviados).toHaveLength(2);
+    t = HORA + 2 * MIN;
+    await a.receber(ev());
+    expect(canal.enviados).toHaveLength(3);
+    expect(canal.enviados[2]).not.toContain("Mais");
+  });
+
+  it("IP que volta antes da descarga leva a contagem no próprio aviso, e a descarga não repete", async () => {
+    const canal = canalQueGuarda();
+    let t = 0;
+    const a = new Avisos(cfg(), [canal], () => t);
+    await a.receber(ev());
+    await a.receber(ev());
+    t = HORA + 1;
+    await a.receber(ev());
+    expect(canal.enviados[1]).toContain("Mais 1 tentativas deste IP na última janela (agrupadas).");
+    await a.descarregar(2 * HORA + 2);
+    expect(canal.enviados).toHaveLength(2);
+  });
+
+  it("IP sem repetidos não gera aviso de contagem", async () => {
+    const canal = canalQueGuarda();
+    const a = new Avisos(cfg(), [canal], () => 0);
+    await a.receber(ev());
+    await a.descarregar(2 * HORA);
+    expect(canal.enviados).toHaveLength(1);
+  });
+
+  it("sem vaga no teto, a contagem entra no aviso agrupado", async () => {
+    const canal = canalQueGuarda();
+    let t = 0;
+    const a = new Avisos(cfg(), [canal], () => t);
+    await a.receber(ev());
+    await a.receber(ev());
+    await a.receber(ev());
+    // Sete IPs quatro minutos antes da janela fechar: seis avisos enchem o teto e o sétimo fica agrupado.
+    t = HORA - 4 * MIN;
+    for (let i = 0; i < 7; i++) await a.receber(ev({ ip: `198.51.100.${i}` }));
+    expect(canal.enviados).toHaveLength(7);
+    await a.descarregar(HORA);
+    expect(canal.enviados).toHaveLength(7);
+    await a.descarregar(HORA + MIN);
+    expect(canal.enviados).toHaveLength(8);
+    expect(canal.enviados[7]).toBe(
+      `Muitas tentativas ao mesmo tempo: 3 tentativas de 2 IPs desde ${horaMinuto(HORA - 4 * MIN)} (agrupadas).`,
+    );
+  });
+
+  it("encerrar manda a contagem das janelas ainda abertas e o agrupado, mesmo com o teto cheio", async () => {
+    const canal = canalQueGuarda();
+    let t = 0;
+    const a = new Avisos(cfg(), [canal], () => t);
+    await a.receber(ev());
+    await a.receber(ev());
+    for (let i = 0; i < 6; i++) await a.receber(ev({ ip: `198.51.100.${i}` }));
+    expect(canal.enviados).toHaveLength(6);
+    t = MIN;
+    await a.encerrar();
+    expect(canal.enviados.slice(6)).toEqual([
+      `Muitas tentativas ao mesmo tempo: 2 tentativas de 2 IPs desde ${horaMinuto(0)} (agrupadas).`,
+    ]);
+    await a.encerrar();
+    expect(canal.enviados).toHaveLength(7);
+  });
+
+  it("encerrar com vaga no teto manda a contagem como aviso curto", async () => {
+    const canal = canalQueGuarda();
+    const a = new Avisos(cfg(), [canal], () => 0);
+    await a.receber(ev());
+    await a.receber(ev());
+    await a.encerrar();
+    expect(canal.enviados).toEqual([expect.stringContaining("Tentativa de cópia barrada"), contagem(1, 0)]);
   });
 });
 

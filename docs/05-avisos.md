@@ -4,7 +4,19 @@
 <img src="../assets/telas/aviso-whatsapp.svg" alt="Aviso no WhatsApp" width="380">
 </div>
 
-Cada tentativa barrada pode virar um aviso com: site, página, IP, motivo, horário e destino.
+Cada tentativa barrada pode virar um aviso com: site, página, IP, motivo, agente (o programa que fez
+o pedido, como ele se apresentou), horário com o fuso e destino. Assim (dados fictícios):
+
+```text
+Tentativa de cópia barrada
+Site: seusite.com.br
+Página: /produtos
+IP: 203.0.113.42
+Motivo: wget
+Agente: Wget/1.21.4
+Quando: 20/11/2026 14:32 (UTC-3)
+Destino: página sombra
+```
 
 ## O que vira aviso e o que não vira
 
@@ -23,10 +35,20 @@ Cada tentativa barrada pode virar um aviso com: site, página, IP, motivo, horá
 
 Varredura genérica acontece o dia inteiro em qualquer site público. Se virasse aviso, seu celular
 não pararia. Quer um resumo diário dela? Use `scans: dailySummary` (sai às 08:00, no fuso do
-servidor). Quer cada uma na hora? Use `scans: alert`. O padrão, `scans: panel`, só guarda no
-registro; a tela para ler o registro vem a seguir.
+servidor; veja [Horário e fuso](#horário-e-fuso)). Quer cada uma na hora? Use `scans: alert`. O
+padrão, `scans: panel`, só guarda no registro; a tela para ler o registro vem a seguir.
 
-Tentativas repetidas do mesmo IP viram **um aviso só**, com a contagem (`groupByIp`).
+Tentativas repetidas do mesmo IP viram **um aviso só** por janela (`groupByIp`, 1 hora por padrão):
+o primeiro aviso sai na hora e as outras tentativas só contam. Quando a janela fecha, sai um aviso
+curto com a contagem (o porteiro confere a cada minuto):
+
+```text
+Mais 3 tentativas de 203.0.113.42 em seusite.com.br desde 14:32 (agrupadas).
+```
+
+Se o mesmo IP voltar depois da janela e antes desse aviso curto, a contagem vem na última linha do
+aviso novo dele (`Mais 3 tentativas deste IP na última janela (agrupadas).`). A contagem sai uma vez
+só, nunca nas duas formas.
 
 ### Teto de avisos durante um ataque
 
@@ -38,8 +60,23 @@ vira um aviso agrupado único, enviado assim que o teto abre vaga (o porteiro co
 Muitas tentativas ao mesmo tempo: 14 tentativas de 14 IPs desde 10:05 (agrupadas).
 ```
 
-Tudo continua no registro, com o detalhe de cada pedido. O resumo diário das varreduras não entra
-no teto.
+A contagem de um IP que não cabe no teto entra nesse mesmo aviso agrupado. Tudo continua no
+registro, com o detalhe de cada pedido. O resumo diário das varreduras não entra no teto.
+
+## Horário e fuso
+
+O `Quando:` sai no fuso do servidor, com o fuso escrito no fim: `UTC-3` é o horário de Brasília.
+Dentro do Docker o fuso é UTC, e o aviso sai com `(UTC)`, três horas à frente de Brasília. Para ver
+o horário de Brasília, tire o `#` das linhas do `TZ` no `docker-compose.yml` e rode
+`docker compose up -d`:
+
+```yaml
+    environment:
+      - TZ=America/Sao_Paulo
+```
+
+O resumo diário (`scans: dailySummary`) segue o mesmo fuso: sem o `TZ`, as 08:00 do contêiner são
+as 05:00 de Brasília.
 
 ## WhatsApp (pela Evolution API)
 
@@ -77,8 +114,8 @@ O ANTI-REA manda um `POST` com JSON e assina o corpo com o segredo (cabeçalho
 
 O aviso de uma tentativa leva o evento (`quando`, `ip`, `dominio`, `caminho`, `agente`, `motivo`,
 `gravidade`, `destino`). A `gravidade` é `copia` (tentativa de cópia), `ataque` (scanner apontado para
-o site) ou `varredura` (varredura genérica). O resumo diário e o aviso agrupado do teto levam
-`{"tipo":"resumo","texto":"...","quando":"<data ISO>"}`.
+o site) ou `varredura` (varredura genérica). O resumo diário, o aviso agrupado do teto e o aviso curto
+com a contagem de um IP levam `{"tipo":"resumo","texto":"...","quando":"<data ISO>"}`.
 
 ## Sem canal configurado
 

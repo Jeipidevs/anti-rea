@@ -148,6 +148,9 @@ services:
     ports:
       - "8080:8080"
     env_file: .env
+    # Horário dos avisos e do resumo do dia: sem TZ, o contêiner fica em UTC.
+    # environment:
+    #   - TZ=America/Sao_Paulo
     volumes:
       - ./anti-rea.config.yml:/app/anti-rea.config.yml:ro
       - ./registro:/app/registro
@@ -182,7 +185,7 @@ Vem com uma mensagem padrão em português e inglês. Troque pelo seu texto, sua
 ## O aviso no seu celular
 
 <div align="center">
-<img src="assets/telas/aviso-whatsapp.svg" alt="Aviso no WhatsApp: tentativa de cópia barrada, com site, página, IP, motivo, horário e destino" width="420">
+<img src="assets/telas/aviso-whatsapp.svg" alt="Aviso no WhatsApp: tentativa de cópia barrada, com site, página, IP, motivo, agente, horário com o fuso e destino" width="420">
 </div>
 
 Só tentativa de cópia e ataque direcionado (scanner como sqlmap ou nikto apontado para o seu site)

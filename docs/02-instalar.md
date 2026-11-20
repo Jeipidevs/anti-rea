@@ -66,6 +66,9 @@ services:
     ports:
       - "8080:8080"
     env_file: .env
+    # Horário dos avisos e do resumo do dia: sem TZ, o contêiner fica em UTC.
+    # environment:
+    #   - TZ=America/Sao_Paulo
     volumes:
       - ./anti-rea.config.yml:/app/anti-rea.config.yml:ro
       - ./registro:/app/registro
@@ -176,6 +179,9 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     env_file: .env
+    # Horário dos avisos e do resumo do dia: sem TZ, o contêiner fica em UTC.
+    # environment:
+    #   - TZ=America/Sao_Paulo
     volumes:
       - ./anti-rea.config.yml:/app/anti-rea.config.yml:ro
       - ./registro:/app/registro
