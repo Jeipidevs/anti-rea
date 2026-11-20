@@ -1,5 +1,5 @@
 import { promises as dnsPromises } from "node:dns";
-import { lerEndereco, mesmoEndereco, normalizarIp, type Veredito } from "./faixas-meta.js";
+import { lerEndereco, mesmoEndereco, normalizarIp, type Confirmacao } from "./faixas-meta.js";
 
 // DNS reverso com confirmação direta: o nome do IP termina num sufixo do robô
 // e esse nome, resolvido de volta, aponta para o mesmo IP.
@@ -88,7 +88,7 @@ export async function verificarPorDns(
   ip: string,
   sufixos: string[],
   r: Resolvedor,
-): Promise<Veredito> {
+): Promise<Confirmacao> {
   const alvo = normalizarIp(ip);
   if (!lerEndereco(alvo)) return "nao";
   let nomes: string[];

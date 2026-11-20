@@ -40,7 +40,7 @@ describe("roboDeclarado", () => {
       ["Mediapartners-Google", "Mediapartners-Google", "busca"],
       ["Mozilla/5.0 (compatible; adidxbot/2.0)", "AdIdxBot", "busca"],
       ["Mozilla/5.0 (compatible; Applebot/0.1)", "Applebot", "busca"],
-      ["DuckDuckBot/1.1; (+http://duckduckgo.com/duckduckbot.html)", "DuckDuckBot", "busca"],
+      ["DuckDuckBot/1.1; (+http://duckduckgo.com/duckduckbot.html)", "DuckDuckBot", "previa"],
       ["meta-externalagent/1.1", "meta-externalagent", "meta"],
       ["meta-externalads/1.1", "meta-externalads", "meta"],
       ["Facebot", "Facebot", "meta"],
@@ -62,6 +62,12 @@ describe("roboDeclarado", () => {
     expect(roboDeclarado("TelegramBot (like TwitterBot)")?.nome).toBe("TelegramBot");
     // Agente que cita um robô de busca e uma prévia fica com o de busca.
     expect(roboDeclarado("WhatsApp/2 Googlebot/2.1")?.nome).toBe("Googlebot");
+  });
+
+  it("DuckDuckBot e previa: o DuckDuckGo nao publica sufixo de DNS reverso", () => {
+    expect(roboDeclarado("DuckDuckBot/1.1; (+http://duckduckgo.com/duckduckbot.html)")?.classe).toBe(
+      "previa",
+    );
   });
 
   it("previa do iMessage, que cita facebookexternalhit, fica como previa", () => {
@@ -162,12 +168,29 @@ function faixasFalsas(lista: string[]) {
   return { meta, chamadas: () => chamadas };
 }
 
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 describe("confirmarRobo", () => {
   it("confirma robo de busca pelo DNS", async () => {
     const { meta } = faixasFalsas([]);
     const robo = roboDeclarado("Googlebot/2.1")!;
-    expect(await confirmarRobo(robo, "66.249.66.1", { dns: dnsGoogle, meta, agora: 0 })).toBe(true);
-    expect(await confirmarRobo(robo, "203.0.113.9", { dns: dnsGoogle, meta, agora: 0 })).toBe(false);
+    expect(await confirmarRobo(robo, "66.249.66.1", { dns: dnsGoogle, meta, agora: 0 })).toBe("sim");
+    expect(await confirmarRobo(robo, "203.0.113.9", { dns: dnsGoogle, meta, agora: 0 })).toBe("nao");
+  });
+
+  it("Google so por .googlebot.com e .google.com: VM do Google Cloud nao passa", async () => {
+    const { meta } = faixasFalsas([]);
+    const vm: Resolvedor = {
+      reverso: async () => ["81.59.117.34.bc.googleusercontent.com"],
+      direto: async () => ["34.117.59.81"],
+    };
+    const proxy: Resolvedor = {
+      reverso: async () => ["rate-limited-proxy-66-249-90-1.google.com"],
+      direto: async () => ["66.249.90.1"],
+    };
+    const robo = roboDeclarado("Googlebot/2.1")!;
+    expect(await confirmarRobo(robo, "34.117.59.81", { dns: vm, meta, agora: 0 })).toBe("nao");
+    expect(await confirmarRobo(robo, "66.249.90.1", { dns: proxy, meta, agora: 0 })).toBe("sim");
   });
 
   it("usa os sufixos de cada robo", async () => {
@@ -178,18 +201,18 @@ describe("confirmarRobo", () => {
     };
     const bing = roboDeclarado("bingbot/2.0")!;
     const google = roboDeclarado("Googlebot/2.1")!;
-    expect(await confirmarRobo(bing, "157.55.39.1", { dns: r, meta, agora: 0 })).toBe(true);
-    expect(await confirmarRobo(google, "157.55.39.2", { dns: r, meta, agora: 0 })).toBe(false);
+    expect(await confirmarRobo(bing, "157.55.39.1", { dns: r, meta, agora: 0 })).toBe("sim");
+    expect(await confirmarRobo(google, "157.55.39.2", { dns: r, meta, agora: 0 })).toBe("nao");
   });
 
   it("confirma robo da Meta pelas faixas", async () => {
     const { meta } = faixasFalsas(["31.13.24.0/21", "2a03:2880::/32"]);
     const robo = roboDeclarado("facebookexternalhit/1.1")!;
     const deps = { dns: dnsGoogle, meta, agora: 0 };
-    expect(await confirmarRobo(robo, "31.13.24.11", deps)).toBe(true);
-    expect(await confirmarRobo(robo, "::ffff:31.13.24.12", deps)).toBe(true);
-    expect(await confirmarRobo(robo, "2a03:2880:2::1", deps)).toBe(true);
-    expect(await confirmarRobo(robo, "203.0.113.20", deps)).toBe(false);
+    expect(await confirmarRobo(robo, "31.13.24.11", deps)).toBe("sim");
+    expect(await confirmarRobo(robo, "::ffff:31.13.24.12", deps)).toBe("sim");
+    expect(await confirmarRobo(robo, "2a03:2880:2::1", deps)).toBe("sim");
+    expect(await confirmarRobo(robo, "203.0.113.20", deps)).toBe("nao");
   });
 
   it("previa nunca se confirma e nem consulta DNS ou faixas", async () => {
@@ -205,13 +228,15 @@ describe("confirmarRobo", () => {
       },
     };
     const { meta, chamadas } = faixasFalsas(["0.0.0.0/0"]);
-    const robo = roboDeclarado("WhatsApp/2.24")!;
-    expect(await confirmarRobo(robo, "66.249.66.1", { dns: r, meta, agora: 0 })).toBe(false);
+    for (const agente of ["WhatsApp/2.24", "DuckDuckBot/1.1"]) {
+      const robo = roboDeclarado(agente)!;
+      expect(await confirmarRobo(robo, "66.249.66.1", { dns: r, meta, agora: 0 })).toBe("nao");
+    }
     expect(consultas).toBe(0);
     expect(chamadas()).toBe(0);
   });
 
-  it("guarda o resultado por classe e IP durante 1 hora", async () => {
+  it("guarda o sim por robo e IP durante 1 hora", async () => {
     let consultas = 0;
     let resposta = ["crawl.googlebot.com"];
     const r: Resolvedor = {
@@ -224,15 +249,15 @@ describe("confirmarRobo", () => {
     const { meta } = faixasFalsas([]);
     const robo = roboDeclarado("Googlebot/2.1")!;
     const ip = "198.51.100.7";
-    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 1_000 })).toBe(true);
+    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 1_000 })).toBe("sim");
     resposta = ["outro.exemplo.net"];
-    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 1_000 + 3_599_999 })).toBe(true);
+    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 1_000 + 3_599_999 })).toBe("sim");
     expect(consultas).toBe(1);
-    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 1_000 + 3_600_000 })).toBe(false);
+    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 1_000 + 3_600_000 })).toBe("nao");
     expect(consultas).toBe(2);
   });
 
-  it("guarda tambem o resultado negativo", async () => {
+  it("guarda tambem o nao durante 1 hora", async () => {
     let consultas = 0;
     const r: Resolvedor = {
       reverso: async () => {
@@ -243,17 +268,21 @@ describe("confirmarRobo", () => {
     };
     const { meta } = faixasFalsas([]);
     const robo = roboDeclarado("Applebot/0.1")!;
-    expect(await confirmarRobo(robo, "198.51.100.8", { dns: r, meta, agora: 0 })).toBe(false);
-    expect(await confirmarRobo(robo, "198.51.100.8", { dns: r, meta, agora: 10 })).toBe(false);
+    expect(await confirmarRobo(robo, "198.51.100.8", { dns: r, meta, agora: 0 })).toBe("nao");
+    expect(await confirmarRobo(robo, "198.51.100.8", { dns: r, meta, agora: 3_599_999 })).toBe("nao");
     expect(consultas).toBe(1);
+    expect(await confirmarRobo(robo, "198.51.100.8", { dns: r, meta, agora: 3_600_000 })).toBe("nao");
+    expect(consultas).toBe(2);
   });
 
-  it("tempo esgotado no DNS nao fica 1 hora: o Googlebot real se confirma depois", async () => {
+  it("tempo esgotado no DNS e incerto, guardado 1 minuto", async () => {
     let consultas = 0;
     const r: Resolvedor = {
       reverso: async () => {
         consultas++;
-        if (consultas === 1) throw new Error("DNS sem resposta em 2000 ms");
+        if (consultas === 1) {
+          throw Object.assign(new Error("DNS sem resposta em 2000 ms"), { code: "ETIMEOUT" });
+        }
         return ["crawl-66-249-66-9.googlebot.com"];
       },
       direto: async () => ["66.249.66.9"],
@@ -261,15 +290,15 @@ describe("confirmarRobo", () => {
     const { meta } = faixasFalsas([]);
     const robo = roboDeclarado("Googlebot/2.1")!;
     const ip = "66.249.66.9";
-    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 0 })).toBe(false);
+    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 0 })).toBe("incerto");
     // Dentro de 1 minuto não pergunta de novo (não martela o DNS).
-    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 59_999 })).toBe(false);
+    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 59_999 })).toBe("incerto");
     expect(consultas).toBe(1);
-    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 60_000 })).toBe(true);
+    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 60_000 })).toBe("sim");
     expect(consultas).toBe(2);
   });
 
-  it("SERVFAIL no direto tambem e duvida, nao negativo de 1 hora", async () => {
+  it("SERVFAIL no direto e incerto", async () => {
     let falhar = true;
     const r: Resolvedor = {
       reverso: async () => ["crawl-66-249-66-10.googlebot.com"],
@@ -280,58 +309,102 @@ describe("confirmarRobo", () => {
     };
     const { meta } = faixasFalsas([]);
     const robo = roboDeclarado("Googlebot/2.1")!;
-    expect(await confirmarRobo(robo, "66.249.66.10", { dns: r, meta, agora: 0 })).toBe(false);
+    expect(await confirmarRobo(robo, "66.249.66.10", { dns: r, meta, agora: 0 })).toBe("incerto");
     falhar = false;
-    expect(await confirmarRobo(robo, "66.249.66.10", { dns: r, meta, agora: 120_000 })).toBe(true);
+    expect(await confirmarRobo(robo, "66.249.66.10", { dns: r, meta, agora: 60_000 })).toBe("sim");
   });
 
-  it("IP sem nome reverso (ENOTFOUND) e negativo definitivo, guardado 1 hora", async () => {
-    let consultas = 0;
+  it("erro sem codigo do resolvedor e incerto, nunca excecao", async () => {
+    const { meta } = faixasFalsas([]);
     const r: Resolvedor = {
       reverso: async () => {
+        throw new Error("algo estranho");
+      },
+      direto: async () => [],
+    };
+    const robo = roboDeclarado("bingbot/2.0")!;
+    expect(await confirmarRobo(robo, "198.51.100.12", { dns: r, meta, agora: 0 })).toBe("incerto");
+  });
+
+  it("IP sem nome reverso (ENOTFOUND ou ENODATA) e nao, guardado 1 hora", async () => {
+    let consultas = 0;
+    const r: Resolvedor = {
+      reverso: async (ip) => {
         consultas++;
-        throw Object.assign(new Error("getHostByAddr ENOTFOUND"), { code: "ENOTFOUND" });
+        const code = ip.endsWith(".11") ? "ENOTFOUND" : "ENODATA";
+        throw Object.assign(new Error(`getHostByAddr ${code}`), { code });
       },
       direto: async () => [],
     };
     const { meta } = faixasFalsas([]);
     const robo = roboDeclarado("Googlebot/2.1")!;
-    expect(await confirmarRobo(robo, "198.51.100.11", { dns: r, meta, agora: 0 })).toBe(false);
-    expect(await confirmarRobo(robo, "198.51.100.11", { dns: r, meta, agora: 3_599_999 })).toBe(false);
-    expect(consultas).toBe(1);
+    expect(await confirmarRobo(robo, "198.51.100.11", { dns: r, meta, agora: 0 })).toBe("nao");
+    expect(await confirmarRobo(robo, "198.51.100.11", { dns: r, meta, agora: 3_599_999 })).toBe("nao");
+    expect(await confirmarRobo(robo, "198.51.100.13", { dns: r, meta, agora: 0 })).toBe("nao");
+    expect(consultas).toBe(2);
   });
 
-  it("whois fora do ar no boot nao deixa o robo da Meta negado por 1 hora", async () => {
+  it("faixas da Meta indisponiveis sao incerto, guardado 1 minuto", async () => {
     let chamadas = 0;
     const meta = new FaixasMeta(async () => {
       chamadas++;
-      if (chamadas === 1) throw new Error("whois do RADb não respondeu a tempo");
+      if (chamadas === 1) throw new Error("RIPEstat e whois fora do ar");
       return ["31.13.24.0/21"];
     });
     const robo = roboDeclarado("facebookexternalhit/1.1")!;
     const ip = "31.13.24.77";
-    expect(await confirmarRobo(robo, ip, { dns: dnsGoogle, meta, agora: 0 })).toBe(false);
+    expect(await confirmarRobo(robo, ip, { dns: dnsGoogle, meta, agora: 0 })).toBe("incerto");
+    expect(await confirmarRobo(robo, ip, { dns: dnsGoogle, meta, agora: 59_999 })).toBe("incerto");
     // FaixasMeta tenta de novo depois de 5 minutos; a confirmação acompanha.
-    expect(await confirmarRobo(robo, ip, { dns: dnsGoogle, meta, agora: 6 * 60_000 })).toBe(true);
+    expect(await confirmarRobo(robo, ip, { dns: dnsGoogle, meta, agora: 6 * 60_000 })).toBe("sim");
     expect(chamadas).toBe(2);
   });
 
-  it("faixas carregadas e IP de fora e negativo definitivo", async () => {
+  it("faixas da Meta ainda carregando depois da espera sao incerto", async () => {
+    let chamadas = 0;
+    const meta = new FaixasMeta(
+      async () => {
+        chamadas++;
+        await esperar(80);
+        return ["31.13.24.0/21"];
+      },
+      86_400_000,
+      10,
+    );
+    const robo = roboDeclarado("meta-externalads/1.1")!;
+    const ip = "31.13.24.78";
+    expect(await confirmarRobo(robo, ip, { dns: dnsGoogle, meta, agora: 0 })).toBe("incerto");
+    await esperar(120);
+    expect(await confirmarRobo(robo, ip, { dns: dnsGoogle, meta, agora: 60_000 })).toBe("sim");
+    expect(chamadas).toBe(1);
+  });
+
+  it("faixas carregadas e IP de fora e nao, guardado 1 hora", async () => {
     const { meta, chamadas } = faixasFalsas(["31.13.24.0/21"]);
     const robo = roboDeclarado("facebookexternalhit/1.1")!;
-    expect(await confirmarRobo(robo, "203.0.113.21", { dns: dnsGoogle, meta, agora: 0 })).toBe(false);
-    expect(await confirmarRobo(robo, "203.0.113.21", { dns: dnsGoogle, meta, agora: 3_599_999 })).toBe(
-      false,
-    );
+    expect(await confirmarRobo(robo, "203.0.113.21", { dns: dnsGoogle, meta, agora: 0 })).toBe("nao");
+    expect(
+      await confirmarRobo(robo, "203.0.113.21", { dns: dnsGoogle, meta, agora: 3_599_999 }),
+    ).toBe("nao");
     expect(chamadas()).toBe(1);
   });
 
-  it("o cache separa classes no mesmo IP", async () => {
+  it("o cache separa robos no mesmo IP, mesmo da mesma classe", async () => {
+    let consultas = 0;
+    const r: Resolvedor = {
+      reverso: async () => {
+        consultas++;
+        return ["msnbot-198-51-100-14.search.msn.com"];
+      },
+      direto: async () => ["198.51.100.14"],
+    };
     const { meta } = faixasFalsas(["198.51.100.0/24"]);
-    const r: Resolvedor = { reverso: async () => [], direto: async () => [] };
-    const ip = "198.51.100.9";
-    expect(await confirmarRobo(roboDeclarado("Googlebot")!, ip, { dns: r, meta, agora: 0 })).toBe(false);
-    expect(await confirmarRobo(roboDeclarado("Facebot")!, ip, { dns: r, meta, agora: 0 })).toBe(true);
+    const ip = "198.51.100.14";
+    expect(await confirmarRobo(roboDeclarado("bingbot")!, ip, { dns: r, meta, agora: 0 })).toBe("sim");
+    // Googlebot do mesmo IP não herda o sim do bingbot.
+    expect(await confirmarRobo(roboDeclarado("Googlebot")!, ip, { dns: r, meta, agora: 0 })).toBe("nao");
+    expect(consultas).toBe(2);
+    expect(await confirmarRobo(roboDeclarado("Facebot")!, ip, { dns: r, meta, agora: 0 })).toBe("sim");
   });
 
   it("robo desconhecido nao se confirma", async () => {
@@ -342,6 +415,6 @@ describe("confirmarRobo", () => {
         meta,
         agora: 0,
       }),
-    ).toBe(false);
+    ).toBe("nao");
   });
 });

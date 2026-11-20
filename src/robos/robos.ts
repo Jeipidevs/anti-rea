@@ -1,5 +1,7 @@
 import { verificarPorDns, type Resolvedor } from "./dns.js";
-import { normalizarIp, type FaixasMeta, type Veredito } from "./faixas-meta.js";
+import { normalizarIp, type Confirmacao, type FaixasMeta } from "./faixas-meta.js";
+
+export type { Confirmacao } from "./faixas-meta.js";
 
 // Classifica o robô que o agente declara e confirma pelo endereço de onde ele vem.
 
@@ -15,12 +17,14 @@ const TABELA: Linha[] = [
   {
     classe: "busca",
     nomes: ["Googlebot", "Google-InspectionTool", "AdsBot-Google", "Mediapartners-Google"],
-    sufixos: [".googlebot.com", ".google.com", ".googleusercontent.com"],
+    // Sem .googleusercontent.com: esse sufixo é de qualquer VM do Google Cloud.
+    sufixos: [".googlebot.com", ".google.com"],
   },
   { classe: "busca", nomes: ["bingbot", "AdIdxBot"], sufixos: [".search.msn.com"] },
   { classe: "busca", nomes: ["Applebot"], sufixos: [".applebot.apple.com"] },
-  { classe: "busca", nomes: ["DuckDuckBot"], sufixos: [".duckduckgo.com"] },
   // Prévia de link não se confirma: a do WhatsApp sai do celular de quem manda.
+  // DuckDuckBot fica aqui: o DuckDuckGo não publica sufixo de DNS reverso, então recebe a tela
+  // de verificação com a prévia (nunca a sombra), como as prévias.
   {
     classe: "previa",
     nomes: [
@@ -32,6 +36,7 @@ const TABELA: Linha[] = [
       "Discordbot",
       "SkypeUriPreview",
       "Pinterestbot",
+      "DuckDuckBot",
     ],
   },
   { classe: "meta", nomes: ["facebookexternalhit", "meta-externalagent", "meta-externalads", "Facebot"] },
@@ -57,50 +62,52 @@ const VALIDADE_CACHE_MS = 60 * 60_000;
 // Falha passageira fica pouco tempo: evita martelar o DNS sem negar um robô real por 1 hora.
 const VALIDADE_DUVIDA_MS = 60_000;
 const LIMITE_CACHE = 10_000;
-const cache = new Map<string, { confirmado: boolean; ate: number }>();
+const cache = new Map<string, { confirmacao: Confirmacao; ate: number }>();
 
-function guardar(chave: string, veredito: Veredito, agora: number): void {
+function guardar(chave: string, confirmacao: Confirmacao, agora: number): void {
   if (cache.size >= LIMITE_CACHE) {
     for (const [k, v] of cache) if (v.ate <= agora) cache.delete(k);
     // Ainda cheio: sai o mais antigo (o Map guarda a ordem de entrada).
     while (cache.size >= LIMITE_CACHE) cache.delete(cache.keys().next().value!);
   }
-  const validade = veredito === "incerto" ? VALIDADE_DUVIDA_MS : VALIDADE_CACHE_MS;
-  cache.set(chave, { confirmado: veredito === "sim", ate: agora + validade });
+  const validade = confirmacao === "incerto" ? VALIDADE_DUVIDA_MS : VALIDADE_CACHE_MS;
+  cache.set(chave, { confirmacao, ate: agora + validade });
 }
 
 async function verificar(
   robo: Robo,
   ip: string,
   deps: { dns: Resolvedor; meta: FaixasMeta; agora: number },
-): Promise<Veredito> {
-  if (robo.classe === "meta") return deps.meta.verificar(ip, deps.agora);
+): Promise<Confirmacao> {
+  if (robo.classe === "meta") return deps.meta.contem(ip, deps.agora);
   const sufixos = sufixosDe(robo.nome);
   return sufixos ? verificarPorDns(ip, sufixos, deps.dns) : "nao";
 }
 
 /**
  * Confirma que o robô declarado vem mesmo de quem diz ser. Busca: DNS reverso e direto.
- * Meta: faixas do AS32934. Prévia: nunca. Resultado guardado por classe e IP durante 1 hora;
- * falha passageira (tempo esgotado, SERVFAIL, whois fora do ar) também volta false, mas fica
- * guardada só 1 minuto, para a próxima visita do robô perguntar de novo.
+ * Meta: faixas do AS32934. Prévia: sempre "nao".
+ * "nao" só com resposta definitiva (sem nome reverso, sufixo errado, direto para outro IP,
+ * IP fora das faixas carregadas). Falha passageira (tempo esgotado, SERVFAIL, outro erro,
+ * faixas fora do ar ou ainda carregando) é "incerto": na dúvida, o robô passa.
+ * Cache por nome do robô e IP: "sim" e "nao" valem 1 hora, "incerto" só 1 minuto.
  */
 export async function confirmarRobo(
   robo: Robo,
   ip: string,
   deps: { dns: Resolvedor; meta: FaixasMeta; agora: number },
-): Promise<boolean> {
-  if (robo.classe === "previa") return false;
+): Promise<Confirmacao> {
+  if (robo.classe === "previa") return "nao";
   const alvo = normalizarIp(ip);
-  const chave = `${robo.classe}|${alvo}`;
+  const chave = `${robo.nome}|${alvo}`;
   const guardado = cache.get(chave);
-  if (guardado && deps.agora < guardado.ate) return guardado.confirmado;
-  let veredito: Veredito;
+  if (guardado && deps.agora < guardado.ate) return guardado.confirmacao;
+  let confirmacao: Confirmacao;
   try {
-    veredito = await verificar(robo, alvo, deps);
+    confirmacao = await verificar(robo, alvo, deps);
   } catch {
-    veredito = "incerto";
+    confirmacao = "incerto";
   }
-  guardar(chave, veredito, deps.agora);
-  return veredito === "sim";
+  guardar(chave, confirmacao, deps.agora);
+  return confirmacao;
 }

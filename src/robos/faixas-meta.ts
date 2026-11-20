@@ -1,20 +1,26 @@
 import { connect } from "node:net";
 
-// Faixas de endereço da Meta (AS32934), lidas do whois do RADb e guardadas em cache.
-// Aqui também mora a conta de IP (IPv4 e IPv6 viram número) que dns.ts reaproveita.
+// Faixas de endereço da Meta (AS32934): RIPEstat por HTTPS, whois do RADb de reserva,
+// guardadas em cache. Aqui também mora a conta de IP (IPv4 e IPv6 viram número) que dns.ts
+// reaproveita.
 
 export type Endereco = { familia: 4 | 6; valor: bigint };
 
 /**
  * Resultado de uma confirmação. "nao" é resposta definitiva (o nome ou a faixa não batem);
- * "incerto" é falha passageira (tempo esgotado, SERVFAIL, whois fora do ar) e não prova nada.
+ * "incerto" é falha passageira (tempo esgotado, SERVFAIL, faixas fora do ar ou ainda
+ * carregando) e não prova nada.
  */
-export type Veredito = "sim" | "nao" | "incerto";
+export type Confirmacao = "sim" | "nao" | "incerto";
 
 type Faixa = { familia: 4 | 6; base: bigint; mascara: bigint };
 
 const ESPERA_APOS_FALHA_MS = 5 * 60_000;
+const ESPERA_PRIMEIRA_CARGA_MS = 3_000;
 const TEMPO_WHOIS_MS = 15_000;
+const TEMPO_RIPESTAT_MS = 10_000;
+const URL_RIPESTAT =
+  "https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS32934&sourceapp=anti-rea";
 
 function ipv4ParaNumero(texto: string): bigint | null {
   const partes = texto.split(".");
@@ -107,6 +113,48 @@ export function lerFaixasWhois(texto: string): string[] {
   return [...vistas];
 }
 
+/** Campo `data.prefixes[].prefix` da resposta do RIPEstat, sem repetir. Formato estranho vira []. */
+export function lerFaixasRipestat(resposta: unknown): string[] {
+  const prefixos = (resposta as { data?: { prefixes?: unknown } } | null)?.data?.prefixes;
+  if (!Array.isArray(prefixos)) return [];
+  const vistas = new Set<string>();
+  for (const item of prefixos) {
+    const prefixo = (item as { prefix?: unknown } | null)?.prefix;
+    if (typeof prefixo === "string") vistas.add(prefixo);
+  }
+  return [...vistas];
+}
+
+type BuscarHttp = (url: string, init?: { signal?: AbortSignal }) => Promise<Response>;
+
+/** Pede ao RIPEstat (HTTPS, 10 s) os prefixos anunciados pelo AS32934. */
+export async function buscarFaixasMetaPorRipestat(buscarHttp: BuscarHttp = fetch): Promise<string[]> {
+  const resposta = await buscarHttp(URL_RIPESTAT, { signal: AbortSignal.timeout(TEMPO_RIPESTAT_MS) });
+  if (!resposta.ok) throw new Error(`RIPEstat respondeu ${resposta.status}`);
+  return lerFaixasRipestat(await resposta.json());
+}
+
+type Fonte = () => Promise<string[]>;
+
+/**
+ * Faixas da Meta: primeiro o RIPEstat (HTTPS); se ele falhar ou vier vazio, o whois do RADb
+ * (porta 43, que muita VPS bloqueia). As duas falhando, lança o erro da reserva.
+ */
+export async function buscarFaixasMeta(
+  fontes: { principal: Fonte; reserva: Fonte } = {
+    principal: () => buscarFaixasMetaPorRipestat(),
+    reserva: buscarFaixasMetaPorWhois,
+  },
+): Promise<string[]> {
+  try {
+    const faixas = await fontes.principal();
+    if (faixas.length > 0) return faixas;
+  } catch {
+    // Segue para a reserva.
+  }
+  return fontes.reserva();
+}
+
 /** Consulta o RADb (`whois.radb.net:43`) pelas rotas anunciadas pelo AS32934. */
 export function buscarFaixasMetaPorWhois(): Promise<string[]> {
   return new Promise((resolver, rejeitar) => {
@@ -124,6 +172,13 @@ export function buscarFaixasMetaPorWhois(): Promise<string[]> {
   });
 }
 
+/**
+ * Faixas em cache por `validadeMs` (24 h). `aquecer` inicia a carga sem bloquear (chamado na
+ * subida). Sem nenhuma faixa ainda, `contem` espera a carga no máximo `esperaPrimeiraCargaMs`
+ * (3 s); passado isso devolve "incerto" e a carga segue em segundo plano. Vencida a validade,
+ * a renovação corre em segundo plano e as faixas antigas valem até ela terminar. Falha na
+ * busca: "incerto" enquanto não houver faixas, nova tentativa depois de 5 minutos.
+ */
 export class FaixasMeta {
   private faixas: Faixa[] = [];
   private carregadoEm: number | null = null;
@@ -133,15 +188,18 @@ export class FaixasMeta {
   constructor(
     private readonly buscar: () => Promise<string[]>,
     private readonly validadeMs = 86_400_000,
+    private readonly esperaPrimeiraCargaMs = ESPERA_PRIMEIRA_CARGA_MS,
   ) {}
 
-  async contem(ip: string, agora: number): Promise<boolean> {
-    return (await this.verificar(ip, agora)) === "sim";
+  /** Começa a carregar as faixas, se preciso, sem esperar o resultado. */
+  aquecer(agora: number = Date.now()): void {
+    this.iniciarCargaSePreciso(agora);
   }
 
-  /** Como `contem`, mas sem faixas carregadas devolve "incerto" em vez de negar. */
-  async verificar(ip: string, agora: number): Promise<Veredito> {
-    await this.atualizarSePreciso(agora);
+  async contem(ip: string, agora: number): Promise<Confirmacao> {
+    const carga = this.iniciarCargaSePreciso(agora);
+    // Renovação corre em segundo plano com as faixas antigas; só a primeira carga faz esperar.
+    if (carga && this.faixas.length === 0) await this.esperarNoMaximo(carga, this.esperaPrimeiraCargaMs);
     const endereco = lerEndereco(ip);
     if (!endereco) return "nao";
     if (this.faixas.length === 0) return "incerto";
@@ -156,13 +214,23 @@ export class FaixasMeta {
     return this.carregadoEm === null || agora - this.carregadoEm >= this.validadeMs;
   }
 
-  private async atualizarSePreciso(agora: number): Promise<void> {
+  /** A carga em andamento (nova ou já começada), ou null quando as faixas estão em dia. */
+  private iniciarCargaSePreciso(agora: number): Promise<void> | null {
     if (this.emAndamento) return this.emAndamento;
-    if (!this.precisaBuscar(agora)) return;
+    if (!this.precisaBuscar(agora)) return null;
     this.emAndamento = this.carregar(agora).finally(() => {
       this.emAndamento = null;
     });
     return this.emAndamento;
+  }
+
+  private async esperarNoMaximo(carga: Promise<void>, ms: number): Promise<void> {
+    let relogio: NodeJS.Timeout | undefined;
+    const limite = new Promise<void>((resolver) => {
+      relogio = setTimeout(resolver, ms);
+      relogio.unref?.();
+    });
+    await Promise.race([carga, limite]).finally(() => clearTimeout(relogio));
   }
 
   private async carregar(agora: number): Promise<void> {
