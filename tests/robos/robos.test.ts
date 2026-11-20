@@ -57,11 +57,23 @@ describe("roboDeclarado", () => {
     }
   });
 
-  it("primeiro casamento vence, na ordem busca, meta, previa", () => {
+  it("primeiro casamento vence, na ordem busca, previa, meta", () => {
     // "TelegramBot (like TwitterBot)" casa as duas prévias; vale a primeira da tabela.
     expect(roboDeclarado("TelegramBot (like TwitterBot)")?.nome).toBe("TelegramBot");
     // Agente que cita um robô de busca e uma prévia fica com o de busca.
     expect(roboDeclarado("WhatsApp/2 Googlebot/2.1")?.nome).toBe("Googlebot");
+  });
+
+  it("previa do iMessage, que cita facebookexternalhit, fica como previa", () => {
+    // Sai do aparelho de quem manda o link; o IP nunca é da Meta.
+    const imessage =
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) " +
+      "Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0";
+    expect(roboDeclarado(imessage)).toEqual({ nome: "Twitterbot", classe: "previa" });
+    // O robô de verdade da Meta não cita nenhuma prévia e continua meta.
+    expect(
+      roboDeclarado("facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"),
+    ).toEqual({ nome: "facebookexternalhit", classe: "meta" });
   });
 });
 
@@ -234,6 +246,84 @@ describe("confirmarRobo", () => {
     expect(await confirmarRobo(robo, "198.51.100.8", { dns: r, meta, agora: 0 })).toBe(false);
     expect(await confirmarRobo(robo, "198.51.100.8", { dns: r, meta, agora: 10 })).toBe(false);
     expect(consultas).toBe(1);
+  });
+
+  it("tempo esgotado no DNS nao fica 1 hora: o Googlebot real se confirma depois", async () => {
+    let consultas = 0;
+    const r: Resolvedor = {
+      reverso: async () => {
+        consultas++;
+        if (consultas === 1) throw new Error("DNS sem resposta em 2000 ms");
+        return ["crawl-66-249-66-9.googlebot.com"];
+      },
+      direto: async () => ["66.249.66.9"],
+    };
+    const { meta } = faixasFalsas([]);
+    const robo = roboDeclarado("Googlebot/2.1")!;
+    const ip = "66.249.66.9";
+    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 0 })).toBe(false);
+    // Dentro de 1 minuto não pergunta de novo (não martela o DNS).
+    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 59_999 })).toBe(false);
+    expect(consultas).toBe(1);
+    expect(await confirmarRobo(robo, ip, { dns: r, meta, agora: 60_000 })).toBe(true);
+    expect(consultas).toBe(2);
+  });
+
+  it("SERVFAIL no direto tambem e duvida, nao negativo de 1 hora", async () => {
+    let falhar = true;
+    const r: Resolvedor = {
+      reverso: async () => ["crawl-66-249-66-10.googlebot.com"],
+      direto: async () => {
+        if (falhar) throw Object.assign(new Error("queryA ESERVFAIL"), { code: "ESERVFAIL" });
+        return ["66.249.66.10"];
+      },
+    };
+    const { meta } = faixasFalsas([]);
+    const robo = roboDeclarado("Googlebot/2.1")!;
+    expect(await confirmarRobo(robo, "66.249.66.10", { dns: r, meta, agora: 0 })).toBe(false);
+    falhar = false;
+    expect(await confirmarRobo(robo, "66.249.66.10", { dns: r, meta, agora: 120_000 })).toBe(true);
+  });
+
+  it("IP sem nome reverso (ENOTFOUND) e negativo definitivo, guardado 1 hora", async () => {
+    let consultas = 0;
+    const r: Resolvedor = {
+      reverso: async () => {
+        consultas++;
+        throw Object.assign(new Error("getHostByAddr ENOTFOUND"), { code: "ENOTFOUND" });
+      },
+      direto: async () => [],
+    };
+    const { meta } = faixasFalsas([]);
+    const robo = roboDeclarado("Googlebot/2.1")!;
+    expect(await confirmarRobo(robo, "198.51.100.11", { dns: r, meta, agora: 0 })).toBe(false);
+    expect(await confirmarRobo(robo, "198.51.100.11", { dns: r, meta, agora: 3_599_999 })).toBe(false);
+    expect(consultas).toBe(1);
+  });
+
+  it("whois fora do ar no boot nao deixa o robo da Meta negado por 1 hora", async () => {
+    let chamadas = 0;
+    const meta = new FaixasMeta(async () => {
+      chamadas++;
+      if (chamadas === 1) throw new Error("whois do RADb não respondeu a tempo");
+      return ["31.13.24.0/21"];
+    });
+    const robo = roboDeclarado("facebookexternalhit/1.1")!;
+    const ip = "31.13.24.77";
+    expect(await confirmarRobo(robo, ip, { dns: dnsGoogle, meta, agora: 0 })).toBe(false);
+    // FaixasMeta tenta de novo depois de 5 minutos; a confirmação acompanha.
+    expect(await confirmarRobo(robo, ip, { dns: dnsGoogle, meta, agora: 6 * 60_000 })).toBe(true);
+    expect(chamadas).toBe(2);
+  });
+
+  it("faixas carregadas e IP de fora e negativo definitivo", async () => {
+    const { meta, chamadas } = faixasFalsas(["31.13.24.0/21"]);
+    const robo = roboDeclarado("facebookexternalhit/1.1")!;
+    expect(await confirmarRobo(robo, "203.0.113.21", { dns: dnsGoogle, meta, agora: 0 })).toBe(false);
+    expect(await confirmarRobo(robo, "203.0.113.21", { dns: dnsGoogle, meta, agora: 3_599_999 })).toBe(
+      false,
+    );
+    expect(chamadas()).toBe(1);
   });
 
   it("o cache separa classes no mesmo IP", async () => {

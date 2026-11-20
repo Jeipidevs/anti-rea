@@ -5,6 +5,12 @@ import { connect } from "node:net";
 
 export type Endereco = { familia: 4 | 6; valor: bigint };
 
+/**
+ * Resultado de uma confirmação. "nao" é resposta definitiva (o nome ou a faixa não batem);
+ * "incerto" é falha passageira (tempo esgotado, SERVFAIL, whois fora do ar) e não prova nada.
+ */
+export type Veredito = "sim" | "nao" | "incerto";
+
 type Faixa = { familia: 4 | 6; base: bigint; mascara: bigint };
 
 const ESPERA_APOS_FALHA_MS = 5 * 60_000;
@@ -130,12 +136,19 @@ export class FaixasMeta {
   ) {}
 
   async contem(ip: string, agora: number): Promise<boolean> {
+    return (await this.verificar(ip, agora)) === "sim";
+  }
+
+  /** Como `contem`, mas sem faixas carregadas devolve "incerto" em vez de negar. */
+  async verificar(ip: string, agora: number): Promise<Veredito> {
     await this.atualizarSePreciso(agora);
     const endereco = lerEndereco(ip);
-    if (!endereco) return false;
-    return this.faixas.some(
+    if (!endereco) return "nao";
+    if (this.faixas.length === 0) return "incerto";
+    const dentro = this.faixas.some(
       (f) => f.familia === endereco.familia && (endereco.valor & f.mascara) === f.base,
     );
+    return dentro ? "sim" : "nao";
   }
 
   private precisaBuscar(agora: number): boolean {

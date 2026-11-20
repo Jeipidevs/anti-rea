@@ -55,6 +55,22 @@ describe("criarResolvedorDns", () => {
     expect(await confirmarPorDns("66.249.66.1", [".googlebot.com"], r)).toBe(false);
   });
 
+  it("direto sem endereco nas duas familias da erro definitivo (ENODATA)", async () => {
+    const r = criarResolvedorDns({ base: baseFalsa({}) });
+    await expect(r.direto("crawl.googlebot.com")).rejects.toMatchObject({ code: "ENODATA" });
+  });
+
+  it("direto com falha passageira numa familia repassa essa falha", async () => {
+    const r = criarResolvedorDns({
+      base: baseFalsa({
+        resolve4: async () => {
+          throw Object.assign(new Error("queryA ETIMEOUT"), { code: "ETIMEOUT" });
+        },
+      }),
+    });
+    await expect(r.direto("crawl.googlebot.com")).rejects.toMatchObject({ code: "ETIMEOUT" });
+  });
+
   it("usa node:dns/promises por padrao sem quebrar com IP invalido", async () => {
     const r = criarResolvedorDns();
     expect(await confirmarPorDns("nao-e-ip", [".googlebot.com"], r)).toBe(false);
