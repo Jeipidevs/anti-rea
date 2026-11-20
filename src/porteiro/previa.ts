@@ -1,8 +1,13 @@
+import type { OutgoingHttpHeaders } from "node:http";
 import type { Previa } from "../deteccao/navegador/desafio.js";
+import { descompressor, ehHtml } from "./injecao.js";
+import type { Destino } from "./repasse.js";
 
 // Prévia do site (título, descrição, imagem) para a tela de verificação: quem manda o link no
 // WhatsApp ou no Telegram vê o cartão do site, mesmo antes de passar pela verificação.
 
+const TEMPO_PREVIA_MS = 5_000;
+const MAX_PREVIA = 512 * 1024;
 const MAX_TEXTO = 300;
 const MAX_IMAGEM = 2_000;
 const VALIDADE_MS = 10 * 60_000;
@@ -84,4 +89,66 @@ export class CachePrevia {
     this.guardadas.set(caminho, { previa, ate: agora + VALIDADE_MS });
     return previa;
   }
+}
+
+function decodificar(bytes: Buffer, contentType: string): string {
+  const charset = /charset\s*=\s*"?([^";\s]+)/i.exec(contentType)?.[1] ?? "utf-8";
+  try {
+    return new TextDecoder(charset).decode(bytes);
+  } catch {
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+}
+
+/**
+ * HTML do mesmo caminho no site, para a prévia: GET com accept text/html, sem cookie de ninguém,
+ * 5 s no máximo, lê até 512 KB (já descomprimido). Fora de 200 + HTML devolve "".
+ */
+export function buscarHtml(destino: Destino, caminho: string, hostDoSite: string | undefined, sinal: AbortSignal): Promise<string> {
+  return new Promise((resolver, rejeitar) => {
+    const cabecalhos: OutgoingHttpHeaders = { accept: "text/html" };
+    if (hostDoSite) cabecalhos.host = hostDoSite;
+    const pedido = destino.pedir({
+      host: destino.host,
+      port: destino.porta,
+      method: "GET",
+      path: destino.base + caminho,
+      headers: cabecalhos,
+      agent: destino.agente,
+      signal: sinal,
+    });
+    const relogio = setTimeout(() => pedido.destroy(new Error("prévia sem resposta em 5 s")), TEMPO_PREVIA_MS);
+    relogio.unref();
+    const terminar = (erro: Error | null, texto = "") => {
+      clearTimeout(relogio);
+      if (erro) rejeitar(erro);
+      else resolver(texto);
+    };
+    pedido.on("error", (erro) => terminar(erro));
+    pedido.on("response", (resposta) => {
+      const tipo = String(resposta.headers["content-type"] ?? "");
+      const abrir = descompressor(resposta.headers["content-encoding"]);
+      if (resposta.statusCode !== 200 || !ehHtml(resposta) || abrir === undefined) {
+        resposta.resume();
+        terminar(null);
+        return;
+      }
+      const partes: Buffer[] = [];
+      let total = 0;
+      resposta.on("error", (erro) => terminar(erro));
+      const fonte = abrir ? resposta.pipe(abrir) : resposta;
+      abrir?.on("error", (erro) => terminar(erro));
+      fonte.on("data", (pedaco: Buffer) => {
+        if (total >= MAX_PREVIA) return;
+        partes.push(pedaco);
+        total += pedaco.length;
+        if (total >= MAX_PREVIA) {
+          terminar(null, decodificar(Buffer.concat(partes).subarray(0, MAX_PREVIA), tipo));
+          pedido.destroy();
+        }
+      });
+      fonte.on("end", () => terminar(null, decodificar(Buffer.concat(partes), tipo)));
+    });
+    pedido.end();
+  });
 }

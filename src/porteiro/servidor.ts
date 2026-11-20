@@ -24,8 +24,8 @@ import {
   passeDoPedido,
 } from "./passes.js";
 import { caminhoAmbiguo, caminhoDoAlvo, caminhoDoPorteiro, dominioDoHost, normalizarCaminho } from "./pedido.js";
-import { CachePrevia } from "./previa.js";
-import { buscarHtml, criarDestino, recusarUpgrade, repassarPedido, repassarUpgrade } from "./repasse.js";
+import { buscarHtml, CachePrevia } from "./previa.js";
+import { criarDestino, recusarUpgrade, repassarPedido, repassarUpgrade } from "./repasse.js";
 import { enviar, responderDesafio, responderRecusa, responderSombra, responderTexto } from "./respostas.js";
 import { rotaGuarda, rotaPego, rotaVerificar, type ContextoRota } from "./rotas.js";
 import { agendarTarefas } from "./tarefas.js";

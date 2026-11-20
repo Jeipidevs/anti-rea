@@ -25,6 +25,11 @@ que o visitante mandar (`X-Real-IP`, `True-Client-IP`, `X-Client-IP`, `X-Forward
 `X-Forwarded-Prefix`, `X-Forwarded-Server`, `X-Original-URL`, `X-Rewrite-URL` e `Forwarded`) não chegam
 ao site. O `CF-Connecting-IP` só segue com `trustProxy: cloudflare`.
 
+A página HTML que o site manda comprimida (gzip, deflate ou br) chega comprimida ao visitante: o
+porteiro abre a página, põe a guarda e comprime de novo do mesmo jeito (o br com qualidade 4),
+pedaço por pedaço, sem esperar a página inteira. O `Content-Encoding` e o `Vary` do site ficam como
+vieram.
+
 Com `true` ou `cloudflare`, a porta do porteiro só pode ser alcançada pelo proxy, e com a Cloudflare o
 servidor só aceita conexões dos endereços dela. Se não, qualquer um escolhe o próprio IP com um
 cabeçalho. Veja [Instalar](02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).

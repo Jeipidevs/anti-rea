@@ -122,23 +122,7 @@ describe("porteiro: primeira visita e verificação", () => {
 });
 
 describe("porteiro: repasse", () => {
-  it("HTML em br chega descomprimido e com guarda", async () => {
-    const t = await montar();
-    const passe = await t.passe();
-    const r3 = await t.get("/comprimido", { accept: HTML, cookie: passe, "accept-encoding": "br" });
-    expect(r3.status).toBe(200);
-    expect(r3.headers["content-encoding"]).toBeUndefined();
-    expect(r3.texto).toContain(GUARDA);
-    expect(r3.texto).toContain("Olá do site real");
-  });
-
-  it("HTML em gzip também", async () => {
-    const t = await montar();
-    const passe = await t.passe();
-    const r = await t.get("/gzip", { accept: HTML, cookie: passe, "accept-encoding": "gzip" });
-    expect(r.headers["content-encoding"]).toBeUndefined();
-    expect(r.texto).toContain(`${GUARDA}</head>`);
-  });
+  // HTML comprimido pelo site: servidor-compressao.test.ts.
 
   it("sem </head>, a guarda entra no início do body", async () => {
     const t = await montar();

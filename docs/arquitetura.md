@@ -17,7 +17,8 @@ própria aqui.
    verificação para a navegação e para o pedido sem formato a caminho sem extensão; mídia passa; o
    resto leva 403).
 3. Conforme a decisão, o servidor **repassa** ao site (`porteiro/repasse.ts`, com a guarda posta no
-   HTML por `porteiro/injecao.ts`), mostra a **tela de verificação**, a **página sombra** ou recusa.
+   HTML por `porteiro/injecao.ts`, que devolve a página na compressão que o site usou), mostra a
+   **tela de verificação**, a **página sombra** ou recusa.
 4. Quem foi pego vira um **evento** no registro e, se for tentativa de cópia ou ataque, um **aviso**.
 
 ## Peças
@@ -32,9 +33,11 @@ src/
     ip.ts                IP real do visitante (trustProxy), HTTPS e IP interno
     passes.ts            cookies do porteiro: passe de visitante, passe de dono, marca de pego
     rotas.ts             rotas internas: /.anti-rea/verificar, /.anti-rea/pego e /.anti-rea/guarda.js
-    repasse.ts           repasse ao site em fluxo, WebSocket e busca da prévia
-    injecao.ts           põe o script da guarda no HTML do site
-    previa.ts            título, descrição e imagem da página para a tela de verificação
+    repasse.ts           repasse ao site em fluxo e WebSocket
+    injecao.ts           põe o script da guarda no HTML do site; abre e comprime de novo o HTML
+                         comprimido pelo site (gzip, deflate, br)
+    previa.ts            busca no site o título, a descrição e a imagem da página para a tela de
+                         verificação, com cache
     respostas.ts         respostas prontas: sombra, tela de verificação, recusa, site fora do ar
     tarefas.ts           tarefas de tempo em tempo: retenção do registro, avisos agrupados, resumo do dia
   deteccao/

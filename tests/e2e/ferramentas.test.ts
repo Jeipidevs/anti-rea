@@ -12,6 +12,7 @@ import http from "node:http";
 import { tmpdir } from "node:os";
 import { delimiter, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { brotliCompressSync, deflateSync, gzipSync } from "node:zlib";
 import { chromium, type Browser, type BrowserContextOptions, type LaunchOptions } from "playwright";
 import { afterEach, describe, expect, it, type TestContext } from "vitest";
 import { Avisos, type Canal } from "../../src/avisos/avisos.js";
@@ -95,11 +96,19 @@ const TIPOS: Record<string, string> = {
   ".png": "image/png",
 };
 
-type Site = { porta: number; pedidos: string[]; fechar(): Promise<void> };
+type Site = { porta: number; pedidos: string[]; comprimidos: string[]; fechar(): Promise<void> };
 
-/** Servidor estático da pasta site-exemplo: "/" é index.html e "/sobre" é sobre.html. */
-async function subirSite(): Promise<Site> {
+/** Codificação com que o site de exemplo comprime o HTML, como um site de verdade atrás do porteiro. */
+type Codificacao = "br" | "gzip" | "deflate";
+const COMPRIMIR: Record<Codificacao, (b: Buffer) => Buffer> = { br: brotliCompressSync, gzip: gzipSync, deflate: deflateSync };
+
+/**
+ * Servidor estático da pasta site-exemplo: "/" é index.html e "/sobre" é sobre.html. Com
+ * `codificacao`, o HTML sai comprimido nela quando o pedido aceita (e o caminho entra em `comprimidos`).
+ */
+async function subirSite(codificacao?: Codificacao): Promise<Site> {
   const pedidos: string[] = [];
+  const comprimidos: string[] = [];
   const servidor = http.createServer((req, res) => {
     const caminho = new URL(req.url ?? "/", "http://site").pathname;
     pedidos.push(caminho);
@@ -110,13 +119,21 @@ async function subirSite(): Promise<Site> {
       res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
       return res.end("não achei");
     }
-    res.writeHead(200, { "content-type": TIPOS[extname(arquivo)] ?? "application/octet-stream" });
+    const tipo = TIPOS[extname(arquivo)] ?? "application/octet-stream";
+    const aceita = String(req.headers["accept-encoding"] ?? "").split(",").map((c) => c.split(";")[0]!.trim());
+    if (codificacao && extname(arquivo) === ".html" && aceita.includes(codificacao)) {
+      comprimidos.push(caminho);
+      res.writeHead(200, { "content-type": tipo, "content-encoding": codificacao, vary: "Accept-Encoding" });
+      return res.end(COMPRIMIR[codificacao](readFileSync(arquivo)));
+    }
+    res.writeHead(200, { "content-type": tipo });
     res.end(readFileSync(arquivo));
   });
   await new Promise<void>((ok) => servidor.listen(0, "127.0.0.1", ok));
   return {
     porta: (servidor.address() as { port: number }).port,
     pedidos,
+    comprimidos,
     fechar: () =>
       new Promise<void>((ok) => {
         servidor.close(() => ok());
@@ -126,9 +143,10 @@ async function subirSite(): Promise<Site> {
 }
 
 const limpezas: Array<() => Promise<void>> = [];
-afterEach(async () => {
+async function limpar(): Promise<void> {
   while (limpezas.length > 0) await limpezas.pop()!();
-}, 30_000);
+}
+afterEach(limpar, 30_000);
 
 /** Pasta temporária apagada no fim do caso. */
 function pastaTemporaria(prefixo: string): string {
@@ -138,8 +156,8 @@ function pastaTemporaria(prefixo: string): string {
 }
 
 /** Site de exemplo com o porteiro na frente, registro em pasta temporária e um canal de aviso de teste. */
-async function montar() {
-  const site = await subirSite();
+async function montar(codificacao?: Codificacao) {
+  const site = await subirSite(codificacao);
   const cfg = validarConfig({ upstream: `http://127.0.0.1:${site.porta}`, domains: ["seusite.com.br"] });
   const pasta = pastaTemporaria("anti-rea-e2e-registro-");
   const registro = new Registro(pasta, 30 * 86_400_000);
@@ -356,6 +374,19 @@ describe("visitante com passe", () => {
     expect(t.site.pedidos).not.toContain("/app.js.map");
     await conferirPego(t, { caminho: "/app.js.map", motivo: "mapa de código", gravidade: "copia", destino: "sombra" });
   }, 60_000);
+
+  it.skipIf(!CHROME_DO_SISTEMA)("Chrome do sistema abre a página que o site comprime (br, gzip e deflate): o porteiro devolve comprimida, com a guarda", async () => {
+    for (const cod of ["br", "gzip", "deflate"] as const) {
+      const t = await montar(cod);
+      // Volta quando o Chrome pede o app.js: ele abriu e leu a página real que o porteiro recomprimiu.
+      await abrirChromeDoSistema(t, false);
+      expect(t.site.comprimidos, cod).toContain("/");
+      expect(t.eventos(), cod).toEqual([]);
+      const r = await pedir(t.porta, "/", { headers: { accept: HTML, cookie: await passeLegitimo(t), "accept-encoding": cod } });
+      expect(r.headers["content-encoding"], cod).toBe(cod);
+      await limpar();
+    }
+  }, 90_000);
 
   it.skipIf(!CHROME_DO_SISTEMA)("Chrome do sistema sem automação passa pela verificação e recebe o site real", async () => {
     const t = await montar();

@@ -1,11 +1,11 @@
 import http, { type ClientRequest, type IncomingMessage, type OutgoingHttpHeaders, type ServerResponse } from "node:http";
 import https from "node:https";
 import { pipeline, type Duplex } from "node:stream";
-import { aceitaSoConhecidas, descompressor, InjetorGuarda } from "./injecao.js";
+import { aceitaSoConhecidas, compressor, descompressor, ehHtml, InjetorGuarda } from "./injecao.js";
 import { cookiesParaOSite } from "./passes.js";
 import { responderIndisponivel } from "./respostas.js";
 
-// Repasse ao site real: pedido e resposta em fluxo, HTML com a guarda, WebSocket e a busca da prévia.
+// Repasse ao site real: pedido e resposta em fluxo, HTML com a guarda e WebSocket.
 
 /** O site real, fixo pela configuração (`upstream`): nada do visitante escolhe para onde o porteiro liga. */
 export type Destino = {
@@ -22,9 +22,6 @@ export type Destino = {
  * "cloudflare", o único modo em que o CF-Connecting-IP do pedido é da Cloudflare e segue para o site.
  */
 export type Origem = { caminho: string; ip: string; https: boolean; cloudflare: boolean };
-
-const TEMPO_PREVIA_MS = 5_000;
-const MAX_PREVIA = 512 * 1024;
 
 // Cabeçalhos de salto (RFC 9110): valem só entre dois pontos e nunca são repassados.
 const SALTO = new Set([
@@ -158,11 +155,10 @@ function cabecalhosParaOVisitante(resposta: IncomingMessage, opcoes: OpcoesRepas
   return saida;
 }
 
-function ehHtml(resposta: IncomingMessage): boolean {
-  return /^\s*text\/html\b/i.test(String(resposta.headers["content-type"] ?? ""));
-}
-
-/** Manda a resposta do site ao visitante, em fluxo; HTML que leva guarda passa pelo injetor. */
+/**
+ * Manda a resposta do site ao visitante, em fluxo. HTML que leva guarda é aberto, passa pelo injetor e
+ * volta comprimido do jeito que o site mandou.
+ */
 function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boolean, opcoes: OpcoesRepasse): void {
   if (res.destroyed) {
     resposta.destroy();
@@ -188,10 +184,13 @@ function entregar(resposta: IncomingMessage, res: ServerResponse, injetar: boole
     if (erro && !res.writableFinished) res.destroy();
   };
   if (podeInjetar && abrir !== undefined) {
-    delete cabecalhos["content-encoding"];
+    // O HTML aberto volta comprimido na mesma codificação do site (o Content-Encoding e o Vary dele
+    // ficam): sem isso a página ia aberta, várias vezes maior, a quem não tem outro proxy que comprima.
+    const fechar = abrir ? compressor(resposta.headers["content-encoding"]) : null;
+    if (!fechar) delete cabecalhos["content-encoding"];
     delete cabecalhos["content-length"];
     res.writeHead(status, resposta.statusMessage, cabecalhos);
-    const etapas = abrir ? [resposta, abrir, new InjetorGuarda(), res] : [resposta, new InjetorGuarda(), res];
+    const etapas = [resposta, ...(abrir ? [abrir] : []), new InjetorGuarda(), ...(fechar ? [fechar] : []), res];
     pipeline(etapas, aoTerminar);
     return;
   }
@@ -327,66 +326,4 @@ export function repassarUpgrade(
     if (!ligado) recusarUpgrade(socket, "502 Bad Gateway");
   });
   pedidoSite.end();
-}
-
-function decodificar(bytes: Buffer, contentType: string): string {
-  const charset = /charset\s*=\s*"?([^";\s]+)/i.exec(contentType)?.[1] ?? "utf-8";
-  try {
-    return new TextDecoder(charset).decode(bytes);
-  } catch {
-    return new TextDecoder("utf-8").decode(bytes);
-  }
-}
-
-/**
- * HTML do mesmo caminho no site, para a prévia: GET com accept text/html, sem cookie de ninguém,
- * 5 s no máximo, lê até 512 KB (já descomprimido). Fora de 200 + HTML devolve "".
- */
-export function buscarHtml(destino: Destino, caminho: string, hostDoSite: string | undefined, sinal: AbortSignal): Promise<string> {
-  return new Promise((resolver, rejeitar) => {
-    const cabecalhos: OutgoingHttpHeaders = { accept: "text/html" };
-    if (hostDoSite) cabecalhos.host = hostDoSite;
-    const pedido = destino.pedir({
-      host: destino.host,
-      port: destino.porta,
-      method: "GET",
-      path: destino.base + caminho,
-      headers: cabecalhos,
-      agent: destino.agente,
-      signal: sinal,
-    });
-    const relogio = setTimeout(() => pedido.destroy(new Error("prévia sem resposta em 5 s")), TEMPO_PREVIA_MS);
-    relogio.unref();
-    const terminar = (erro: Error | null, texto = "") => {
-      clearTimeout(relogio);
-      if (erro) rejeitar(erro);
-      else resolver(texto);
-    };
-    pedido.on("error", (erro) => terminar(erro));
-    pedido.on("response", (resposta) => {
-      const tipo = String(resposta.headers["content-type"] ?? "");
-      const abrir = descompressor(resposta.headers["content-encoding"]);
-      if (resposta.statusCode !== 200 || !ehHtml(resposta) || abrir === undefined) {
-        resposta.resume();
-        terminar(null);
-        return;
-      }
-      const partes: Buffer[] = [];
-      let total = 0;
-      resposta.on("error", (erro) => terminar(erro));
-      const fonte = abrir ? resposta.pipe(abrir) : resposta;
-      abrir?.on("error", (erro) => terminar(erro));
-      fonte.on("data", (pedaco: Buffer) => {
-        if (total >= MAX_PREVIA) return;
-        partes.push(pedaco);
-        total += pedaco.length;
-        if (total >= MAX_PREVIA) {
-          terminar(null, decodificar(Buffer.concat(partes).subarray(0, MAX_PREVIA), tipo));
-          pedido.destroy();
-        }
-      });
-      fonte.on("end", () => terminar(null, decodificar(Buffer.concat(partes), tipo)));
-    });
-    pedido.end();
-  });
 }

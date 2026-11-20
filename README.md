@@ -228,7 +228,8 @@ tem como ser conferido e vê só essa prévia. Veja [Robôs oficiais](docs/08-ro
 <summary><b>Meu site fica mais lento?</b></summary>
 
 Só a primeira visita tem a verificação, de menos de um segundo. Depois disso o visitante navega com
-um passe e não sente diferença.
+um passe e não sente diferença. A página que o seu site manda comprimida (gzip, deflate ou br)
+continua comprimida, com a guarda.
 </details>
 
 <details>

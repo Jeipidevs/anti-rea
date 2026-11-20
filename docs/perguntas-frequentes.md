@@ -61,7 +61,9 @@ tem como ser conferido, e aceitar o nome dele deixaria qualquer copiador entrar 
 DuckDuckBot. Ele recebe a tela de verificação com a prévia, nunca a sombra, e indexa só essa prévia.
 
 **Deixa o site lento?**
-Só a primeira visita tem a verificação de menos de 1 segundo.
+Só a primeira visita tem a verificação de menos de 1 segundo. A página que o seu site manda
+comprimida (gzip, deflate ou br) continua comprimida: o porteiro põe a guarda e comprime de novo, em
+fluxo.
 
 **Funciona com WordPress? E com site estático?**
 Sim, mas o WordPress pede alguns caminhos isentos: as tarefas agendadas (`/wp-cron.php`), a API

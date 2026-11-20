@@ -1,3 +1,4 @@
+import type { IncomingMessage } from "node:http";
 import { Transform, type TransformCallback } from "node:stream";
 import zlib from "node:zlib";
 
@@ -61,6 +62,11 @@ export class InjetorGuarda extends Transform {
   }
 }
 
+/** A resposta do site é uma página HTML (pelo Content-Type). */
+export function ehHtml(resposta: IncomingMessage): boolean {
+  return /^\s*text\/html\b/i.test(String(resposta.headers["content-type"] ?? ""));
+}
+
 /** Codificações de conteúdo que o porteiro sabe abrir para injetar a guarda. */
 export const CODIFICACOES_CONHECIDAS = new Set(["gzip", "x-gzip", "deflate", "br", "identity"]);
 
@@ -85,6 +91,29 @@ export function descompressor(contentEncoding: string | undefined): Transform | 
       return zlib.createBrotliDecompress({ flush: z.BROTLI_OPERATION_FLUSH, finishFlush: z.BROTLI_OPERATION_FLUSH });
     default:
       return undefined;
+  }
+}
+
+/** Qualidade do brotli na recompressão: perto do gzip em CPU, comprimindo mais que ele. */
+export const QUALIDADE_BR = 4;
+
+/**
+ * Compressor para devolver o HTML com a guarda na mesma codificação que o site usou: gzip (também
+ * para x-gzip), deflate ou br com qualidade QUALIDADE_BR. Cada pedaço sai com flush, para a página
+ * continuar chegando em fluxo. null para identity, sem codificação ou codificação desconhecida.
+ */
+export function compressor(contentEncoding: string | undefined): Transform | null {
+  const z = zlib.constants;
+  switch ((contentEncoding ?? "").trim().toLowerCase()) {
+    case "gzip":
+    case "x-gzip":
+      return zlib.createGzip({ flush: z.Z_SYNC_FLUSH });
+    case "deflate":
+      return zlib.createDeflate({ flush: z.Z_SYNC_FLUSH });
+    case "br":
+      return zlib.createBrotliCompress({ flush: z.BROTLI_OPERATION_FLUSH, params: { [z.BROTLI_PARAM_QUALITY]: QUALIDADE_BR } });
+    default:
+      return null;
   }
 }
 

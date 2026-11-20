@@ -4,7 +4,7 @@ import http from "node:http";
 import type { Duplex } from "node:stream";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { brotliCompressSync, gzipSync } from "node:zlib";
+import zlib, { brotliCompressSync, deflateSync, gzipSync } from "node:zlib";
 import { expect } from "vitest";
 import { Avisos, type Canal } from "../../src/avisos/avisos.js";
 import { validarConfig } from "../../src/config/carregar.js";
@@ -85,9 +85,34 @@ export async function esperar(condicao: () => boolean, ms = 3_000): Promise<void
 
 type Recebido = { metodo: string; url: string; headers: http.IncomingHttpHeaders; bytes: number };
 
+/** Compressão do site de teste para cada Content-Encoding (x-gzip é gzip com outro nome). */
+export const COMPRIMIR: Record<string, (b: Buffer) => Buffer> = {
+  gzip: (b) => gzipSync(b),
+  "x-gzip": (b) => gzipSync(b),
+  deflate: (b) => deflateSync(b),
+  br: (b) => brotliCompressSync(b),
+};
+
+/** Descompressão do lado do visitante, para conferir o que o porteiro entregou. */
+export function abrirCorpo(codificacao: string | undefined, corpo: Buffer): string {
+  if (codificacao === "gzip" || codificacao === "x-gzip") return zlib.gunzipSync(corpo).toString("utf8");
+  if (codificacao === "deflate") return zlib.inflateSync(corpo).toString("utf8");
+  if (codificacao === "br") return zlib.brotliDecompressSync(corpo).toString("utf8");
+  return corpo.toString("utf8");
+}
+
+/** Compressor em fluxo do site de teste. */
+function compressorDoSite(cod: string): zlib.Gzip | zlib.Deflate | zlib.BrotliCompress {
+  if (cod === "br") return zlib.createBrotliCompress();
+  if (cod === "deflate") return zlib.createDeflate();
+  return zlib.createGzip();
+}
+
 async function subirSite() {
   const recebidos: Recebido[] = [];
   const progresso = { bytes: 0 };
+  /** /fluxo deixa a página pela metade até o teste chamar `soltar`. */
+  const fluxo = { soltar: () => {} };
   const tuneis = new Set<Duplex>();
   const servidor = http.createServer((req, res) => {
     const registro: Recebido = { metodo: req.method!, url: req.url!, headers: req.headers, bytes: 0 };
@@ -101,7 +126,8 @@ async function subirSite() {
       const html = { ...comum, "content-type": "text/html; charset=utf-8" };
       // Roteia como os roteadores baseados em WHATWG URL (Hono, Bun, Deno): resolve "." e ".." sem
       // decodificar %2F. É o caso em que o caminho do site e o do porteiro podiam divergir.
-      switch (new URL(req.url!, "http://site").pathname) {
+      const url = new URL(req.url!, "http://site");
+      switch (url.pathname) {
         case "/":
         case "/pagina":
           res.writeHead(200, { ...html, "set-cookie": "sessao=abc; Path=/" });
@@ -113,9 +139,23 @@ async function subirSite() {
           }
           res.writeHead(200, html);
           return res.end(PAGINA);
-        case "/gzip":
-          res.writeHead(200, { ...html, "content-encoding": "gzip" });
-          return res.end(gzipSync(Buffer.from(PAGINA)));
+        case "/codificado": {
+          // A página na codificação pedida pelo teste (?cod=gzip, x-gzip, deflate ou br).
+          const cod = url.searchParams.get("cod") ?? "gzip";
+          res.writeHead(200, { ...html, "content-encoding": cod, vary: "Accept-Encoding" });
+          return res.end(COMPRIMIR[cod]!(Buffer.from(PAGINA)));
+        }
+        case "/fluxo": {
+          // Comprimida em fluxo: manda o começo (com </head>), dá flush e espera o teste soltar o resto.
+          const cod = url.searchParams.get("cod") ?? "gzip";
+          const z = compressorDoSite(cod);
+          res.writeHead(200, { ...html, "content-encoding": cod, vary: "Accept-Encoding" });
+          z.pipe(res);
+          z.write('<!doctype html><html><head><title>Fluxo</title></head><body><p>Primeira parte</p>');
+          z.flush();
+          fluxo.soltar = () => z.end("<p>Segunda parte</p></body></html>");
+          return;
+        }
         case "/sem-head":
           res.writeHead(200, html);
           return res.end('<!doctype html><body class="x"><p>sem cabeça</p></body>');
@@ -174,6 +214,7 @@ async function subirSite() {
     porta: (servidor.address() as { port: number }).port,
     recebidos,
     progresso,
+    fluxo,
     fechar(): Promise<void> {
       fechado ??= new Promise<void>((r) => {
         for (const t of tuneis) t.destroy();
