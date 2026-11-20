@@ -21,7 +21,9 @@ Você precisa de duas coisas:
 npx anti-rea init
 ```
 
-Responda as perguntas. No fim ele cria dois arquivos:
+Responda as perguntas. Uma delas é o que fica na frente do porteiro (nada, um proxy como nginx,
+Traefik, EasyPanel ou Coolify, ou a Cloudflare): é daí que sai o IP de cada visitante, então responda
+com cuidado. No fim ele cria dois arquivos:
 
 - `anti-rea.config.yml`: a configuração, com um comentário em português em cada linha.
 - `.env`: as senhas dos canais de aviso. **Nunca suba esse arquivo para o GitHub.**
@@ -68,6 +70,9 @@ services:
       - ./anti-rea.config.yml:/app/anti-rea.config.yml:ro
       - ./registro:/app/registro
 ```
+
+Com um proxy na frente (`trustProxy` ligado), troque a linha da porta por `"127.0.0.1:8080:8080"`,
+como na seção do [nginx](#com-nginx-na-frente): a porta do porteiro só pode ser alcançada pelo proxy.
 
 O `restart: unless-stopped` religa o porteiro sozinho se ele cair ou se a máquina reiniciar: com ele
 parado, o site fica fora do ar.
@@ -131,8 +136,19 @@ Depois:  internet  ──►  ANTI-REA  ──►  seu site
 
 1. Crie um serviço novo com a imagem `ghcr.io/jeipidevs/anti-rea`.
 2. Em `upstream`, coloque o endereço interno do seu site (o nome do serviço e a porta).
-3. Mova o domínio do serviço do site para o serviço do ANTI-REA.
-4. Abra o site no navegador e confira que carrega normal.
+3. Em `trustProxy`, coloque `true`: o Traefik do painel fica na frente do porteiro e é ele quem informa
+   o IP de cada visitante. Se a Cloudflare também está na frente (nuvem laranja ligada), use
+   `cloudflare` (veja [Atrás da Cloudflare](#atrás-da-cloudflare)).
+4. Não publique a porta 8080 do porteiro (nada em "Portas" ou "Ports"): ligue só o domínio, que o
+   painel entrega pelo Traefik.
+5. Mova o domínio do serviço do site para o serviço do ANTI-REA.
+6. Abra o site no navegador e confira que carrega normal.
+
+> [!WARNING]
+> Sem `trustProxy: true` atrás do painel, todo visitante parece vir do Traefik. O porteiro percebe:
+> não confere os robôs oficiais nem conta o ritmo de pedidos de IP interno, e escreve no log
+> `pedido de IP interno com X-Forwarded-For: ligue trustProxy`. Mas o registro e os avisos ficam
+> com o IP do Traefik no lugar do de quem tentou.
 
 ### Com nginx na frente
 
@@ -149,14 +165,42 @@ location / {
 
 E diga ao ANTI-REA para confiar no IP que o nginx informa (`trustProxy: true` na configuração).
 
+Com `trustProxy: true` o porteiro acredita no `X-Forwarded-For`, então a porta dele só pode ser
+alcançada pelo nginx. No Docker, publique a porta só para a própria máquina:
+
+```yaml
+services:
+  anti-rea:
+    image: ghcr.io/jeipidevs/anti-rea:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file: .env
+    volumes:
+      - ./anti-rea.config.yml:/app/anti-rea.config.yml:ro
+      - ./registro:/app/registro
+```
+
+Sem Docker, feche a porta 8080 no firewall. Com a porta aberta para fora, qualquer um manda um
+`X-Forwarded-For` falso com um IP do Google, se diz Googlebot e recebe o site sem verificação.
+
 ### Atrás da Cloudflare
 
-Funciona. Ligue `trustProxy: cloudflare` para o porteiro ler o IP real no cabeçalho da Cloudflare.
+Funciona. Ligue `trustProxy: cloudflare` para o porteiro ler o IP real no cabeçalho da Cloudflare
+(`CF-Connecting-IP`), inclusive quando há nginx ou Traefik entre a Cloudflare e o porteiro.
+
+Qualquer um pode mandar esse cabeçalho. Por isso o servidor só pode aceitar conexões nas portas 80 e
+443 vindas dos [endereços da Cloudflare](https://www.cloudflare.com/ips/) (no firewall da VPS ou do
+provedor), e a porta do porteiro fica fechada para fora. Sem esse firewall, quem descobre o IP do
+servidor manda o cabeçalho falso e passa por robô oficial.
 
 ## Conferir se deu certo
 
 1. Abra o site num navegador comum. Ele deve carregar normal.
 2. Rode, de outro computador: `curl -A "HTTrack" https://seusite.com.br`. Deve voltar a página sombra.
 3. Confira se o aviso chegou.
+4. Abra o arquivo do dia na pasta `registro/`: o IP do teste precisa ser o do computador de onde você
+   rodou o `curl`. Se aparecer `127.0.0.1`, `10.x`, `172.x` ou `192.168.x`, o `trustProxy` está
+   errado para a sua montagem.
 
 Próximo passo: [Configurar](03-configurar.md).

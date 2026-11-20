@@ -102,14 +102,14 @@ seguir) vai avisar se algo do servidor vazou para ela.
 
 ## Instalar em 3 passos
 
-<img src="assets/telas/assistente.svg" alt="Terminal com o assistente de instalação perguntando endereço do site, domínio, canal de aviso e caminhos isentos" width="100%">
+<img src="assets/telas/assistente.svg" alt="Terminal com o assistente de instalação perguntando endereço do site, domínio, o que fica na frente do porteiro, canal de aviso e caminhos isentos" width="100%">
 
 > [!NOTE]
 > O pacote `anti-rea` ainda não está no npm nem a imagem no GHCR: os dois saem junto com a primeira
 > versão publicada. Até lá, rode a partir deste repositório, como explica [Instalar](docs/02-instalar.md).
 
-**1. Rode o assistente.** Ele pergunta o endereço do seu site e onde você quer os avisos, e escreve
-a configuração sozinho.
+**1. Rode o assistente.** Ele pergunta o endereço do seu site, o que fica na frente dele e onde você
+quer os avisos, e escreve a configuração sozinho.
 
 ```bash
 npx anti-rea init
@@ -147,6 +147,10 @@ dono antes de subir, senão o porteiro sobe mas não consegue guardar as tentati
 mkdir -p registro && sudo chown 1000:1000 registro
 docker compose up -d
 ```
+
+Com um proxy na frente (nginx, Traefik, EasyPanel, Cloudflare), ligue `trustProxy` e deixe a porta do
+porteiro alcançável só pelo proxy (`"127.0.0.1:8080:8080"`). O passo a passo de cada caso está em
+[Instalar](docs/02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).
 
 No Docker, o assistente e o comando `dono` rodam com Node ou pela própria imagem (veja
 [Instalar](docs/02-instalar.md#jeito-2-docker)). Depois de mudar o `.env`, rode `docker compose up -d`:

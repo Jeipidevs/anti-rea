@@ -1,6 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import { describe, expect, it } from "vitest";
-import { ipReal, pedidoHttps } from "../../src/porteiro/ip.js";
+import { ipInterno, ipReal, pedidoHttps } from "../../src/porteiro/ip.js";
 
 function req(socket: string | undefined, headers: Record<string, string | string[]> = {}, encrypted = false): IncomingMessage {
   return { socket: { remoteAddress: socket, encrypted }, headers } as unknown as IncomingMessage;
@@ -53,5 +53,19 @@ describe("pedidoHttps", () => {
     expect(pedidoHttps(req("10.0.0.2", { "x-forwarded-proto": "http, https" }), true)).toBe(true);
     expect(pedidoHttps(req("10.0.0.2", { "x-forwarded-proto": "http" }), "cloudflare")).toBe(false);
     expect(pedidoHttps(req("10.0.0.2", { "x-forwarded-proto": "HTTPS" }), "cloudflare")).toBe(true);
+  });
+});
+
+describe("ipInterno", () => {
+  it("privado, loopback e link-local, em IPv4 e IPv6", () => {
+    for (const ip of ["10.0.0.2", "10.255.255.255", "172.16.0.1", "172.31.255.254", "192.168.1.10", "127.0.0.1", "169.254.1.1", "::1", "fc00::1", "fd12:3456::1", "fe80::1"]) {
+      expect(ipInterno(ip), ip).toBe(true);
+    }
+  });
+
+  it("IP público e texto que não é IP não contam como internos", () => {
+    for (const ip of ["66.249.66.1", "203.0.113.7", "172.15.255.255", "172.32.0.1", "192.169.0.1", "11.0.0.1", "2001:db8::1", "fbff::1", "fec0::1", "", "nao-e-ip"]) {
+      expect(ipInterno(ip), ip).toBe(false);
+    }
   });
 });

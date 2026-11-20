@@ -12,7 +12,7 @@ import { buscarFaixasMeta, FaixasMeta } from "../robos/faixas-meta.js";
 import { confirmarRobo } from "../robos/robos.js";
 import { paginaSombra } from "../sombra/sombra.js";
 import { caminhoIsento, decidir, type Pedido } from "./decidir.js";
-import { ipReal, pedidoHttps } from "./ip.js";
+import { ipReal, pedidoHttps, proxyIgnorado } from "./ip.js";
 import {
   COOKIE_PASSE,
   cookieDoPorteiro,
@@ -71,6 +71,11 @@ function ehWebSocket(upgrade: string | string[] | undefined): boolean {
   return (cabecalhoUnico(upgrade) ?? "").trim().toLowerCase() === "websocket";
 }
 
+const LIGUE_TRUST_PROXY =
+  "[anti-rea] pedido de IP interno com X-Forwarded-For: ligue trustProxy (true atrás de nginx, Traefik, " +
+  "EasyPanel ou Coolify; cloudflare atrás da Cloudflare). Sem ele, todo visitante fica com o IP do proxy. " +
+  "Veja docs/02-instalar.md.\n";
+
 function falhaInterna(erro: unknown): void {
   const motivo = erro instanceof Error ? erro.message : String(erro);
   process.stderr.write(`[anti-rea] erro ao atender um pedido: ${motivo}\n`);
@@ -92,6 +97,14 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
   const guarda = scriptGuarda({ sondarPausa: cfg.check.devtoolsIsCaught });
   const dominios = new Set(cfg.domains.map((d) => d.toLowerCase()));
   const { segredo, versaoDono } = deps;
+  let proxyAvisado = false;
+
+  /** Uma linha no stderr, uma vez só, quando há um proxy na frente e o trustProxy está desligado. */
+  function conferirProxy(req: IncomingMessage): void {
+    if (proxyAvisado || !proxyIgnorado(req, cfg.trustProxy)) return;
+    proxyAvisado = true;
+    process.stderr.write(LIGUE_TRUST_PROXY);
+  }
 
   function gravar(e: Evento, avisar: boolean): void {
     deps.registro.gravar(e);
@@ -155,6 +168,7 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
     const agora = relogio();
     const caminho = caminhoDoAlvo(req.url ?? "");
     if (caminho === null) return responderTexto(res, 400, "Pedido inválido.");
+    conferirProxy(req);
     const p = lerPedido(req, caminho);
     const { https } = p;
     const evento = (sinal: Sinal, destinoEvento: Evento["destino"]) => criarEvento(p, agora, sinal, destinoEvento);

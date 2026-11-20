@@ -9,8 +9,25 @@ página explica cada parte. O exemplo completo está em [`examples/anti-rea.conf
 upstream: http://localhost:3000   # onde o seu site real roda
 domains:
   - seusite.com.br                # um porteiro pode cuidar de vários domínios
-trustProxy: false                 # true se tiver nginx/Traefik na frente; "cloudflare" se usar Cloudflare
+trustProxy: false                 # true atrás de nginx, Traefik, EasyPanel ou Coolify; "cloudflare" atrás da Cloudflare
 ```
+
+O `trustProxy` diz de onde sai o IP de cada visitante:
+
+- `false`: o IP da conexão. Certo quando nada fica na frente do porteiro.
+- `true`: o último item do `X-Forwarded-For`, que o seu proxy (nginx, Traefik, EasyPanel, Coolify)
+  acrescenta.
+- `cloudflare`: o `CF-Connecting-IP`, que a Cloudflare manda.
+
+Com `true` ou `cloudflare`, a porta do porteiro só pode ser alcançada pelo proxy, e com a Cloudflare o
+servidor só aceita conexões dos endereços dela. Se não, qualquer um escolhe o próprio IP com um
+cabeçalho. Veja [Instalar](02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).
+
+Na dúvida, o porteiro deixa passar: pedido de IP interno (`10.x`, `172.16.x` a `172.31.x`,
+`192.168.x`, `127.x`, `169.254.x` e os equivalentes em IPv6) nunca conta para o ritmo de navegação, e
+robô oficial vindo de IP interno não é conferido: passa e fica registrado como "robô não confirmado".
+Quando chega um pedido de IP interno com `X-Forwarded-For` e o `trustProxy` está `false`, o porteiro
+escreve uma vez no log `pedido de IP interno com X-Forwarded-For: ligue trustProxy`.
 
 ## A verificação da primeira visita
 

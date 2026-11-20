@@ -29,7 +29,7 @@ const comoRoot = process.getuid?.() === 0;
 function instalar(canal: "telegram" | "nenhum" = "telegram"): string {
   escreverInstalacao(
     dir,
-    { upstream: "http://localhost:3000", dominio: "seusite.com.br", canal, isentos: [], devtoolsIsCaught: true },
+    { upstream: "http://localhost:3000", dominio: "seusite.com.br", canal, isentos: [], devtoolsIsCaught: true, trustProxy: false },
     () => "s".repeat(43),
   );
   return join(dir, "anti-rea.config.yml");

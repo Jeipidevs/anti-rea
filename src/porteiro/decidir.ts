@@ -5,6 +5,7 @@ import { ferramentaConhecida, type Sinal } from "../deteccao/servidor/ferramenta
 import type { Ritmo } from "../deteccao/servidor/ritmo.js";
 import { codigoDeDono } from "../passe/passe.js";
 import { roboDeclarado, type Confirmacao, type Robo } from "../robos/robos.js";
+import { ipInterno } from "./ip.js";
 import { lerCookies, passeDoPedido, temMarcaPego } from "./passes.js";
 import { caminhoAmbiguo, caminhoLiteral, caminhoPublico, ehMidia, ehNavegacao, normalizarCaminho } from "./pedido.js";
 
@@ -143,7 +144,9 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   const robo = roboDeclarado(p.agente);
   if (robo) {
     if (robo.classe === "previa") return ehMidia(caminho) ? repassar(false) : { acao: "verificar" };
-    const confirmacao = await ctx.confirmarRobo(robo, p.ip);
+    // IP interno: o pedido veio de um proxy que o porteiro não lê (trustProxy desligado), e o IP de
+    // quem pediu se perdeu. Não dá para conferir: na dúvida, passa e fica registrado.
+    const confirmacao = ipInterno(p.ip) ? "incerto" : await ctx.confirmarRobo(robo, p.ip);
     if (confirmacao === "sim") return repassar(false);
     if (confirmacao === "nao") return sombra({ motivo: `robô falso: ${robo.nome}`, gravidade: "copia" });
     // Incerto (DNS ou faixas fora do ar): na dúvida passa, e fica registrado.
@@ -154,9 +157,10 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
     };
   }
 
-  // 8: ritmo de navegação.
+  // 8: ritmo de navegação. IP interno não conta: atrás de um proxy que o porteiro não lê, todo
+  // visitante teria o mesmo IP e o limite valeria para o site inteiro.
   const navegacao = ehNavegacao(p.metodo, p.accept);
-  if (navegacao && ctx.ritmo.registrar(p.ip, ctx.agora)) return sombra(RAPIDO_DEMAIS);
+  if (navegacao && !ipInterno(p.ip) && ctx.ritmo.registrar(p.ip, ctx.agora)) return sombra(RAPIDO_DEMAIS);
 
   // 9 a 11: passe de visitante, primeira visita.
   const guarda = ctx.cfg.check.devtoolsIsCaught;

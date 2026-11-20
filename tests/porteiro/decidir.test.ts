@@ -253,6 +253,19 @@ describe("decidir: robôs declarados", () => {
     );
   });
 
+  it("robô vindo de IP interno (proxy sem trustProxy): não confere, passa e pede registro", async () => {
+    const c = ctx();
+    for (const ip of ["172.18.0.3", "10.0.1.7", "127.0.0.1", "::1"]) {
+      expect(await decidir(pedido({ agente: GOOGLEBOT, ip }), c)).toEqual({
+        acao: "repassar",
+        injetarGuarda: false,
+        registrar: { motivo: "robô não confirmado: Googlebot", gravidade: "copia" },
+      });
+    }
+    expect(await decidir(pedido({ agente: "facebookexternalhit/1.1", ip: "10.0.1.7" }), c)).toMatchObject({ acao: "repassar" });
+    expect(c.robosPerguntados).toEqual([]);
+  });
+
   it("WhatsApp/2.24 em / vai a verificar; imagem de prévia passa", async () => {
     const c = ctx();
     expect(await decidir(pedido({ agente: "WhatsApp/2.24", accept: "*/*" }), c)).toEqual({ acao: "verificar" });
@@ -273,6 +286,13 @@ describe("decidir: ritmo", () => {
     );
     // Outro IP segue livre.
     expect(await decidir(pedido({ cookie: passeVisitante(), ip: "203.0.113.8" }), { ...c, agora: AGORA + 3_200 })).toEqual(repassar(true));
+  });
+
+  it("IP interno nunca conta para o ritmo: atrás de um proxy sem trustProxy, todo visitante teria o mesmo IP", async () => {
+    const c = ctx();
+    for (let i = 0; i < 40; i++) {
+      expect(await decidir(pedido({ cookie: passeVisitante(), ip: "172.18.0.3" }), { ...c, agora: AGORA + i * 10 })).toEqual(repassar(true));
+    }
   });
 
   it("só navegação conta: imagens não gastam o ritmo", async () => {

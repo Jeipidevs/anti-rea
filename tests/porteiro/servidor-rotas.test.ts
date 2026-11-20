@@ -4,7 +4,7 @@ import type { Duplex } from "node:stream";
 import { afterEach, describe, expect, it } from "vitest";
 import { codigoDeDono } from "../../src/passe/passe.js";
 import type { Resolvedor } from "../../src/robos/dns.js";
-import { CHROME, HTML, PAGINA, SEGREDO, SINAIS_LIMPOS, cookieDe, esperar, limparTudo, linhaCookie, montar, pedir } from "./apoio-servidor.js";
+import { CHROME, HTML, IP_GOOGLE, PAGINA, SEGREDO, SINAIS_LIMPOS, cookieDe, esperar, limparTudo, linhaCookie, montar, pedir } from "./apoio-servidor.js";
 
 afterEach(limparTudo);
 
@@ -157,18 +157,26 @@ describe("porteiro: rotas internas só aceitam o próprio site", () => {
 describe("porteiro: robôs oficiais", () => {
   const GOOGLEBOT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 
+  // O porteiro dos testes recebe de 127.0.0.1: o IP do robô chega pelo proxy (trustProxy true).
   it("Googlebot confirmado repassa sem guarda", async () => {
-    const t = await montar();
-    const r = await t.get("/", { "user-agent": GOOGLEBOT, accept: HTML });
+    const t = await montar({ trustProxy: true });
+    const r = await t.get("/", { "user-agent": GOOGLEBOT, accept: HTML, "x-forwarded-for": IP_GOOGLE });
     expect(r.texto).toBe(PAGINA);
     expect(t.eventos()).toEqual([]);
   });
 
   it("bingbot que não confirma vai à sombra como robô falso", async () => {
-    const t = await montar();
-    const r = await t.get("/", { "user-agent": "Mozilla/5.0 (compatible; bingbot/2.0)", accept: HTML });
+    const t = await montar({ trustProxy: true });
+    const r = await t.get("/", { "user-agent": "Mozilla/5.0 (compatible; bingbot/2.0)", accept: HTML, "x-forwarded-for": "203.0.113.9" });
     expect(r.texto).toContain("Pegamos você");
-    expect(t.eventos().at(-1)).toMatchObject({ motivo: "robô falso: bingbot", destino: "sombra" });
+    expect(t.eventos().at(-1)).toMatchObject({ motivo: "robô falso: bingbot", destino: "sombra", ip: "203.0.113.9" });
+  });
+
+  it("atrás de um proxy sem trustProxy (tudo de 127.0.0.1): Googlebot passa e fica só registrado, sem sombra", async () => {
+    const t = await montar();
+    const r = await t.get("/", { "user-agent": GOOGLEBOT, accept: HTML, "x-forwarded-for": IP_GOOGLE });
+    expect(r.texto).toBe(PAGINA);
+    expect(t.eventos().at(-1)).toMatchObject({ motivo: "robô não confirmado: Googlebot", destino: "registrado", ip: "127.0.0.1" });
   });
 
   it("Applebot com DNS fora do ar passa e fica só registrado, sem aviso", async () => {
@@ -178,8 +186,8 @@ describe("porteiro: robôs oficiais", () => {
       },
       direto: async () => [],
     };
-    const t = await montar({}, { dns: semResposta });
-    const r = await t.get("/", { "user-agent": "Mozilla/5.0 (compatible; Applebot/0.1)", accept: HTML });
+    const t = await montar({ trustProxy: true }, { dns: semResposta });
+    const r = await t.get("/", { "user-agent": "Mozilla/5.0 (compatible; Applebot/0.1)", accept: HTML, "x-forwarded-for": "203.0.113.17" });
     expect(r.texto).toBe(PAGINA);
     expect(t.eventos().at(-1)).toMatchObject({ motivo: "robô não confirmado: Applebot", destino: "registrado" });
     await new Promise((x) => setTimeout(x, 30));

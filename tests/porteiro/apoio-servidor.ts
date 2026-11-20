@@ -182,9 +182,12 @@ export async function limparTudo(): Promise<void> {
   while (limpezas.length > 0) await limpezas.pop()!();
 }
 
+/** IP público do Google nos testes: chega pelo X-Forwarded-For, com trustProxy true. */
+export const IP_GOOGLE = "66.249.66.1";
+
 const dnsDoGoogle: Resolvedor = {
-  reverso: async () => ["crawl-127-0-0-1.googlebot.com"],
-  direto: async () => ["127.0.0.1"],
+  reverso: async () => ["crawl-66-249-66-1.googlebot.com"],
+  direto: async () => [IP_GOOGLE],
 };
 
 export async function montar(extra: Record<string, unknown> = {}, opcoes: { dns?: Resolvedor } = {}) {

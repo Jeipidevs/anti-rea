@@ -3,7 +3,7 @@ import { appendFileSync, chmodSync, existsSync, readFileSync, writeFileSync } fr
 import { join } from "node:path";
 import { parse, stringify } from "yaml";
 import { canaisDoAmbiente } from "../avisos/avisos.js";
-import { validarConfig } from "../config/carregar.js";
+import { validarConfig, type Config } from "../config/carregar.js";
 import { linkDeDono } from "./dono.js";
 import { analisarEnv, versaoDoDono } from "./start.js";
 
@@ -13,6 +13,8 @@ export type RespostasInit = {
   canal: "whatsapp" | "telegram" | "webhook" | "nenhum";
   isentos: string[];
   devtoolsIsCaught: boolean;
+  /** O que fica na frente do porteiro: nada (false), proxy ou painel (true) ou Cloudflare. */
+  trustProxy: Config["trustProxy"];
 };
 
 export const ARQUIVO_CONFIG = "anti-rea.config.yml";
@@ -50,7 +52,7 @@ export function textoDaConfig(r: RespostasInit): string {
     comComentario(`upstream: ${escalar(r.upstream)}`, "onde o seu site real roda"),
     "domains:",
     comComentario(`  - ${escalar(r.dominio)}`, "domínios que este porteiro protege"),
-    comComentario("trustProxy: false", 'true atrás de nginx/Traefik; "cloudflare" atrás da Cloudflare'),
+    comComentario(`trustProxy: ${escalar(r.trustProxy)}`, 'true atrás de nginx, Traefik ou painel; "cloudflare" atrás da Cloudflare'),
     "",
     "check:",
     comComentario("  firstVisit: true", "verificação de menos de 1 s na primeira visita"),
@@ -222,13 +224,22 @@ export function lerIsentos(texto: string): string[] {
     .filter((c) => c !== "");
 }
 
-/** As cinco perguntas da tela assets/telas/assistente.svg, nessa ordem. */
+/** As seis perguntas da tela assets/telas/assistente.svg, nessa ordem. */
 export async function perguntar(): Promise<RespostasInit> {
   const { confirm, input, select } = await import("@inquirer/prompts");
   const upstream = await input({ message: "Endereço do seu site?", default: "http://localhost:3000", validate: enderecoValido });
   const dominio = await input({
     message: "Domínio público?",
     validate: (v) => dominioValido(v.trim().toLowerCase()) || "Use só o nome, como seusite.com.br",
+  });
+  // É daí que sai o IP de cada visitante: atrás de um proxy, sem trustProxy, todos teriam o IP dele.
+  const trustProxy = await select<RespostasInit["trustProxy"]>({
+    message: "O que fica na frente do porteiro?",
+    choices: [
+      { name: "Nada: a internet chega direto no porteiro", value: false, short: "nada" },
+      { name: "nginx, Traefik ou painel (EasyPanel, Coolify)", value: true, short: "nginx, Traefik ou painel" },
+      { name: "Cloudflare (com ou sem nginx ou painel no meio)", value: "cloudflare", short: "Cloudflare" },
+    ],
   });
   const canal = await select<RespostasInit["canal"]>({
     message: "Onde quer receber os avisos?",
@@ -252,6 +263,7 @@ export async function perguntar(): Promise<RespostasInit> {
     canal,
     isentos: lerIsentos(isentos),
     devtoolsIsCaught,
+    trustProxy,
   };
 }
 

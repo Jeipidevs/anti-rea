@@ -54,13 +54,18 @@ The `anti-rea` package is not on npm yet: it ships with the first published rele
 run it from this repository (`npm ci && npm run build`, then `node dist/cli/index.js init`).
 
 ```bash
-npx anti-rea init     # wizard: asks your site address and alert channel
+npx anti-rea init     # wizard: asks your site address, what sits in front of it and alert channel
 npx anti-rea start    # gatekeeper up on :8080
 ```
 
 Then point your domain to the gatekeeper instead of the site. The Docker image
 `ghcr.io/jeipidevs/anti-rea` ships with the first published release; until then, build it from this
 repository with `docker build -t anti-rea .`.
+
+Behind a proxy (nginx, Traefik, EasyPanel, Coolify), set `trustProxy: true`; behind Cloudflare, set
+`trustProxy: cloudflare` and let only Cloudflare's addresses reach the server. Either way, the
+gatekeeper port must be reachable only through the proxy (publish it as `"127.0.0.1:8080:8080"`),
+or anyone can pick their own IP with a header.
 
 ## Roadmap
 

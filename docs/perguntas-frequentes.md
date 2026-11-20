@@ -62,7 +62,8 @@ Só a primeira visita tem a verificação de menos de 1 segundo.
 Sim. O porteiro não depende de como o site foi feito.
 
 **Posso usar com Cloudflare ou outra CDN na frente?**
-Pode, com `trustProxy: cloudflare`. Toda resposta que só sai com passe leva
+Pode, com `trustProxy: cloudflare` e o servidor aceitando conexões só dos endereços da Cloudflare
+(veja [Instalar](02-instalar.md#atrás-da-cloudflare)). Toda resposta que só sai com passe leva
 `CDN-Cache-Control: no-store`, `Cloudflare-CDN-Cache-Control: no-store` e `Cache-Control: private`,
 para a CDN não guardar o JS de um visitante verificado e entregar a qualquer um. Regra de cache que
 força tempo na borda ("Cache Everything" com Edge TTL) passa por cima disso: desligue essa regra nos

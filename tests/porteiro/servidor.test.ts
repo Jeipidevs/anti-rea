@@ -1,5 +1,5 @@
 import http from "node:http";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CHROME, GUARDA, HTML, PNG, type Resposta, SINAIS_LIMPOS, cookieDe, esperar, limparTudo, linhaCookie, montar, pedir } from "./apoio-servidor.js";
 
 afterEach(limparTudo);
@@ -315,6 +315,34 @@ describe("porteiro: repasse", () => {
     expect(r.texto).toContain(`${GUARDA}</head>`);
     expect(linhaCookie(r, "anti_rea_passe")).toMatch(/HttpOnly; SameSite=Lax$/);
     expect(r.headers["set-cookie"]).toContain("sessao=abc; Path=/");
+  });
+});
+
+describe("porteiro: proxy na frente sem trustProxy", () => {
+  it("pedido de IP interno com X-Forwarded-For: uma linha no stderr mandando ligar o trustProxy", async () => {
+    const linhas: string[] = [];
+    const espiao = vi.spyOn(process.stderr, "write").mockImplementation((texto: string | Uint8Array) => {
+      linhas.push(String(texto));
+      return true;
+    });
+    try {
+      const t = await montar();
+      const passe = await t.passe();
+      // Sem cabeçalho de proxy: nada.
+      await t.get("/", { accept: HTML, cookie: passe });
+      expect(linhas).toEqual([]);
+      for (let i = 0; i < 3; i++) await t.get("/", { accept: HTML, cookie: passe, "x-forwarded-for": `203.0.113.${i}` });
+      await t.get("/", { accept: HTML, cookie: passe, "cf-connecting-ip": "203.0.113.9" });
+      expect(linhas).toHaveLength(1);
+      expect(linhas[0]).toMatch(/^\[anti-rea\] pedido de IP interno com X-Forwarded-For: ligue trustProxy/);
+      expect(linhas[0]).toContain("docs/02-instalar.md");
+      // Com trustProxy ligado, o cabeçalho é o esperado: nada a dizer.
+      const comProxy = await montar({ trustProxy: true });
+      await comProxy.get("/", { accept: HTML, "x-forwarded-for": "203.0.113.7" });
+      expect(linhas).toHaveLength(1);
+    } finally {
+      espiao.mockRestore();
+    }
   });
 });
 

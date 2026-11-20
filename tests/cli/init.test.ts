@@ -15,6 +15,7 @@ const respostas: RespostasInit = {
   canal: "telegram",
   isentos: ["/api/webhook/*"],
   devtoolsIsCaught: true,
+  trustProxy: false,
 };
 
 let dir: string;
@@ -133,6 +134,14 @@ describe("escreverInstalacao", () => {
     expect(cfg.exempt).toEqual([]);
     expect(cfg.check.devtoolsIsCaught).toBe(false);
     expect(ler(".env")).not.toMatch(/TELEGRAM|WHATSAPP|WEBHOOK/);
+  });
+
+  it("grava o trustProxy da resposta sobre o que fica na frente do porteiro", () => {
+    for (const trustProxy of [false, true, "cloudflare"] as const) {
+      escreverInstalacao(dir, { ...respostas, trustProxy }, () => SEGREDO, { forcar: true });
+      expect(carregarConfig(join(dir, "anti-rea.config.yml")).trustProxy).toBe(trustProxy);
+    }
+    expect(ler("anti-rea.config.yml")).toMatch(/^trustProxy: cloudflare +# /m);
   });
 
   it("caminho com caractere especial do YAML continua o mesmo depois de lido", () => {
