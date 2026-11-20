@@ -36,7 +36,11 @@ const esquema = z
   .object({
     upstream: urlHttp,
     domains: z.array(z.string().min(1)).min(1, "informe ao menos um domínio"),
-    trustProxy: z.union([z.boolean(), z.literal("cloudflare")]).default(false),
+    trustProxy: z
+      .union([z.boolean(), z.literal("cloudflare")], {
+        error: 'valor inválido, use true, false ou "cloudflare"',
+      })
+      .default(false),
     check: z
       .object({
         firstVisit: z.boolean().default(true),
@@ -90,16 +94,42 @@ const esquema = z
 
 export type Config = z.output<typeof esquema>;
 
+const TIPOS: Record<string, string> = {
+  string: "texto",
+  boolean: "verdadeiro ou falso",
+  array: "lista",
+  object: "bloco",
+  number: "número",
+};
+
+/** Traduz um problema do zod para linhas em português: "  - campo: detalhe". */
+function linhaDoProblema(i: z.core.$ZodIssue): string[] {
+  const campo = (extra?: string) => {
+    const caminho = [...i.path, ...(extra ? [extra] : [])].join(".");
+    return caminho === "" ? "configuração" : caminho;
+  };
+  switch (i.code) {
+    case "unrecognized_keys":
+      return i.keys.map((k) => `  - ${campo(k)}: chave desconhecida: ${k}`);
+    case "invalid_type": {
+      if (i.message.includes("received undefined")) return [`  - ${campo()}: campo obrigatório`];
+      const esperado = TIPOS[i.expected] ?? i.expected;
+      return [`  - ${campo()}: tipo inválido, esperado ${esperado}`];
+    }
+    case "invalid_value":
+      return [`  - ${campo()}: valor inválido, aceitos: ${i.values.map((v) => JSON.stringify(v)).join(", ")}`];
+    case "too_small":
+      return [`  - ${campo()}: ${i.message.startsWith("Too small") ? "valor pequeno demais" : i.message}`];
+    default:
+      return [`  - ${campo()}: ${i.message.startsWith("Invalid") ? "valor inválido" : i.message}`];
+  }
+}
+
 /** Valida um objeto já lido do YAML. Lança Error com a lista de campos errados. */
 export function validarConfig(obj: unknown): Config {
   const r = esquema.safeParse(obj);
   if (r.success) return r.data;
-  const linhas = r.error.issues.map((i) => {
-    const campo = i.path.length > 0 ? i.path.join(".") : "configuração";
-    const detalhe =
-      i.code === "invalid_type" && i.input === undefined ? "campo obrigatório" : i.message;
-    return `  - ${campo}: ${detalhe}`;
-  });
+  const linhas = r.error.issues.flatMap(linhaDoProblema);
   throw new Error(`Configuração inválida:\n${linhas.join("\n")}`);
 }
 

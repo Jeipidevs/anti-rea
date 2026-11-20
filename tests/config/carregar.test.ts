@@ -40,15 +40,34 @@ describe("validarConfig", () => {
   });
 
   it("lista os campos errados em português", () => {
-    expect(() => validarConfig({ domains: [] })).toThrow(/upstream/);
-    expect(() => validarConfig({ domains: [] })).toThrow(/domains/);
+    expect(() => validarConfig({ domains: [] })).toThrow(/upstream: campo obrigatório/);
+    expect(() => validarConfig({ domains: [] })).toThrow(/domains: informe ao menos um domínio/);
     expect(() =>
       validarConfig({ upstream: "x", domains: ["a.com"], trustProxy: "talvez" }),
-    ).toThrow(/trustProxy/);
+    ).toThrow(/trustProxy: valor inválido, use true, false ou "cloudflare"/);
+  });
+
+  it("aponta chave desconhecida e valor fora da lista em português", () => {
+    const base = { upstream: "http://s", domains: ["a.com"] };
+    expect(() => validarConfig({ ...base, trustProxi: true })).toThrow(/chave desconhecida: trustProxi/);
+    expect(() => validarConfig({ ...base, check: { firstVisits: true } })).toThrow(
+      /check\.firstVisits: chave desconhecida/,
+    );
+    expect(() => validarConfig({ ...base, alerts: { scans: "tudo" } })).toThrow(
+      /alerts\.scans: valor inválido, aceitos: "panel", "dailySummary", "alert"/,
+    );
+    expect(() => validarConfig({ ...base, check: { firstVisit: "sim" } })).toThrow(
+      /check\.firstVisit: tipo inválido, esperado verdadeiro ou falso/,
+    );
+    expect(() => validarConfig({ ...base, domains: "a.com" })).toThrow(
+      /domains: tipo inválido, esperado lista/,
+    );
   });
 
   it("exige upstream http ou https", () => {
-    expect(() => validarConfig({ upstream: "ftp://site", domains: ["a.com"] })).toThrow(/upstream/);
+    expect(() => validarConfig({ upstream: "ftp://site", domains: ["a.com"] })).toThrow(
+      /upstream: precisa ser uma URL http: ou https:/,
+    );
   });
 
   it("rejeita duração inválida apontando o campo", () => {
