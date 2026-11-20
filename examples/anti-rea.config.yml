@@ -3,15 +3,15 @@
 
 upstream: http://localhost:3000     # onde o seu site real roda
 domains:
-  - seusite.com.br                  # domínios que este porteiro protege
-trustProxy: false                   # true atrás de nginx/Traefik; "cloudflare" atrás da Cloudflare
+  - seusite.com.br                  # domínios que este porteiro protege (na v0.1, todos no mesmo upstream)
+trustProxy: false                   # true atrás de nginx, Traefik ou painel; "cloudflare" atrás da Cloudflare
 
 check:
   firstVisit: true                  # verificação de menos de 1 s na primeira visita
   devtoolsIsCaught: true            # quem abre o F12 cai na sombra
   passDuration: 7d                  # tempo que o visitante verificado navega livre
 
-exempt:                             # caminhos de máquina, sem verificação
+exempt:                             # caminhos de máquina, sem verificação (/* no fim vale para tudo abaixo)
   - /api/webhook/*
   - /health
 

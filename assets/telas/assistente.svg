@@ -1,20 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 620" role="img" aria-label="Assistente de instalação no terminal">
-  <rect width="1280" height="620" rx="24" fill="#0B0C14"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 660" role="img" aria-label="Assistente de instalação no terminal">
+  <rect width="1280" height="660" rx="24" fill="#0B0C14"/>
   <rect width="1280" height="48" rx="24" fill="#161829"/><rect y="24" width="1280" height="24" fill="#161829"/>
   <circle cx="30" cy="24" r="7" fill="#FF5C7A"/><circle cx="54" cy="24" r="7" fill="#FFC24B"/><circle cx="78" cy="24" r="7" fill="#3BE8A8"/>
   <text x="640" y="30" text-anchor="middle" fill="#8A90B2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14">Terminal</text>
   <g font-family="'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace" font-size="19">
-    <text x="40" y="100" fill="#3BE8A8">$ <tspan fill="#EEF0FF">npx anti-rea init</tspan></text>
+    <text x="40" y="100" fill="#3BE8A8">$ <tspan fill="#EEF0FF">node dist/cli/index.js init</tspan></text>
     <text x="40" y="150" fill="#B3A9FF" font-weight="700">ANTI-REA  ·  assistente de instalação</text>
     <text x="40" y="196" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Endereço do seu site?</tspan> <tspan fill="#8A90B2">http://localhost:3000</tspan></text>
     <text x="40" y="236" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Domínio público?</tspan> <tspan fill="#8A90B2">seusite.com.br</tspan></text>
-    <text x="40" y="276" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Onde quer receber os avisos?</tspan> <tspan fill="#8A90B2">WhatsApp</tspan></text>
-    <text x="40" y="316" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Caminhos de máquina (webhook, API)?</tspan> <tspan fill="#8A90B2">/api/webhook</tspan></text>
-    <text x="40" y="356" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Quem abre o F12 cai na sombra?</tspan> <tspan fill="#8A90B2">sim</tspan></text>
-    <text x="40" y="412" fill="#EEF0FF">Pronto. Criei <tspan fill="#FFC24B">anti-rea.config.yml</tspan> e <tspan fill="#FFC24B">.env</tspan></text>
-    <text x="40" y="452" fill="#EEF0FF">Seu link de dono (guarde, ele libera você):</text>
-    <text x="40" y="488" fill="#B3A9FF">https://seusite.com.br/.anti-rea/dono/••••••••</text>
-    <text x="40" y="544" fill="#3BE8A8">$ <tspan fill="#EEF0FF">npx anti-rea start</tspan></text>
-    <text x="40" y="580" fill="#8A90B2">Porteiro no ar em :8080, protegendo http://localhost:3000</text>
+    <text x="40" y="276" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">O que fica na frente do porteiro?</tspan> <tspan fill="#8A90B2">nginx, Traefik ou painel</tspan></text>
+    <text x="40" y="316" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Onde quer receber os avisos?</tspan> <tspan fill="#8A90B2">WhatsApp</tspan></text>
+    <text x="40" y="356" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Caminhos de máquina (ex.: /api/webhook/*)?</tspan> <tspan fill="#8A90B2">/api/webhook/*</tspan></text>
+    <text x="40" y="396" fill="#3BE8A8">✔ <tspan fill="#EEF0FF">Quem abre o F12 cai na sombra?</tspan> <tspan fill="#8A90B2">sim</tspan></text>
+    <text x="40" y="452" fill="#EEF0FF">Pronto. Criei <tspan fill="#FFC24B">anti-rea.config.yml</tspan> e <tspan fill="#FFC24B">.env</tspan></text>
+    <text x="40" y="492" fill="#EEF0FF">Seu link de dono (guarde, ele libera você):</text>
+    <text x="40" y="528" fill="#B3A9FF">https://seusite.com.br/.anti-rea/dono/••••••••</text>
+    <text x="40" y="584" fill="#3BE8A8">$ <tspan fill="#EEF0FF">node dist/cli/index.js start</tspan></text>
+    <text x="40" y="620" fill="#8A90B2">Porteiro no ar em :8080, protegendo http://localhost:3000</text>
   </g>
 </svg>

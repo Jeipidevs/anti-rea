@@ -1,5 +1,8 @@
 # Exame do seu site
 
+> [!NOTE]
+> O exame ainda não existe na versão 0.1. Esta página mostra como ele vai funcionar.
+
 <img src="../assets/telas/exame.svg" alt="Relatório do exame no terminal" width="100%">
 
 O exame faz o que um curioso faria com uma ferramenta de engenharia reversa, só que para você ver

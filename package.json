@@ -1,0 +1,30 @@
+{
+  "name": "anti-rea",
+  "version": "0.1.0",
+  "description": "Porteiro (proxy reverso) open source contra engenharia reversa e cópia de sites.",
+  "type": "module",
+  "bin": {
+    "anti-rea": "dist/cli/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "vitest run",
+    "test:e2e": "vitest run tests/e2e",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.8.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "playwright": "^1.65.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}

@@ -1,6 +1,6 @@
 # O que é o ANTI-REA
 
-<img src="../assets/diagramas/como-funciona.svg" alt="Diagrama de como o ANTI-REA funciona" width="100%">
+<img src="../assets/diagramas/como-funciona.svg" alt="Diagrama: pessoa verificada e robôs oficiais vão ao site real; robô de prévia de link recebe a tela de verificação; REA, robô copiador, F12 e varredura vão para a página sombra e geram aviso" width="100%">
 
 ## O problema
 
@@ -27,15 +27,43 @@ cabra** é o REA, o robô copiador, o navegador automatizado e a ferramenta de a
 ## O que ele confere
 
 **No servidor, a cada pedido:**
-- se o pedido tem a cara de uma ferramenta conhecida (REA, wget, HTTrack, scanners de ataque);
-- se está pedindo um mapa de código ou um arquivo sensível (`.env`, `.git`, backup);
+- se o pedido traz o passe da verificação. Quem busca código ou dados do site direto, sem passar
+  pela tela de verificação, não recebe nada do site: arquivo (`/app.js`) ou outro formato
+  (`application/json`) leva **403**, e página recebe a tela de verificação. É assim que fica de fora a
+  busca que o REA faz por conta própria, fora do navegador: ela não se apresenta com um nome
+  conhecido, mas também não tem passe;
+- se está pedindo um arquivo trancado. Esses ficam trancados para todo mundo, até para quem tem
+  passe, em qualquer pasta:
+  - **mapa de código** (`.map`);
+  - senhas: `.env`, `.env.*` e `.envrc`;
+  - histórico e restos do código: `.git`, `.svn`, `.hg` e `.DS_Store`;
+  - configuração e chaves: `.htaccess`, `.htpasswd`, `.npmrc`, `.git-credentials`, `.ssh`, `.aws` e
+    cópias do `wp-config.php` (`wp-config.php.*`);
+  - cópias e backups: arquivos terminados em `.bak`, `.old`, `.orig`, `.save`, `~`, `.swp`, `.swo`,
+    `.sql` ou `.sql.gz`, e compactados (`.zip`, `.tar`, `.tar.gz`, `.tgz`, `.gz`, `.7z`, `.rar`) com nome
+    que começa por `backup` ou `bkp`, ou, na raiz, chamados `site`, `www`, `web`, `html`,
+    `public_html`, `htdocs`, `wwwroot`, `db`, `database` ou `dump`;
+- se o pedido se apresenta como uma ferramenta de cópia ou de ataque conhecida (wget, HTTrack,
+  navegador sem tela, scanners);
 - se está navegando rápido demais para ser gente;
 - se está testando caminhos clássicos de ataque.
 
-**No navegador, na primeira visita (menos de 1 segundo):**
-- se o navegador é automatizado (robô pilotando um Chrome);
+**No navegador, na primeira visita (a verificação, menos de 1 segundo):**
+- se o navegador é automatizado (robô pilotando um Chrome) ou roda sem tela, como o navegador que o
+  próprio REA abre;
 - se o navegador está em modo de depuração, que é como o REA se conecta. Abrir o F12 deixa o mesmo
   sinal, por isso quem abre o F12 também cai na sombra (dá para mudar).
+
+**No navegador, depois da verificação (a guarda na aba):**
+- com a configuração padrão, cada página do site leva uma **guarda** pequena que repete a conferência
+  a cada 0,5 s, só enquanto a aba está visível (até uns 0,6 s numa página muito ocupada; num
+  aparelho muito lento, ela recua para 1 s e depois 1,5 s). Se o REA está ligado a uma **aba visível** que já passou quando
+  vem a conferência, a página vira sombra, o passe é cancelado e o aviso sai. Na medição, a inspeção
+  curta dele foi pega 20 de 20 vezes, mas em 2 o REA já tinha lido a página. Numa aba escondida
+  (em segundo plano, janela minimizada) a guarda não confere.
+
+Nem tudo é pego. O que ainda escapa está em
+[Limites conhecidos](perguntas-frequentes.md#limites-conhecidos).
 
 ## O que ele não é
 
