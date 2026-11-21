@@ -107,6 +107,7 @@ describe("README e roteiro", () => {
     "Página sombra configurável",
     "Avisos: WhatsApp (Evolution API), Telegram e webhook",
     "Assistente de instalação (`anti-rea init`)",
+    "Imagem Docker publicada (`ghcr.io/jeipidevs/anti-rea`)",
   ];
   const ready = [
     "Reverse proxy with server-side rules",
@@ -115,12 +116,13 @@ describe("README e roteiro", () => {
     "Configurable shadow page",
     "Alerts: WhatsApp (Evolution API), Telegram, webhook",
     "Install wizard (`anti-rea init`)",
+    "Published Docker image (`ghcr.io/jeipidevs/anti-rea`)",
   ];
 
   it("README.md marca só o que tem teste passando e não se diz em construção", () => {
     const r = ler("README.md");
     for (const item of prontos) expect(r).toContain(`- [x] ${item}`);
-    for (const item of ["Pacote publicado no npm", "Imagem Docker publicada", "Exame do próprio site", "Painel de registro"]) {
+    for (const item of ["Pacote publicado no npm", "Exame do próprio site", "Painel de registro"]) {
       expect(r).toContain(`- [ ] ${item}`);
     }
     expect(r).not.toMatch(/em construção|em%20constru/);
@@ -129,7 +131,7 @@ describe("README e roteiro", () => {
   it("README.en.md segue o mesmo roteiro", () => {
     const r = ler("README.en.md");
     for (const item of ready) expect(r).toContain(`- [x] ${item}`);
-    for (const item of ["Published npm package", "Published Docker image", "Self-scan", "Log panel"]) expect(r).toContain(`- [ ] ${item}`);
+    for (const item of ["Published npm package", "Self-scan", "Log panel"]) expect(r).toContain(`- [ ] ${item}`);
     expect(r).not.toMatch(/under construction|under%20construction/);
   });
 
