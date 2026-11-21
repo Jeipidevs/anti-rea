@@ -99,6 +99,36 @@ describe("GitHub Actions", () => {
   });
 });
 
+describe("pacote do npm", () => {
+  const pacote = JSON.parse(ler("package.json")) as {
+    bin: Record<string, string>;
+    files: string[];
+    scripts: Record<string, string>;
+    engines: { node: string };
+    repository: { url: string };
+  };
+
+  it("leva o código compilado: dist está em files (o .gitignore o deixaria de fora) e o bin aponta para ele", () => {
+    expect(pacote.files).toContain("dist");
+    expect(pacote.bin["anti-rea"]).toBe("dist/cli/index.js");
+    expect(ler("src/cli/index.ts").startsWith("#!/usr/bin/env node\n")).toBe(true);
+  });
+
+  it("compila do zero antes de empacotar, para sobra de dist/ não ir junto", () => {
+    expect(pacote.scripts.prepack).toMatch(/rmSync\('dist'/);
+    expect(pacote.scripts.prepack).toMatch(/npm run build$/);
+  });
+
+  it("não leva código-fonte, testes nem documentação de dentro do repositório", () => {
+    for (const fora of ["src", "tests", "docs", "assets", "video"]) expect(pacote.files).not.toContain(fora);
+  });
+
+  it("pede Node 22 e aponta para o repositório (o npm resolve as imagens do README por ele)", () => {
+    expect(pacote.engines.node).toBe(">=22");
+    expect(pacote.repository.url).toBe("git+https://github.com/Jeipidevs/anti-rea.git");
+  });
+});
+
 describe("README e roteiro", () => {
   const prontos = [
     "Porteiro (proxy reverso) com regras no servidor",
@@ -108,6 +138,7 @@ describe("README e roteiro", () => {
     "Avisos: WhatsApp (Evolution API), Telegram e webhook",
     "Assistente de instalação (`anti-rea init`)",
     "Imagem Docker publicada (`ghcr.io/jeipidevs/anti-rea`)",
+    "Pacote publicado no npm (`anti-rea`)",
   ];
   const ready = [
     "Reverse proxy with server-side rules",
@@ -117,12 +148,13 @@ describe("README e roteiro", () => {
     "Alerts: WhatsApp (Evolution API), Telegram, webhook",
     "Install wizard (`anti-rea init`)",
     "Published Docker image (`ghcr.io/jeipidevs/anti-rea`)",
+    "Published npm package (`anti-rea`)",
   ];
 
   it("README.md marca só o que tem teste passando e não se diz em construção", () => {
     const r = ler("README.md");
     for (const item of prontos) expect(r).toContain(`- [x] ${item}`);
-    for (const item of ["Pacote publicado no npm", "Exame do próprio site", "Painel de registro"]) {
+    for (const item of ["Exame do próprio site", "Painel de registro"]) {
       expect(r).toContain(`- [ ] ${item}`);
     }
     expect(r).not.toMatch(/em construção|em%20constru/);
@@ -131,7 +163,7 @@ describe("README e roteiro", () => {
   it("README.en.md segue o mesmo roteiro", () => {
     const r = ler("README.en.md");
     for (const item of ready) expect(r).toContain(`- [x] ${item}`);
-    for (const item of ["Published npm package", "Self-scan", "Log panel"]) expect(r).toContain(`- [ ] ${item}`);
+    for (const item of ["Self-scan", "Log panel"]) expect(r).toContain(`- [ ] ${item}`);
     expect(r).not.toMatch(/under construction|under%20construction/);
   });
 
