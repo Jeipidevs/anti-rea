@@ -184,11 +184,15 @@ async function subirSite() {
         case "/pre-voo-304":
           res.writeHead(304, { etag: '"x"' });
           return res.end();
+        case "/redireciona":
+          res.writeHead(302, { location: "/pagina" });
+          return res.end();
         case "/eco":
           res.writeHead(200, { "content-type": "application/json" });
           return res.end(JSON.stringify(req.headers));
         case "/devagar":
         case "/devagar-robo":
+        case "/devagar-leitor":
           // Página que leva 1,5 s para sair, com prévia própria.
           setTimeout(() => {
             if (res.destroyed) return;

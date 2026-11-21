@@ -2,6 +2,7 @@
 # Guia completo: docs/03-configurar.md
 
 upstream: http://localhost:3000     # onde o seu site real roda
+upstreamTimeout: 60s                # quanto o site tem para começar a responder (de 1s a 10m)
 domains:
   - seusite.com.br                  # domínios que este porteiro protege (na v0.1, todos no mesmo upstream)
 trustProxy: false                   # true atrás de nginx, Traefik ou painel; "cloudflare" atrás da Cloudflare

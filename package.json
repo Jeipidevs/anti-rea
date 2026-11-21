@@ -1,6 +1,6 @@
 {
   "name": "anti-rea",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Porteiro (proxy reverso) open source contra engenharia reversa e cópia de sites.",
   "type": "module",
   "bin": {

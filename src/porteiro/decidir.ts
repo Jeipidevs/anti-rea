@@ -15,6 +15,7 @@ import {
   ehMidia,
   ehNavegacao,
   ehPreCarga,
+  feitoPorScript,
   foraDoDocumento,
   normalizarCaminho,
   semFormato,
@@ -26,7 +27,7 @@ import {
  * usa o normalizado, e caminho que o site poderia ler diferente (ponto-ponto) nunca chega lá.
  * `corsMetodo` é o cabeçalho Access-Control-Request-Method (só conta no OPTIONS do pré-voo).
  * `proposito` junta Sec-Purpose, Purpose, X-Purpose, X-Sec-Purpose e X-Moz (pré-carga), e
- * `destinoFetch` é o Sec-Fetch-Dest.
+ * `destinoFetch` é o Sec-Fetch-Dest e `modoFetch` o Sec-Fetch-Mode.
  */
 export type Pedido = {
   metodo: string;
@@ -37,6 +38,7 @@ export type Pedido = {
   corsMetodo?: string;
   proposito?: string;
   destinoFetch?: string;
+  modoFetch?: string;
   ip: string;
   dominio: string;
   https: boolean;
@@ -47,7 +49,7 @@ export type RotaInterna = "verificar" | "guarda" | "pego";
 /**
  * O que fazer com o pedido.
  * - `repassar.registrar`: passa, mas grava um evento "registrado" sem aviso (robô não confirmado).
- * - `repassar.emitirPasse`: passa e entrega um passe de visitante novo (só numa resposta 200). Com
+ * - `repassar.emitirPasse`: passa e entrega um passe de visitante novo (só em resposta abaixo de 400). Com
  *   firstVisit false, na navegação sem passe, para a guarda poder revogar alguma coisa se pegar F12 ou
  *   automação e para o WebSocket do site abrir. Com passe de visitante que já passou da metade da
  *   validade, para renovar: senão ele vence com o visitante no meio do uso.
@@ -63,7 +65,7 @@ export type Decisao =
   | { acao: "repassar"; injetarGuarda: boolean; emitirPasse?: true; registrar?: Sinal; publico?: true; soCabecalhos?: true }
   | { acao: "sombra"; sinal: Sinal; status: 200 | 404 }
   | { acao: "verificar" }
-  | { acao: "recusar"; status: 400 | 403 | 404 }
+  | { acao: "recusar"; status: 400 | 403 | 404; sinal?: Sinal }
   | { acao: "dono"; valido: boolean }
   | { acao: "interno"; rota: RotaInterna };
 
@@ -180,8 +182,11 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   if (passe?.tipo === "dono") return repassar(false);
   if (caminhoIsento(p.caminho, ctx.cfg.exempt)) return repassar(false);
 
-  // Pego na verificação ou pela guarda: sombra enquanto a marca valer.
-  if (temMarcaPego(cookies, ctx.segredo, ctx.agora)) return sombra(PEGO);
+  // Pego na verificação ou pela guarda: sombra enquanto a marca valer. O pedido feito por script (o
+  // envio de outra aba aberta) leva 403: com a sombra em 200, o app tomaria a página por resposta.
+  if (temMarcaPego(cookies, ctx.segredo, ctx.agora)) {
+    return feitoPorScript(p.metodo, p.destinoFetch, p.modoFetch) ? { acao: "recusar", status: 403, sinal: PEGO } : sombra(PEGO);
+  }
 
   // 6: ferramenta conhecida ou caminho de varredura.
   const suspeito = ferramentaConhecida(p.agente) ?? caminhoDeVarredura(caminho);
@@ -231,6 +236,8 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   if (ehMidia(caminho)) return repassar(false);
   // Leitor de prévia fora da lista de robôs que não diz o formato (sem Accept ou com o curinga): caminho
   // sem extensão é página, e a tela de verificação leva a prévia. Arquivo com extensão segue recusado.
+  // O service worker que busca a página com fetch(url) cai aqui também, e precisa da tela: sem passe,
+  // pedido de script não vira 403 por ser de script. O app que quer o erro manda Accept de JSON.
   if (p.metodo.toUpperCase() === "GET" && semFormato(p.accept) && !temExtensao(caminho)) return { acao: "verificar" };
   return { acao: "recusar", status: 403 };
 }

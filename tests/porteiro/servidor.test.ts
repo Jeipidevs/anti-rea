@@ -397,7 +397,7 @@ describe("porteiro: renovação do passe", () => {
     expect((await t.get("/pagina", { accept: HTML, cookie: cookieDe(pagina, "anti_rea_passe") })).texto).toContain("Olá do site real");
   });
 
-  it("passe na primeira metade da validade não muda, e resposta que não é 200 não leva passe", async () => {
+  it("passe na primeira metade da validade não muda, e resposta de erro não leva passe", async () => {
     const t = await montar();
     const recente = `anti_rea_passe=${criarPasseVisitante(SEGREDO, 7 * DIA, Date.now() - DIA)}`;
     expect(linhaCookie(await t.get("/pagina", { accept: HTML, cookie: recente }), "anti_rea_passe")).toBeUndefined();
@@ -405,6 +405,19 @@ describe("porteiro: renovação do passe", () => {
     const naoAchou = await t.get("/nao-existe", { accept: HTML, cookie: velho });
     expect(naoAchou.status).toBe(404);
     expect(linhaCookie(naoAchou, "anti_rea_passe")).toBeUndefined();
+    const quebrado = await t.get("/quebrado", { accept: HTML, cookie: velho });
+    expect(quebrado.status).toBe(503);
+    expect(linhaCookie(quebrado, "anti_rea_passe")).toBeUndefined();
+  });
+
+  it("204, 304 e redirecionamento também renovam: app de página única com o index em 304 não perde o passe", async () => {
+    const t = await montar();
+    const velho = `anti_rea_passe=${criarPasseVisitante(SEGREDO, 7 * DIA, Date.now() - 4 * DIA)}`;
+    for (const [caminho, status] of [["/pre-voo-204", 204], ["/pre-voo-304", 304], ["/redireciona", 302]] as const) {
+      const r = await t.get(caminho, { accept: HTML, cookie: velho });
+      expect(r.status, caminho).toBe(status);
+      expect(linhaCookie(r, "anti_rea_passe"), caminho).toMatch(/^anti_rea_passe=[^;]+; Max-Age=604800; Path=\/; HttpOnly/);
+    }
   });
 });
 

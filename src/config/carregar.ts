@@ -35,6 +35,9 @@ const urlHttp = z.string().refine(
 const esquema = z
   .object({
     upstream: urlHttp,
+    upstreamTimeout: duracao("60s").refine((ms) => ms >= 1_000 && ms <= 600_000, {
+      message: "precisa ficar entre 1s e 10m, por exemplo 60s ou 3m",
+    }),
     domains: z.array(z.string().min(1)).min(1, "informe ao menos um domínio"),
     trustProxy: z
       .union([z.boolean(), z.literal("cloudflare")], {
@@ -77,8 +80,9 @@ const esquema = z
       .default({ retention: 30 * 86_400_000 }),
   })
   .strict()
-  .transform(({ check, alerts, log, ...resto }) => ({
+  .transform(({ upstreamTimeout, check, alerts, log, ...resto }) => ({
     ...resto,
+    upstreamTimeoutMs: upstreamTimeout,
     check: {
       firstVisit: check.firstVisit,
       devtoolsIsCaught: check.devtoolsIsCaught,
