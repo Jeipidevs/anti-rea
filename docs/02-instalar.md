@@ -1,8 +1,8 @@
 # Instalar
 
 > [!NOTE]
-> Versão 0.1.2: a imagem Docker está publicada em `ghcr.io/jeipidevs/anti-rea`. O pacote no npm
-> ainda não saiu: sem Docker, use o [jeito a partir do repositório](#sem-docker-a-partir-do-repositório).
+> Versão 0.1.3: o pacote está no npm ([`anti-rea`](https://www.npmjs.com/package/anti-rea)) e a
+> imagem Docker em `ghcr.io/jeipidevs/anti-rea`.
 
 ## Antes de começar
 
@@ -18,12 +18,11 @@ Você precisa de duas coisas:
 <img src="../assets/telas/assistente.svg" alt="Assistente de instalação no terminal" width="100%">
 
 ```bash
-node <pasta do anti-rea>/dist/cli/index.js init
+npx anti-rea init
 ```
 
-Rode na pasta onde a configuração vai morar. A pasta do anti-rea é a do repositório compilado (veja
-[Sem Docker: a partir do repositório](#sem-docker-a-partir-do-repositório)); quando o pacote sair no
-npm, o comando vira `npx anti-rea init`.
+Rode na pasta onde a configuração vai morar. Para deixar o ANTI-REA instalado na máquina, use
+`npm install -g anti-rea`: aí cada comando vira só `anti-rea` (por exemplo `anti-rea start`).
 
 Responda as perguntas. Uma delas é o que fica na frente do porteiro (nada, um proxy como nginx,
 Traefik, EasyPanel ou Coolify, ou a Cloudflare): é daí que sai o IP de cada visitante, então responda
@@ -45,7 +44,7 @@ Ele também mostra o seu [link de dono](07-modo-dono.md). Guarde num lugar segur
 Depois, ligue:
 
 ```bash
-node <pasta do anti-rea>/dist/cli/index.js start
+npx anti-rea start
 ```
 
 ## Jeito 2: Docker
@@ -116,9 +115,9 @@ docker compose up -d
 Para só ver o link de novo, tire o `--novo` e pule o `up -d`. Qualquer outra mudança no `.env`
 (a senha de um canal, por exemplo) também pede `docker compose up -d`.
 
-## Sem Docker: a partir do repositório
+## A partir do repositório (para contribuir)
 
-Enquanto o pacote não está no npm, baixe o repositório e compile uma vez:
+Para testar uma mudança no código antes de ela sair no npm, baixe o repositório e compile uma vez:
 
 ```bash
 git clone https://github.com/Jeipidevs/anti-rea.git
@@ -127,11 +126,11 @@ npm ci
 npm run build
 ```
 
-Os comandos acima (`init`, `start` e `dono`) usam essa pasta: `node <pasta do anti-rea>/dist/cli/index.js`.
-Quando o pacote sair no npm, cada um vira `npx anti-rea` (por exemplo `npx anti-rea start`).
+Aí os comandos (`init`, `start` e `dono`) rodam por essa pasta:
+`node <pasta do anti-rea>/dist/cli/index.js start`.
 
 Com Docker não precisa compilar nada: a imagem `ghcr.io/jeipidevs/anti-rea` já vem pronta. Para
-fixar a versão, troque `:latest` por `:v0.1.2`.
+fixar a versão, troque `:latest` por `:v0.1.3`.
 
 ## Último passo: apontar o domínio para o porteiro
 
@@ -152,7 +151,7 @@ fica sem HTTPS.
 No painel não há `docker-compose.yml` nem `.env` na pasta: a configuração, as variáveis e o registro
 chegam ao contêiner pelas telas do serviço.
 
-1. Crie um serviço novo com a imagem `ghcr.io/jeipidevs/anti-rea:v0.1.2` (ou `:latest`).
+1. Crie um serviço novo com a imagem `ghcr.io/jeipidevs/anti-rea:v0.1.3` (ou `:latest`).
 2. Monte o arquivo de configuração no contêiner em `/app/anti-rea.config.yml` (montagem de
    arquivo: "Mounts", tipo "File", no EasyPanel; "Storages", "File Mount", no Coolify). A imagem só
    lê esse caminho. Escreva o arquivo com o assistente em qualquer máquina, ou copie o

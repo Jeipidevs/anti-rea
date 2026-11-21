@@ -8,7 +8,7 @@ Escrita para quem nunca mexeu com segurança. Uma ideia por página, com imagem 
 </div>
 
 > [!NOTE]
-> Versão 0.1.2: o porteiro funciona e roda em produção. O exame do próprio site e o painel vêm a seguir: as páginas deles
+> Versão 0.1.3: o porteiro funciona, roda em produção e está no npm. O exame do próprio site e o painel vêm a seguir: as páginas deles
 > descrevem como vão funcionar. O [roteiro](../README.md#roteiro) mostra o que já roda.
 
 ## Comece por aqui

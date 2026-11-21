@@ -11,6 +11,7 @@ const raiz = join(import.meta.dirname, "..");
 const ler = (caminho: string) => readFileSync(join(raiz, caminho), "utf8");
 /** Texto corrido: a quebra de linha do Markdown vale como espaço. */
 const corrido = (caminho: string) => ler(caminho).replace(/\s+/g, " ");
+const versao = (JSON.parse(ler("package.json")) as { version: string }).version;
 /** Blocos de código ```bash de um Markdown. */
 const blocosBash = (caminho: string) => [...ler(caminho).matchAll(/```bash\n([\s\S]*?)```/g)].map((m) => m[1]!);
 /** Seção de um Markdown, do título até o próximo título do mesmo nível ou maior. */
@@ -28,14 +29,14 @@ describe("instalar: README mostra o que roda hoje", () => {
   const instalar = { "README.md": "## Instalar em 3 passos", "README.en.md": "## Install in 3 steps" } as const;
 
   for (const [arquivo, titulo] of Object.entries(instalar)) {
-    it(`${arquivo}: sem Docker, o clone com build e node dist/cli/index.js; com Docker, a imagem publicada com versão fixa; nunca npx anti-rea`, () => {
+    it(`${arquivo}: o pacote do npm (npx anti-rea) e a imagem publicada com versão fixa; sem clonar nem compilar`, () => {
       const passo = secao(arquivo, titulo);
-      expect(passo).not.toMatch(/npx anti-rea/);
-      expect(passo).toContain("git clone https://github.com/Jeipidevs/anti-rea.git");
-      expect(passo).toContain("npm ci && npm run build");
-      expect(passo).toContain("node dist/cli/index.js init");
-      expect(passo).toContain("node dist/cli/index.js start");
-      expect(passo).toContain("image: ghcr.io/jeipidevs/anti-rea:v");
+      expect(passo).toContain("npx anti-rea init");
+      expect(passo).toContain("npx anti-rea start");
+      expect(passo).toContain("npm install -g anti-rea");
+      expect(passo).not.toContain("git clone");
+      expect(passo).not.toContain("node dist/cli/index.js");
+      expect(passo).toContain(`image: ghcr.io/jeipidevs/anti-rea:v${versao}`);
       expect(passo).not.toContain("docker build -t anti-rea .");
       expect(passo).not.toContain("image: anti-rea\n");
     });
@@ -64,9 +65,9 @@ describe("instalar: README mostra o que roda hoje", () => {
     expect(passo).toContain("HTTP simples na porta 8080");
   });
 
-  it("roteiro não chama o assistente pelo pacote que ainda não está no npm", () => {
-    expect(ler("README.md")).toContain("- [ ] Pacote publicado no npm");
-    expect(ler("README.en.md")).toContain("- [ ] Published npm package");
+  it("roteiro marca o pacote do npm como publicado", () => {
+    expect(ler("README.md")).toContain("- [x] Pacote publicado no npm (`anti-rea`)");
+    expect(ler("README.en.md")).toContain("- [x] Published npm package (`anti-rea`)");
   });
 });
 
@@ -155,15 +156,17 @@ describe("imagens", () => {
 
   it("os comandos da tela do assistente rodam hoje", () => {
     const svg = ler("assets/telas/assistente.svg");
-    expect(svg).not.toContain("npx anti-rea");
-    expect(svg).toContain("node dist/cli/index.js init");
+    expect(svg).not.toContain("node dist/cli/index.js");
+    expect(svg).toContain("npx anti-rea init");
   });
 });
 
 describe("o bloco bash do README não tem comando que ainda não roda fora do exame", () => {
-  it("só o exame (que o README marca como futuro) usa npx anti-rea", () => {
+  it("npx anti-rea só com comando que o CLI tem (init, start, dono) ou o exame, que o README marca como futuro", () => {
     for (const bloco of blocosBash("README.md")) {
-      if (bloco.includes("npx anti-rea")) expect(bloco.trim()).toBe("npx anti-rea exame https://seusite.com.br");
+      for (const linha of bloco.split("\n").filter((l) => l.includes("npx anti-rea"))) {
+        expect(linha.trim()).toMatch(/^npx anti-rea (init|start|dono)\b|^npx anti-rea exame https:\/\/seusite\.com\.br$/);
+      }
     }
   });
 });

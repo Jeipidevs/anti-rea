@@ -4,7 +4,7 @@
 
 <br>
 
-[![Versão 0.1.2](https://img.shields.io/badge/vers%C3%A3o-0.1.2-FFC24B?style=for-the-badge)](#trajeto-e-versões)
+[![Versão 0.1.3](https://img.shields.io/badge/vers%C3%A3o-0.1.3-FFC24B?style=for-the-badge)](#trajeto-e-versões)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-7C6CFF?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](#)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#instalar-em-3-passos)
@@ -17,7 +17,7 @@
 <br>
 
 > [!NOTE]
-> **Versão 0.1.2: o porteiro funciona e já roda em produção. O exame do próprio site e o painel vêm a seguir.**
+> **Versão 0.1.3: o porteiro funciona, roda em produção e está no npm. O exame do próprio site e o painel vêm a seguir.**
 > Veja o [trajeto e as versões](#trajeto-e-versões) e o [roteiro](#roteiro). Nada aqui promete o que ainda não roda.
 
 ## Em uma frase
@@ -119,38 +119,36 @@ seguir) vai avisar se algo do servidor vazou para ela.
 <img src="assets/telas/assistente.svg" alt="Terminal com o assistente de instalação perguntando endereço do site, domínio, o que fica na frente do porteiro, canal de aviso e caminhos isentos" width="100%">
 
 > [!NOTE]
-> A imagem Docker está publicada em `ghcr.io/jeipidevs/anti-rea` (tags `v0.1.2` e `latest`). O pacote
-> `anti-rea` ainda não está no npm: sem Docker, os comandos abaixo rodam a partir deste repositório.
+> O ANTI-REA está no npm ([`anti-rea`](https://www.npmjs.com/package/anti-rea)) e no GHCR
+> (`ghcr.io/jeipidevs/anti-rea`). Escolha um dos dois: Node.js 22 ou mais novo, ou Docker.
 
-**1. Baixe, compile e rode o assistente** (precisa do Node.js 22 ou mais novo). Ele pergunta o
-endereço do seu site, o que fica na frente dele e onde você quer os avisos, e escreve a configuração
-sozinho.
+**1. Rode o assistente** na pasta onde a configuração vai morar. Ele pergunta o endereço do seu site,
+o que fica na frente dele e onde você quer os avisos, e escreve a configuração sozinho.
 
 ```bash
-git clone https://github.com/Jeipidevs/anti-rea.git
-cd anti-rea
-npm ci && npm run build
-node dist/cli/index.js init
+npx anti-rea init
 ```
 
 **2. Ligue o porteiro.**
 
 ```bash
-node dist/cli/index.js start
+npx anti-rea start
 ```
+
+Para deixar instalado na máquina, use `npm install -g anti-rea` e rode `anti-rea start`.
 
 **3. Aponte o seu domínio para o porteiro** em vez do site. O porteiro fala HTTP simples na porta
 8080: o HTTPS fica com quem está na frente dele (o nginx da máquina, o Traefik do painel ou a
 Cloudflare), como explica [Instalar](docs/02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).
 
-Prefere Docker? Use a imagem publicada neste `docker-compose.yml`. A versão fica fixa (`:v0.1.2`): o
+Prefere Docker? Use a imagem publicada neste `docker-compose.yml`. A versão fica fixa (`:v0.1.3`): o
 porteiro só muda quando você trocar a tag. No `upstream` da configuração, use o endereço do site visto
 de dentro do contêiner, não `localhost`.
 
 ```yaml
 services:
   anti-rea:
-    image: ghcr.io/jeipidevs/anti-rea:v0.1.2
+    image: ghcr.io/jeipidevs/anti-rea:v0.1.3
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:8080"
@@ -279,8 +277,8 @@ Mais perguntas: [Perguntas frequentes](docs/perguntas-frequentes.md) · Termos d
 - [x] Avisos: WhatsApp (Evolution API), Telegram e webhook
 - [x] Assistente de instalação (`anti-rea init`)
 - [x] Imagem Docker publicada (`ghcr.io/jeipidevs/anti-rea`)
+- [x] Pacote publicado no npm (`anti-rea`)
 - [x] Apps com login, PWA e service worker (v0.1.1)
-- [ ] Pacote publicado no npm
 - [ ] Exame do próprio site
 - [ ] Painel de registro
 
@@ -300,6 +298,7 @@ navegador automatizado; nenhum visitante comum.
 
 | Versão | Data | O que entrou |
 |---|---|---|
+| [v0.1.3](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.3) | 21/11/2026 | **Primeira versão no npm:** `npx anti-rea init` e `npx anti-rea start`, sem clonar nem compilar. O porteiro é o mesmo da v0.1.2. O pacote leva só o necessário (o código compilado, o exemplo de configuração e os READMEs) e é compilado do zero antes de empacotar. |
 | [v0.1.2](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.2) | 21/11/2026 | **Vídeo e áudio como mídia pública** (mp4, webm, mov, mp3, m4a, ogg, wav, flac e outros): sem passe, o link direto de um vídeo levava 403 e não tocava. **`meta-webindexer` na lista da Meta**, conferido pelas faixas AS32934: o indexador da Meta abre a página num Chrome sem tela e caía na página sombra. 559 testes. |
 | [v0.1.1](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.1) | 20/11/2026 | **Pronto para apps com login** (Next.js, PWA, página única). `upstreamTimeout` configurável (60 s por padrão, de 1 s a 10 min), para página lenta não virar 504. Quem foi pego leva 403 no pedido feito por script, e não a sombra com 200, para o app não tomar a sombra por resposta. O passe renova em qualquer resposta abaixo de 400 (204, 304, redirecionamento). `.ttf` e `.otf` contam como mídia. Leitor de link que não pede HTML recebe a prévia. 558 testes. |
 | [v0.1.0](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.0) | 20/11/2026 | **Primeira versão do porteiro.** Verificação na primeira visita (menos de 1 s, com a prévia do site) e passe assinado. Guarda no navegador a cada 0,5 s com a aba visível. Arquivos sensíveis trancados em qualquer pasta. Robôs oficiais conferidos (Google, Bing, Apple pelo DNS; Meta pelas faixas). Página sombra configurável, avisos por WhatsApp, Telegram e webhook com teto e agrupamento, registro local com prazo, link de dono, assistente `init` e imagem Docker. 547 testes de unidade e 35 no Chrome real. |
