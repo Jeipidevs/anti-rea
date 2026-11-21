@@ -5,6 +5,7 @@
 <br>
 
 [![Versão 0.1.3](https://img.shields.io/badge/vers%C3%A3o-0.1.3-FFC24B?style=for-the-badge)](#trajeto-e-versões)
+[![npm](https://img.shields.io/npm/v/@jeipidevs/anti-rea?style=for-the-badge&logo=npm&color=CB3837&label=npm)](https://www.npmjs.com/package/@jeipidevs/anti-rea)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-7C6CFF?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](#)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#instalar-em-3-passos)
@@ -293,7 +294,9 @@ pequenos passos, cada um com teste antes do código. A guarda foi medida contra 
 ([os números](docs/_medicoes/2026-11-guarda.md)) antes de qualquer promessa entrar aqui.
 
 **Estado atual.** O porteiro roda em produção desde a noite de 20/11/2026, na frente de mais de 20
-sites estáticos e sistemas com login. As correções da v0.1.1 e da v0.1.2 vieram desse uso real: o
+sites estáticos e sistemas com login. Desde a v0.1.3 sai em dois formatos: o pacote
+[`@jeipidevs/anti-rea`](https://www.npmjs.com/package/@jeipidevs/anti-rea) no npm e a imagem
+`ghcr.io/jeipidevs/anti-rea` no GHCR, os dois com a mesma versão. As correções da v0.1.1 e da v0.1.2 vieram desse uso real: o
 registro mostrou onde o porteiro atrapalhava, e cada caso virou teste antes de virar versão. No
 registro de produção, quem cai na página sombra é robô de datacenter, scanner de WordPress e
 navegador automatizado; nenhum visitante comum.
