@@ -20,7 +20,7 @@ na sombra.
 | Google a pedido (Google-Site-Verification do Search Console, Google-Read-Aloud da leitura em voz alta) | O mesmo do Google; quando não confirma, segue como visitante comum, sem sombra |
 | Bing | O mesmo, com `.search.msn.com` |
 | Apple | O mesmo, com `.applebot.apple.com` |
-| Meta | O IP está nas faixas que a Meta anuncia (AS32934) |
+| Meta (facebookexternalhit, meta-externalagent, meta-externalads, meta-webindexer, Facebot) | O IP está nas faixas que a Meta anuncia (AS32934) |
 
 O sufixo `.googleusercontent.com` não vale: ele é de qualquer máquina alugada no Google Cloud, e
 aceitar esse nome deixaria qualquer um se passar pelo Google.

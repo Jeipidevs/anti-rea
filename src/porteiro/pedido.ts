@@ -190,7 +190,12 @@ export function feitoPorScript(metodo: string, destinoFetch: string | undefined,
   return m !== "GET" && m !== "HEAD";
 }
 
-const EXTENSOES_MIDIA = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "woff", "woff2", "ttf", "otf"]);
+// Vídeo e áudio entram como as imagens: o tocador do celular busca o arquivo em pedaços (Range) e,
+// sem passe (vídeo aberto por link direto ou prévia de link), levava 403 e não tocava.
+const EXTENSOES_MIDIA = new Set([
+  "png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "woff", "woff2", "ttf", "otf",
+  "mp4", "m4v", "webm", "mov", "ogv", "mp3", "m4a", "aac", "ogg", "oga", "opus", "wav", "flac",
+]);
 
 /** Extensão do último segmento do caminho (já normalizado), em minúsculas; null sem ela ("pagina", ".well-known"). */
 function extensao(caminho: string): string | null {
@@ -199,7 +204,7 @@ function extensao(caminho: string): string | null {
   return ponto > 0 && ponto < ultimo.length - 1 ? ultimo.slice(ponto + 1).toLowerCase() : null;
 }
 
-/** Imagem, fonte ou ícone pela extensão do último segmento do caminho (já normalizado). */
+/** Imagem, fonte, ícone, vídeo ou áudio pela extensão do último segmento do caminho (já normalizado). */
 export function ehMidia(caminho: string): boolean {
   const ext = extensao(caminho);
   return ext !== null && EXTENSOES_MIDIA.has(ext);

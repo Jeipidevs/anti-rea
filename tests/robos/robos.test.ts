@@ -43,6 +43,7 @@ describe("roboDeclarado", () => {
       ["DuckDuckBot/1.1; (+http://duckduckgo.com/duckduckbot.html)", "DuckDuckBot", "previa"],
       ["meta-externalagent/1.1", "meta-externalagent", "meta"],
       ["meta-externalads/1.1", "meta-externalads", "meta"],
+      ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 (compatible; meta-webindexer/1.1)", "meta-webindexer", "meta"],
       ["Facebot", "Facebot", "meta"],
       ["TelegramBot (like TwitterBot)", "TelegramBot", "previa"],
       ["Slackbot-LinkExpanding 1.0", "Slackbot", "previa"],
