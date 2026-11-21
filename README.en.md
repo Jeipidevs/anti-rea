@@ -4,7 +4,7 @@
 
 <br>
 
-[![Version 0.1](https://img.shields.io/badge/version-0.1-FFC24B?style=for-the-badge)](#roadmap)
+[![Version 0.1.2](https://img.shields.io/badge/version-0.1.2-FFC24B?style=for-the-badge)](#history-and-releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-7C6CFF?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](#)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#install-in-3-steps)
@@ -14,7 +14,7 @@
 </div>
 
 > [!NOTE]
-> **Version 0.1: the gatekeeper works. The self-scan and the log panel come next.**
+> **Version 0.1.2: the gatekeeper works and runs in production. The self-scan and the log panel come next.**
 > Check the [roadmap](#roadmap) for what already runs. Nothing here promises what does not run yet.
 
 ## In one sentence
@@ -57,8 +57,9 @@ shows what a curious visitor can see of your site comes next.
 
 ## Install in 3 steps
 
-The `anti-rea` package is not on npm and the image is not on GHCR yet: both ship with the first
-published release. Until then, these commands run from this repository (Node.js 22 or newer):
+The Docker image is published at `ghcr.io/jeipidevs/anti-rea` (tags `v0.1.2` and `latest`). The
+`anti-rea` package is not on npm yet: without Docker, these commands run from this repository
+(Node.js 22 or newer):
 
 ```bash
 git clone https://github.com/Jeipidevs/anti-rea.git
@@ -72,10 +73,9 @@ Then point your domain to the gatekeeper instead of the site. The gatekeeper spe
 port 8080: HTTPS comes from what sits in front of it (nginx on the machine, the panel's Traefik or
 Cloudflare).
 
-Prefer Docker? Build the image in the repository folder with `docker build -t anti-rea .` and use
-`image: anti-rea` in the `docker-compose.yml` shown in the
-[Portuguese README](README.md#instalar-em-3-passos) (swap it for `ghcr.io/jeipidevs/anti-rea` once
-that image ships).
+Prefer Docker? Use `image: ghcr.io/jeipidevs/anti-rea:v0.1.2` in the `docker-compose.yml` shown in
+the [Portuguese README](README.md#instalar-em-3-passos). The pinned tag keeps the gatekeeper on that
+version until you change it.
 
 What sits in front of the gatekeeper sets the port and `trustProxy`; with a trusted proxy, anyone
 who reaches the gatekeeper port directly could pick their own IP with a header:
@@ -99,10 +99,32 @@ who reaches the gatekeeper port directly could pick their own IP with a header:
 - [x] Configurable shadow page
 - [x] Alerts: WhatsApp (Evolution API), Telegram, webhook
 - [x] Install wizard (`anti-rea init`)
+- [x] Published Docker image (`ghcr.io/jeipidevs/anti-rea`)
+- [x] Apps with login, PWA and service worker (v0.1.1)
 - [ ] Published npm package
-- [ ] Published Docker image
 - [ ] Self-scan
 - [ ] Log panel
+
+## History and releases
+
+ANTI-REA started on 2026-11-20 from a simple question: if a tool like REA can take any site apart
+through the browser, can we notice who is doing it and hand them nothing? Docs and brand came first,
+then a plan, then the gatekeeper in small test-first steps. The guard was measured against the real
+REA ([numbers, Portuguese](docs/_medicoes/2026-11-guarda.md)) before any claim went into this README.
+
+**Current state.** The gatekeeper has run in production since the night of 2026-11-20, in front of
+more than 20 static sites and apps with login. The fixes in v0.1.1 and v0.1.2 came from that real
+use: the log showed where the gatekeeper got in the way, and each case became a test before it became
+a release. In the production log, what lands on the shadow page is datacenter bots, WordPress
+scanners and automated browsers; no regular visitor.
+
+| Version | Date | What shipped |
+|---|---|---|
+| [v0.1.2](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.2) | 2026-11-21 | **Video and audio as public media** (mp4, webm, mov, mp3, m4a, ogg, wav, flac and more): without a pass, a direct video link got a 403 and would not play. **`meta-webindexer` on the Meta list**, verified against the AS32934 ranges: Meta's indexer opens pages in headless Chrome and was landing on the shadow page. 559 tests. |
+| [v0.1.1](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.1) | 2026-11-20 | **Ready for apps with login** (Next.js, PWA, single page). Configurable `upstreamTimeout` (60 s by default, 1 s to 10 min), so a slow page does not turn into a 504. A caught visitor gets a 403 on script requests instead of the shadow page with a 200, so the app never mistakes it for a response. The pass renews on any response below 400 (204, 304, redirects). `.ttf` and `.otf` count as media. Link readers that do not ask for HTML get the preview. 558 tests. |
+| [v0.1.0](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.0) | 2026-11-20 | **First gatekeeper release.** First-visit check (under 1 s, with the site preview) and signed pass. In-browser guard every 0.5 s while the tab is visible. Sensitive files locked in any folder. Official bots verified (Google, Bing, Apple by DNS; Meta by its ranges). Configurable shadow page, WhatsApp, Telegram and webhook alerts with caps and grouping, local log with retention, owner link, `init` wizard and Docker image. 547 unit tests and 35 in real Chrome. |
+
+A config with `upstreamTimeout` only starts on v0.1.1 or newer: v0.1.0 rejects the unknown key.
 
 ## Responsible use
 

@@ -18,11 +18,11 @@ registro e sem aviso.
 ## Cuidados
 
 - Trate o link como senha. Não mande em grupo nem em texto aberto.
-- Perdeu o link? Rode `npx anti-rea dono` na pasta da instalação e ele aparece de novo. Antes da
-  primeira versão publicada no npm, use `node <pasta do anti-rea>/dist/cli/index.js dono` (veja
-  [Instalar](02-instalar.md#antes-da-primeira-versão-publicada)).
-- Quer trocar o link (alguém saiu da equipe)? Rode o `dono --novo` (antes da primeira versão no npm,
-  `node <pasta do anti-rea>/dist/cli/index.js dono --novo`) e reinicie o porteiro. O link antigo e os
+- Perdeu o link? Rode `node <pasta do anti-rea>/dist/cli/index.js dono` na pasta da instalação e
+  ele aparece de novo (no Docker, pela própria imagem: veja [Instalar](02-instalar.md#jeito-2-docker)).
+  Quando o pacote sair no npm, o comando vira `npx anti-rea dono`.
+- Quer trocar o link (alguém saiu da equipe)? Rode o `dono --novo`
+  (`node <pasta do anti-rea>/dist/cli/index.js dono --novo`) e reinicie o porteiro. O link antigo e os
   passes de dono antigos deixam de valer.
 - No Docker, o `dono` roda fora do contêiner (com Node ou pela imagem, veja
   [Instalar](02-instalar.md#trocar-o-link-de-dono-no-docker)). Depois do `dono --novo`, rode

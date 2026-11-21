@@ -1,8 +1,8 @@
 # Instalar
 
 > [!NOTE]
-> Versão 0.1: o porteiro funciona. O pacote no npm e a imagem no GHCR saem junto com a primeira
-> versão publicada. Até lá, use o [jeito a partir do repositório](#antes-da-primeira-versão-publicada).
+> Versão 0.1.2: a imagem Docker está publicada em `ghcr.io/jeipidevs/anti-rea`. O pacote no npm
+> ainda não saiu: sem Docker, use o [jeito a partir do repositório](#sem-docker-a-partir-do-repositório).
 
 ## Antes de começar
 
@@ -22,7 +22,7 @@ node <pasta do anti-rea>/dist/cli/index.js init
 ```
 
 Rode na pasta onde a configuração vai morar. A pasta do anti-rea é a do repositório compilado (veja
-[Antes da primeira versão publicada](#antes-da-primeira-versão-publicada)); quando o pacote sair no
+[Sem Docker: a partir do repositório](#sem-docker-a-partir-do-repositório)); quando o pacote sair no
 npm, o comando vira `npx anti-rea init`.
 
 Responda as perguntas. Uma delas é o que fica na frente do porteiro (nada, um proxy como nginx,
@@ -116,7 +116,7 @@ docker compose up -d
 Para só ver o link de novo, tire o `--novo` e pule o `up -d`. Qualquer outra mudança no `.env`
 (a senha de um canal, por exemplo) também pede `docker compose up -d`.
 
-## Antes da primeira versão publicada
+## Sem Docker: a partir do repositório
 
 Enquanto o pacote não está no npm, baixe o repositório e compile uma vez:
 
@@ -130,13 +130,8 @@ npm run build
 Os comandos acima (`init`, `start` e `dono`) usam essa pasta: `node <pasta do anti-rea>/dist/cli/index.js`.
 Quando o pacote sair no npm, cada um vira `npx anti-rea` (por exemplo `npx anti-rea start`).
 
-Para o Docker, construa a imagem na pasta do repositório e use `anti-rea` no lugar de
-`ghcr.io/jeipidevs/anti-rea:latest`, no `docker-compose.yml` (`image: anti-rea`) e nos comandos
-`docker run` acima:
-
-```bash
-docker build -t anti-rea .
-```
+Com Docker não precisa compilar nada: a imagem `ghcr.io/jeipidevs/anti-rea` já vem pronta. Para
+fixar a versão, troque `:latest` por `:v0.1.2`.
 
 ## Último passo: apontar o domínio para o porteiro
 
@@ -157,9 +152,7 @@ fica sem HTTPS.
 No painel não há `docker-compose.yml` nem `.env` na pasta: a configuração, as variáveis e o registro
 chegam ao contêiner pelas telas do serviço.
 
-1. Crie um serviço novo com a imagem `ghcr.io/jeipidevs/anti-rea`. Antes da primeira versão
-   publicada, aponte o serviço para este repositório no GitHub e deixe o painel construir pelo
-   `Dockerfile`.
+1. Crie um serviço novo com a imagem `ghcr.io/jeipidevs/anti-rea:v0.1.2` (ou `:latest`).
 2. Monte o arquivo de configuração no contêiner em `/app/anti-rea.config.yml` (montagem de
    arquivo: "Mounts", tipo "File", no EasyPanel; "Storages", "File Mount", no Coolify). A imagem só
    lê esse caminho. Escreva o arquivo com o assistente em qualquer máquina, ou copie o

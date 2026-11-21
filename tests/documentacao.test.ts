@@ -28,16 +28,16 @@ describe("instalar: README mostra o que roda hoje", () => {
   const instalar = { "README.md": "## Instalar em 3 passos", "README.en.md": "## Install in 3 steps" } as const;
 
   for (const [arquivo, titulo] of Object.entries(instalar)) {
-    it(`${arquivo}: os comandos são o clone com build e node dist/cli/index.js, nunca npx anti-rea`, () => {
+    it(`${arquivo}: sem Docker, o clone com build e node dist/cli/index.js; com Docker, a imagem publicada com versão fixa; nunca npx anti-rea`, () => {
       const passo = secao(arquivo, titulo);
       expect(passo).not.toMatch(/npx anti-rea/);
       expect(passo).toContain("git clone https://github.com/Jeipidevs/anti-rea.git");
       expect(passo).toContain("npm ci && npm run build");
       expect(passo).toContain("node dist/cli/index.js init");
       expect(passo).toContain("node dist/cli/index.js start");
-      expect(passo).toContain("docker build -t anti-rea .");
-      expect(passo).toContain("image: anti-rea");
-      expect(passo).not.toContain("image: ghcr.io/jeipidevs/anti-rea");
+      expect(passo).toContain("image: ghcr.io/jeipidevs/anti-rea:v");
+      expect(passo).not.toContain("docker build -t anti-rea .");
+      expect(passo).not.toContain("image: anti-rea\n");
     });
 
     it(`${arquivo}: 127.0.0.1 só com o proxy na mesma máquina; Cloudflare direto vai ao firewall de docs/02`, () => {
