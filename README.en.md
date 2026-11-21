@@ -5,6 +5,7 @@
 <br>
 
 [![Version 0.1.3](https://img.shields.io/badge/version-0.1.3-FFC24B?style=for-the-badge)](#history-and-releases)
+[![npm](https://img.shields.io/npm/v/@jeipidevs/anti-rea?style=for-the-badge&logo=npm&color=CB3837&label=npm)](https://www.npmjs.com/package/@jeipidevs/anti-rea)
 [![MIT License](https://img.shields.io/badge/license-MIT-7C6CFF?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](#)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#install-in-3-steps)
@@ -113,7 +114,9 @@ then a plan, then the gatekeeper in small test-first steps. The guard was measur
 REA ([numbers, Portuguese](docs/_medicoes/2026-11-guarda.md)) before any claim went into this README.
 
 **Current state.** The gatekeeper has run in production since the night of 2026-11-20, in front of
-more than 20 static sites and apps with login. The fixes in v0.1.1 and v0.1.2 came from that real
+more than 20 static sites and apps with login. Since v0.1.3 it ships in two forms: the
+[`@jeipidevs/anti-rea`](https://www.npmjs.com/package/@jeipidevs/anti-rea) package on npm and the
+`ghcr.io/jeipidevs/anti-rea` image on GHCR, both on the same version. The fixes in v0.1.1 and v0.1.2 came from that real
 use: the log showed where the gatekeeper got in the way, and each case became a test before it became
 a release. In the production log, what lands on the shadow page is datacenter bots, WordPress
 scanners and automated browsers; no regular visitor.
