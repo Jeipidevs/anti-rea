@@ -57,15 +57,17 @@ shows what a curious visitor can see of your site comes next.
 
 ## Install in 3 steps
 
-ANTI-REA is on npm ([`anti-rea`](https://www.npmjs.com/package/anti-rea)) and on GHCR
+ANTI-REA is on npm ([`@jeipidevs/anti-rea`](https://www.npmjs.com/package/@jeipidevs/anti-rea)) and on GHCR
 (`ghcr.io/jeipidevs/anti-rea`). Pick one: Node.js 22 or newer, or Docker.
 
 ```bash
-npx anti-rea init    # wizard: asks your site address, what sits in front of it and alert channel
-npx anti-rea start   # gatekeeper up on :8080
+npx @jeipidevs/anti-rea init    # wizard: asks your site address, what sits in front of it and alert channel
+npx @jeipidevs/anti-rea start   # gatekeeper up on :8080
 ```
 
-To keep it installed on the machine, run `npm install -g anti-rea` and then `anti-rea start`.
+To keep it installed on the machine, run `npm install -g @jeipidevs/anti-rea` and then `anti-rea start`.
+The package carries the account scope because npm refused a bare `anti-rea` as too close to an
+existing package. Once installed, the command is still `anti-rea`.
 
 Then point your domain to the gatekeeper instead of the site. The gatekeeper speaks plain HTTP on
 port 8080: HTTPS comes from what sits in front of it (nginx on the machine, the panel's Traefik or
@@ -98,7 +100,7 @@ who reaches the gatekeeper port directly could pick their own IP with a header:
 - [x] Alerts: WhatsApp (Evolution API), Telegram, webhook
 - [x] Install wizard (`anti-rea init`)
 - [x] Published Docker image (`ghcr.io/jeipidevs/anti-rea`)
-- [x] Published npm package (`anti-rea`)
+- [x] Published npm package (`@jeipidevs/anti-rea`)
 - [x] Apps with login, PWA and service worker (v0.1.1)
 - [ ] Self-scan
 - [ ] Log panel
@@ -118,7 +120,7 @@ scanners and automated browsers; no regular visitor.
 
 | Version | Date | What shipped |
 |---|---|---|
-| [v0.1.3](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.3) | 2026-11-21 | **First npm release:** `npx anti-rea init` and `npx anti-rea start`, no clone or build. Same gatekeeper as v0.1.2. The package ships only what it needs (compiled code, the example config and the READMEs) and is built from scratch before packing. |
+| [v0.1.3](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.3) | 2026-11-21 | **First npm release:** `npx @jeipidevs/anti-rea init` and `npx @jeipidevs/anti-rea start`, no clone or build. Same gatekeeper as v0.1.2. The package ships only what it needs (compiled code, the example config and the READMEs) and is built from scratch before packing. |
 | [v0.1.2](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.2) | 2026-11-21 | **Video and audio as public media** (mp4, webm, mov, mp3, m4a, ogg, wav, flac and more): without a pass, a direct video link got a 403 and would not play. **`meta-webindexer` on the Meta list**, verified against the AS32934 ranges: Meta's indexer opens pages in headless Chrome and was landing on the shadow page. 559 tests. |
 | [v0.1.1](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.1) | 2026-11-20 | **Ready for apps with login** (Next.js, PWA, single page). Configurable `upstreamTimeout` (60 s by default, 1 s to 10 min), so a slow page does not turn into a 504. A caught visitor gets a 403 on script requests instead of the shadow page with a 200, so the app never mistakes it for a response. The pass renews on any response below 400 (204, 304, redirects). `.ttf` and `.otf` count as media. Link readers that do not ask for HTML get the preview. 558 tests. |
 | [v0.1.0](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.0) | 2026-11-20 | **First gatekeeper release.** First-visit check (under 1 s, with the site preview) and signed pass. In-browser guard every 0.5 s while the tab is visible. Sensitive files locked in any folder. Official bots verified (Google, Bing, Apple by DNS; Meta by its ranges). Configurable shadow page, WhatsApp, Telegram and webhook alerts with caps and grouping, local log with retention, owner link, `init` wizard and Docker image. 547 unit tests and 35 in real Chrome. |

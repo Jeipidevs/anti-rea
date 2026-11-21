@@ -119,23 +119,25 @@ seguir) vai avisar se algo do servidor vazou para ela.
 <img src="assets/telas/assistente.svg" alt="Terminal com o assistente de instalação perguntando endereço do site, domínio, o que fica na frente do porteiro, canal de aviso e caminhos isentos" width="100%">
 
 > [!NOTE]
-> O ANTI-REA está no npm ([`anti-rea`](https://www.npmjs.com/package/anti-rea)) e no GHCR
+> O ANTI-REA está no npm ([`@jeipidevs/anti-rea`](https://www.npmjs.com/package/@jeipidevs/anti-rea)) e no GHCR
 > (`ghcr.io/jeipidevs/anti-rea`). Escolha um dos dois: Node.js 22 ou mais novo, ou Docker.
 
 **1. Rode o assistente** na pasta onde a configuração vai morar. Ele pergunta o endereço do seu site,
 o que fica na frente dele e onde você quer os avisos, e escreve a configuração sozinho.
 
 ```bash
-npx anti-rea init
+npx @jeipidevs/anti-rea init
 ```
 
 **2. Ligue o porteiro.**
 
 ```bash
-npx anti-rea start
+npx @jeipidevs/anti-rea start
 ```
 
-Para deixar instalado na máquina, use `npm install -g anti-rea` e rode `anti-rea start`.
+Para deixar instalado na máquina, use `npm install -g @jeipidevs/anti-rea` e rode `anti-rea start`.
+O pacote leva o nome da conta porque o npm recusou `anti-rea` sozinho, por ser parecido com outro
+pacote que já existe. Instalado, o comando continua sendo `anti-rea`.
 
 **3. Aponte o seu domínio para o porteiro** em vez do site. O porteiro fala HTTP simples na porta
 8080: o HTTPS fica com quem está na frente dele (o nginx da máquina, o Traefik do painel ou a
@@ -215,7 +217,7 @@ Configurar: [Avisos](docs/05-avisos.md).
 <img src="assets/telas/exame.svg" alt="Terminal com o exame apontando mapa de código público, arquivo sensível, API sem login e chave aparente" width="100%">
 
 ```bash
-npx anti-rea exame https://seusite.com.br
+npx @jeipidevs/anti-rea exame https://seusite.com.br
 ```
 
 O exame vai usar a mesma lógica das ferramentas de engenharia reversa, só que a seu favor. Ele só vai
@@ -277,7 +279,7 @@ Mais perguntas: [Perguntas frequentes](docs/perguntas-frequentes.md) · Termos d
 - [x] Avisos: WhatsApp (Evolution API), Telegram e webhook
 - [x] Assistente de instalação (`anti-rea init`)
 - [x] Imagem Docker publicada (`ghcr.io/jeipidevs/anti-rea`)
-- [x] Pacote publicado no npm (`anti-rea`)
+- [x] Pacote publicado no npm (`@jeipidevs/anti-rea`)
 - [x] Apps com login, PWA e service worker (v0.1.1)
 - [ ] Exame do próprio site
 - [ ] Painel de registro
@@ -298,7 +300,7 @@ navegador automatizado; nenhum visitante comum.
 
 | Versão | Data | O que entrou |
 |---|---|---|
-| [v0.1.3](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.3) | 21/11/2026 | **Primeira versão no npm:** `npx anti-rea init` e `npx anti-rea start`, sem clonar nem compilar. O porteiro é o mesmo da v0.1.2. O pacote leva só o necessário (o código compilado, o exemplo de configuração e os READMEs) e é compilado do zero antes de empacotar. |
+| [v0.1.3](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.3) | 21/11/2026 | **Primeira versão no npm:** `npx @jeipidevs/anti-rea init` e `npx @jeipidevs/anti-rea start`, sem clonar nem compilar. O porteiro é o mesmo da v0.1.2. O pacote leva só o necessário (o código compilado, o exemplo de configuração e os READMEs) e é compilado do zero antes de empacotar. |
 | [v0.1.2](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.2) | 21/11/2026 | **Vídeo e áudio como mídia pública** (mp4, webm, mov, mp3, m4a, ogg, wav, flac e outros): sem passe, o link direto de um vídeo levava 403 e não tocava. **`meta-webindexer` na lista da Meta**, conferido pelas faixas AS32934: o indexador da Meta abre a página num Chrome sem tela e caía na página sombra. 559 testes. |
 | [v0.1.1](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.1) | 20/11/2026 | **Pronto para apps com login** (Next.js, PWA, página única). `upstreamTimeout` configurável (60 s por padrão, de 1 s a 10 min), para página lenta não virar 504. Quem foi pego leva 403 no pedido feito por script, e não a sombra com 200, para o app não tomar a sombra por resposta. O passe renova em qualquer resposta abaixo de 400 (204, 304, redirecionamento). `.ttf` e `.otf` contam como mídia. Leitor de link que não pede HTML recebe a prévia. 558 testes. |
 | [v0.1.0](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.0) | 20/11/2026 | **Primeira versão do porteiro.** Verificação na primeira visita (menos de 1 s, com a prévia do site) e passe assinado. Guarda no navegador a cada 0,5 s com a aba visível. Arquivos sensíveis trancados em qualquer pasta. Robôs oficiais conferidos (Google, Bing, Apple pelo DNS; Meta pelas faixas). Página sombra configurável, avisos por WhatsApp, Telegram e webhook com teto e agrupamento, registro local com prazo, link de dono, assistente `init` e imagem Docker. 547 testes de unidade e 35 no Chrome real. |

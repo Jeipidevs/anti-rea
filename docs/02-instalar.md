@@ -1,7 +1,7 @@
 # Instalar
 
 > [!NOTE]
-> Versão 0.1.3: o pacote está no npm ([`anti-rea`](https://www.npmjs.com/package/anti-rea)) e a
+> Versão 0.1.3: o pacote está no npm ([`@jeipidevs/anti-rea`](https://www.npmjs.com/package/@jeipidevs/anti-rea)) e a
 > imagem Docker em `ghcr.io/jeipidevs/anti-rea`.
 
 ## Antes de começar
@@ -18,11 +18,11 @@ Você precisa de duas coisas:
 <img src="../assets/telas/assistente.svg" alt="Assistente de instalação no terminal" width="100%">
 
 ```bash
-npx anti-rea init
+npx @jeipidevs/anti-rea init
 ```
 
 Rode na pasta onde a configuração vai morar. Para deixar o ANTI-REA instalado na máquina, use
-`npm install -g anti-rea`: aí cada comando vira só `anti-rea` (por exemplo `anti-rea start`).
+`npm install -g @jeipidevs/anti-rea`: aí cada comando vira só `anti-rea` (por exemplo `anti-rea start`).
 
 Responda as perguntas. Uma delas é o que fica na frente do porteiro (nada, um proxy como nginx,
 Traefik, EasyPanel ou Coolify, ou a Cloudflare): é daí que sai o IP de cada visitante, então responda
@@ -44,7 +44,7 @@ Ele também mostra o seu [link de dono](07-modo-dono.md). Guarde num lugar segur
 Depois, ligue:
 
 ```bash
-npx anti-rea start
+npx @jeipidevs/anti-rea start
 ```
 
 ## Jeito 2: Docker

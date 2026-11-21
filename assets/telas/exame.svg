@@ -4,7 +4,7 @@
   <circle cx="30" cy="24" r="7" fill="#FF5C7A"/><circle cx="54" cy="24" r="7" fill="#FFC24B"/><circle cx="78" cy="24" r="7" fill="#3BE8A8"/>
   <text x="640" y="30" text-anchor="middle" fill="#8A90B2" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14">Terminal</text>
   <g font-family="'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace" font-size="19">
-    <text x="40" y="100" fill="#3BE8A8">$ <tspan fill="#EEF0FF">npx anti-rea exame https://seusite.com.br</tspan></text>
+    <text x="40" y="100" fill="#3BE8A8">$ <tspan fill="#EEF0FF">npx @jeipidevs/anti-rea exame https://seusite.com.br</tspan></text>
     <text x="40" y="146" fill="#8A90B2">Dono confirmado pelo arquivo /.well-known/anti-rea.txt</text>
     <text x="40" y="196" fill="#B3A9FF" font-weight="700">O que um curioso consegue ver do seu site</text>
     <text x="40" y="244" fill="#FF5C7A">✖ <tspan fill="#EEF0FF">Mapa de código público</tspan><tspan x="400" fill="#8A90B2">/_next/static/chunks/app.js.map</tspan></text>

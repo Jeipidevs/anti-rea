@@ -106,7 +106,14 @@ describe("pacote do npm", () => {
     scripts: Record<string, string>;
     engines: { node: string };
     repository: { url: string };
+    name: string;
+    publishConfig: { access: string };
   };
+
+  it("sai com o escopo da conta e público (o npm recusou anti-rea sozinho; pacote com escopo nasce privado)", () => {
+    expect(pacote.name).toBe("@jeipidevs/anti-rea");
+    expect(pacote.publishConfig.access).toBe("public");
+  });
 
   it("leva o código compilado: dist está em files (o .gitignore o deixaria de fora) e o bin aponta para ele", () => {
     expect(pacote.files).toContain("dist");
@@ -138,7 +145,7 @@ describe("README e roteiro", () => {
     "Avisos: WhatsApp (Evolution API), Telegram e webhook",
     "Assistente de instalação (`anti-rea init`)",
     "Imagem Docker publicada (`ghcr.io/jeipidevs/anti-rea`)",
-    "Pacote publicado no npm (`anti-rea`)",
+    "Pacote publicado no npm (`@jeipidevs/anti-rea`)",
   ];
   const ready = [
     "Reverse proxy with server-side rules",
@@ -148,7 +155,7 @@ describe("README e roteiro", () => {
     "Alerts: WhatsApp (Evolution API), Telegram, webhook",
     "Install wizard (`anti-rea init`)",
     "Published Docker image (`ghcr.io/jeipidevs/anti-rea`)",
-    "Published npm package (`anti-rea`)",
+    "Published npm package (`@jeipidevs/anti-rea`)",
   ];
 
   it("README.md marca só o que tem teste passando e não se diz em construção", () => {
