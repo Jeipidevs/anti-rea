@@ -7,6 +7,7 @@ página explica cada parte. O exemplo completo está em [`examples/anti-rea.conf
 
 ```yaml
 upstream: http://localhost:3000   # onde o seu site real roda
+upstreamTimeout: 60s              # quanto o site tem para começar a responder (de 1s a 10m)
 domains:
   - seusite.com.br                # um porteiro pode cuidar de vários domínios, todos no mesmo upstream
 trustProxy: false                 # true atrás de nginx, Traefik, EasyPanel ou Coolify; "cloudflare" atrás da Cloudflare
@@ -45,10 +46,14 @@ escreve uma vez no log `pedido de IP interno com X-Forwarded-For: ligue trustPro
 ### Site fora do ar ou lento
 
 Se o site estiver fora do ar, o visitante recebe a página "Site temporariamente indisponível" (com
-o código 502). Se o site aceitar o pedido e não começar a responder em 60 s, o visitante recebe a
-mesma página, com o código 504. Página que leva mais de 60 s para começar a responder (um relatório
-pesado, uma conexão de espera longa) não funciona atrás do porteiro. Nos dois casos o porteiro
-escreve uma linha no log, no máximo uma por minuto:
+o código 502). Se o site aceitar o pedido e não começar a responder no `upstreamTimeout` (60 s por
+padrão), o visitante recebe a mesma página, com o código 504. O prazo vale também para caminho isento
+e conta até o site começar a responder: uma conexão que já começou (SSE, download longo) não é
+cortada, e um envio que ainda está chegando renova o prazo. Se o site tem uma página que leva mais
+que isso para começar (um relatório pesado, a conversão de um vídeo enviado, uma chamada lenta a
+outro serviço), aumente o `upstreamTimeout` até 10m. O envio em si (o arquivo subindo) tem até 5 min
+para chegar inteiro; passado isso, o Node corta com 408. Nos dois casos o porteiro escreve uma linha no
+log, no máximo uma por minuto:
 
 ```
 [anti-rea] falha no site http://localhost:3000: ECONNREFUSED. O visitante recebeu a página de indisponível (no máximo uma linha destas por minuto).
@@ -74,22 +79,37 @@ A tela de verificação leva a prévia da página (título, descrição e imagem
 site. Ela nunca espera o site por mais de 0,3 s: se a busca demorar, a tela sai sem a prévia e a
 busca termina em segundo plano, para o próximo pedido. Robô de prévia de link conhecido (WhatsApp,
 Telegram e os outros de [Robôs oficiais](08-robos-oficiais.md#prévias-e-duckduckgo)) espera até 5 s,
-porque é a prévia que ele veio buscar. A prévia fica guardada por 10 minutos em cada caminho; a busca
+porque é a prévia que ele veio buscar. O leitor de link que não pede HTML (o gerador de prévia de um
+sistema que manda mensagens, por exemplo) também espera até 5 s: navegador sempre pede HTML. A prévia fica guardada por 10 minutos em cada caminho; a busca
 que falha (site fora do ar, erro 5xx ou mais de 5 s) fica guardada só 30 s.
 
-O passe se renova sozinho: passada a metade do `passDuration`, a próxima resposta 200 do site (uma
-página ou um pedido de dados; imagens e fontes não contam) leva um passe novo, com a duração inteira.
+O passe se renova sozinho: passada a metade do `passDuration`, a próxima resposta do site que não é
+erro (200, 204, 304 ou redirecionamento: uma página, um pedido de dados ou o índice de um app de
+página única que volta 304; imagens e fontes não contam) leva um passe novo, com a duração inteira.
 Quem usa o site pelo menos uma vez a cada metade do prazo nunca volta para a verificação.
 
 Desligar `firstVisit` deixa o site abrir direto, mas o robô recebe o código antes de ser pego.
 Só desligue se souber o que está trocando. Com `firstVisit: false`, toda página aberta pelo
-navegador (resposta 200) entrega um passe, mesmo com `devtoolsIsCaught: false`: é ele que deixa o
+navegador (resposta que não é erro) entrega um passe, mesmo com `devtoolsIsCaught: false`: é ele que deixa o
 WebSocket do site conectar.
 
 Sem passe, só a navegação (o navegador pedindo uma página, com `Accept` de HTML) recebe a tela de
 verificação. Leitor de prévia que não está na [lista de robôs](08-robos-oficiais.md#prévias-e-duckduckgo)
 e não diz o formato (sem `Accept` ou com o curinga `*/*`) também recebe a tela, com a prévia, quando o
 caminho não tem extensão de arquivo. Arquivo (`/app.js`) e outro formato (`application/json`) sem passe levam 403.
+
+Numa aba aberta há dias o passe pode vencer. Aí o `fetch` do app a um caminho sem extensão, sem dizer
+o formato (o `Accept` padrão do `fetch` é `*/*`), recebe a tela de verificação com 200, como o leitor
+de prévia. É de propósito: o service worker de um PWA busca a página do mesmo jeito, e com 403 a pessoa
+ficaria trancada, porque toda recarga passa de novo por ele. Para o app receber erro (403) no lugar da
+tela, mande `Accept: application/json` nas chamadas de API; ao receber 403 ou uma resposta que não é
+JSON, recarregue a página, que passa pela verificação em menos de 1 s.
+
+Quem é pego vê a página sombra por 1 hora naquele navegador. Nesse tempo, o pedido feito por script
+(o envio de dados de outra aba aberta: `Sec-Fetch-Dest: empty`) leva 403, sem a sombra: com a sombra
+em 200, o app tomaria a página por resposta e daria o envio por feito. A navegação que o service
+worker refaz (`Sec-Fetch-Mode: navigate`) continua na sombra. Sem esses cabeçalhos, de navegador
+antigo, conta o método: POST, PUT, PATCH e DELETE.
 
 ### Ritmo de navegação
 

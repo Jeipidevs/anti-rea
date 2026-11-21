@@ -176,7 +176,21 @@ export function foraDoDocumento(destinoFetch: string | undefined): boolean {
   return destino !== "" && destino !== "document";
 }
 
-const EXTENSOES_MIDIA = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "woff", "woff2"]);
+/**
+ * Pedido feito por script da página (fetch, XHR): a resposta vai para o código, não para a tela. Vale
+ * o Sec-Fetch-Dest `empty`; sem o cabeçalho, de navegador antigo, conta o método que não é GET nem
+ * HEAD. Sec-Fetch-Mode `navigate` nunca é de script: é o service worker refazendo a navegação, que o
+ * Chrome manda com dest `empty`, e a resposta vira a página.
+ */
+export function feitoPorScript(metodo: string, destinoFetch: string | undefined, modoFetch?: string): boolean {
+  if ((modoFetch ?? "").trim().toLowerCase() === "navigate") return false;
+  const destino = (destinoFetch ?? "").trim().toLowerCase();
+  if (destino !== "") return destino === "empty";
+  const m = metodo.toUpperCase();
+  return m !== "GET" && m !== "HEAD";
+}
+
+const EXTENSOES_MIDIA = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "woff", "woff2", "ttf", "otf"]);
 
 /** Extensão do último segmento do caminho (já normalizado), em minúsculas; null sem ela ("pagina", ".well-known"). */
 function extensao(caminho: string): string | null {

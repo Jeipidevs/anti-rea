@@ -7,6 +7,7 @@ import {
   dominioDoHost,
   ehMidia,
   ehNavegacao,
+  feitoPorScript,
   normalizarCaminho,
 } from "../../src/porteiro/pedido.js";
 
@@ -148,5 +149,33 @@ describe("ehNavegacao e ehMidia", () => {
     for (const c of ["/app.js", "/", "/png", "/a.png.js", "/x.css", "/.png/x"]) expect(ehMidia(c), c).toBe(false);
     // Conferida sempre no caminho normalizado: o parâmetro de matriz já saiu.
     expect(ehMidia(normalizarCaminho("/app.js;.png"))).toBe(false);
+  });
+
+  it("fonte .ttf e .otf também é mídia (ícones e fontes de apps Expo e React Native Web)", () => {
+    for (const c of ["/assets/Ionicons.ttf", "/fonts/Archivo.TTF", "/fonts/Titulo.otf"]) expect(ehMidia(c), c).toBe(true);
+  });
+});
+
+describe("feitoPorScript", () => {
+  it("Sec-Fetch-Dest empty (fetch, XHR) é pedido de script; página, iframe e recurso não são", () => {
+    expect(feitoPorScript("GET", "empty")).toBe(true);
+    expect(feitoPorScript("POST", " Empty ")).toBe(true);
+    for (const destino of ["document", "iframe", "frame", "script", "image", "serviceworker"]) {
+      expect(feitoPorScript("GET", destino), destino).toBe(false);
+      expect(feitoPorScript("POST", destino), destino).toBe(false);
+    }
+  });
+
+  it("Sec-Fetch-Mode navigate nunca é de script: o service worker que refaz a navegação manda dest empty", () => {
+    expect(feitoPorScript("GET", "empty", "navigate")).toBe(false);
+    expect(feitoPorScript("POST", "empty", " Navigate ")).toBe(false);
+    expect(feitoPorScript("GET", "empty", "cors")).toBe(true);
+    expect(feitoPorScript("POST", "empty", "same-origin")).toBe(true);
+  });
+
+  it("sem Sec-Fetch-Dest (navegador antigo), só método que não é GET nem HEAD conta como de script", () => {
+    expect(feitoPorScript("GET", undefined)).toBe(false);
+    expect(feitoPorScript("head", "")).toBe(false);
+    for (const metodo of ["POST", "put", "PATCH", "DELETE"]) expect(feitoPorScript(metodo, undefined), metodo).toBe(true);
   });
 });

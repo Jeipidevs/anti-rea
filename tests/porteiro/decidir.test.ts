@@ -245,6 +245,29 @@ describe("decidir: marca de pego", () => {
     expect(await decidir(pedido({ caminho: "/health", cookie: marcaPego() }), ctx())).toEqual(publico(false));
   });
 
+  it("pedido feito por script com a marca leva 403, não a sombra 200: o app não toma a sombra por resposta", async () => {
+    const recusaPego: Decisao = { acao: "recusar", status: 403, sinal: { motivo: "pego na verificação", gravidade: "copia" } };
+    const marca = marcaPego();
+    // O envio de outra aba (fetch) depois de um F12: com 200 o app daria a mensagem por enviada.
+    expect(
+      await decidir(pedido({ metodo: "POST", caminho: "/api/enviar", accept: "*/*", destinoFetch: "empty", cookie: marca }), ctx()),
+    ).toEqual(recusaPego);
+    expect(
+      await decidir(pedido({ caminho: "/api/dados", accept: "application/json", destinoFetch: "empty", cookie: marca }), ctx()),
+    ).toEqual(recusaPego);
+    // Navegador antigo, sem Sec-Fetch-Dest: POST conta como de script.
+    expect(await decidir(pedido({ metodo: "POST", caminho: "/api/enviar", accept: "*/*", cookie: marca }), ctx())).toEqual(recusaPego);
+    // A página continua na sombra, e o formulário clássico (POST de página) também.
+    expect(await decidir(pedido({ cookie: marca, destinoFetch: "document" }), ctx())).toEqual(sombra("pego na verificação", "copia", 200));
+    // A página que o service worker refaz (mode navigate, dest empty) é página: sombra.
+    expect(await decidir(pedido({ cookie: marca, destinoFetch: "empty", modoFetch: "navigate" }), ctx())).toEqual(
+      sombra("pego na verificação", "copia", 200),
+    );
+    expect(await decidir(pedido({ metodo: "POST", caminho: "/contato", cookie: marca, destinoFetch: "document" }), ctx())).toEqual(
+      sombra("pego na verificação", "copia", 200),
+    );
+  });
+
   it("marca vencida ou adulterada não conta", async () => {
     const velha = `anti_rea_pego=${criarMarcaPego(SEGREDO, AGORA - 3_600_001)}`;
     expect(await decidir(pedido({ cookie: velha }), ctx())).toEqual({ acao: "verificar" });
@@ -483,6 +506,20 @@ describe("decidir: passe de visitante e primeira visita", () => {
     expect(await decidir(pedido({ caminho: "/api/produtos", accept: "*/*, application/json" }), ctx())).toEqual({ acao: "recusar", status: 403 });
     expect(await decidir(pedido({ metodo: "POST", caminho: "/produtos", accept: "*/*" }), ctx())).toEqual({ acao: "recusar", status: 403 });
     expect(await decidir(pedido({ metodo: "HEAD", caminho: "/produtos", accept: undefined }), ctx())).toEqual({ acao: "recusar", status: 403 });
+  });
+
+  it("sem passe, a página que o service worker busca recebe a tela de verificação, mesmo com Sec-Fetch-Dest empty", async () => {
+    // PWA com o passe vencido: o service worker refaz a navegação e o Chrome manda dest empty. Com 403
+    // a pessoa ficaria trancada, porque toda recarga passa de novo pelo service worker.
+    const verificar: Decisao = { acao: "verificar" };
+    // fetch(event.request) e o NetworkFirst do Workbox: mode navigate, Accept de HTML.
+    expect(await decidir(pedido({ caminho: "/painel", destinoFetch: "empty", modoFetch: "navigate" }), ctx())).toEqual(verificar);
+    // fetch(event.request.url): mode cors e o Accept padrão do fetch.
+    expect(await decidir(pedido({ caminho: "/painel", accept: "*/*", destinoFetch: "empty", modoFetch: "cors" }), ctx())).toEqual(verificar);
+    // O app que pede JSON leva 403: é assim que o fetch dele recebe erro, e não a tela.
+    expect(
+      await decidir(pedido({ caminho: "/api/dados", accept: "application/json", destinoFetch: "empty", modoFetch: "cors" }), ctx()),
+    ).toEqual({ acao: "recusar", status: 403 });
   });
 
   it("firstVisit false repassa com guarda e emite passe na navegação", async () => {

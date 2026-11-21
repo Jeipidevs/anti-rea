@@ -67,6 +67,26 @@ describe("porteiro: guarda e pego", () => {
     expect(semMarca.texto).toContain("Verificando seu navegador");
   });
 
+  it("pego: o fetch de outra aba leva 403 sem a sombra, fica no registro e não manda outro aviso", async () => {
+    // Janela de agrupamento curta: passada ela, um evento com aviso sairia na hora.
+    const t = await montar({ alerts: { groupByIp: "1s" } });
+    const passe = await t.passe();
+    const r = await t.post("/.anti-rea/pego", JSON.stringify({ ...SINAIS_LIMPOS, cdp: true, nonce: "" }), { cookie: passe });
+    const pego = cookieDe(r, "anti_rea_pego")!;
+    await esperar(() => t.enviados.length === 1);
+    await new Promise((resolver) => setTimeout(resolver, 1_100));
+    const envio = await t.post("/upload", JSON.stringify({ texto: "oi" }), { cookie: `${passe}; ${pego}`, accept: "*/*", "sec-fetch-dest": "empty" });
+    expect(envio.status).toBe(403);
+    expect(envio.texto).not.toContain("Pegamos você");
+    expect(t.site.recebidos.some((p) => p.url === "/upload")).toBe(false);
+    expect(t.eventos().at(-1)).toMatchObject({ motivo: "pego na verificação", gravidade: "copia", destino: "recusado", caminho: "/upload" });
+    await new Promise((resolver) => setTimeout(resolver, 200));
+    expect(t.enviados).toHaveLength(1);
+    // A navegação do mesmo navegador, passada a janela, vai à sombra e avisa de novo: o teste enxerga aviso.
+    await t.get("/", { accept: HTML, cookie: `${passe}; ${pego}` });
+    await esperar(() => t.enviados.length === 2);
+  });
+
   it("pego sem passe válido responde 204 e não faz mais nada", async () => {
     const t = await montar();
     const r = await t.post("/.anti-rea/pego", JSON.stringify({ ...SINAIS_LIMPOS, cdp: true, nonce: "" }));

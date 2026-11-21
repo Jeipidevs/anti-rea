@@ -23,7 +23,15 @@ import {
   lerCookies,
   passeDoPedido,
 } from "./passes.js";
-import { caminhoAmbiguo, caminhoDoAlvo, caminhoDoPorteiro, caminhoParaORegistro, dominioDoHost, normalizarCaminho } from "./pedido.js";
+import {
+  caminhoAmbiguo,
+  caminhoDoAlvo,
+  caminhoDoPorteiro,
+  caminhoParaORegistro,
+  dominioDoHost,
+  ehNavegacao,
+  normalizarCaminho,
+} from "./pedido.js";
 import { buscarHtml, CachePrevia, ESPERA_GENTE_MS, ESPERA_ROBO_MS } from "./previa.js";
 import { criarDestino, recusarUpgrade, repassarPedido, repassarUpgrade } from "./repasse.js";
 import { enviar, responderDesafio, responderRecusa, responderSombra, responderTexto } from "./respostas.js";
@@ -107,7 +115,7 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
   const dns = deps.dns ?? criarResolvedorDns();
   const meta = deps.meta ?? new FaixasMeta(() => buscarFaixasMeta());
   const ritmo = new Ritmo(RITMO_LIMITE, RITMO_JANELA_MS);
-  const destino = criarDestino(cfg.upstream, { tempoMs: deps.tempoDoSiteMs, agora: relogio });
+  const destino = criarDestino(cfg.upstream, { tempoMs: deps.tempoDoSiteMs ?? cfg.upstreamTimeoutMs, agora: relogio });
   const previas = new CachePrevia(relogio);
   const fechamento = new AbortController();
   const tuneis = new Set<Duplex>();
@@ -141,12 +149,14 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
    * Tela de verificação com a prévia do caminho. A prévia é buscada sem a query: link de uso único
    * (login por e-mail, troca de senha) leva o código na query e seria gasto antes da pessoa passar.
    * Uma pessoa espera a prévia no máximo ESPERA_GENTE_MS (a busca termina em segundo plano para o
-   * próximo pedido); o robô de prévia conhecido espera a busca inteira, porque veio buscar a prévia.
+   * próximo pedido). O robô de prévia conhecido e o leitor que não pede HTML (navegador sempre pede)
+   * esperam a busca inteira, porque vieram buscar a prévia.
    */
   async function desafio(req: IncomingMessage, p: Pedido, agora: number): Promise<string> {
     const host = hostDaPrevia(req.headers.host);
     const semQuery = p.caminho.split(/[?#]/, 1)[0] ?? "/";
-    const espera = roboDeclarado(p.agente)?.classe === "previa" ? ESPERA_ROBO_MS : ESPERA_GENTE_MS;
+    const leitor = roboDeclarado(p.agente)?.classe === "previa" || !ehNavegacao(p.metodo, p.accept);
+    const espera = leitor ? ESPERA_ROBO_MS : ESPERA_GENTE_MS;
     const buscar = () => buscarHtml(destino, semQuery, host, fechamento.signal);
     const previa = await previas.obter(`${host ?? ""} ${semQuery}`, buscar, espera);
     return paginaDesafio({
@@ -168,6 +178,7 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
       corsMetodo: cabecalhoUnico(req.headers["access-control-request-method"]),
       proposito: CABECALHOS_DE_PROPOSITO.map((nome) => cabecalhoUnico(req.headers[nome]) ?? "").join(" "),
       destinoFetch: cabecalhoUnico(req.headers["sec-fetch-dest"]),
+      modoFetch: cabecalhoUnico(req.headers["sec-fetch-mode"]),
       ip: ipReal(req, cfg.trustProxy),
       dominio: dominioDoHost(req.headers.host),
       https: pedidoHttps(req, cfg.trustProxy),
@@ -221,7 +232,8 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
         }
         // 404: rota do porteiro que não existe, ou arquivo trancado com passe de dono. Sem evento.
         if (d.status === 404) return responderTexto(res, 404, "Não encontrado.");
-        gravar(evento(SEM_PASSE, "recusado"), true);
+        // Com sinal (o fetch de quem já foi pego), o aviso já saiu quando a marca foi posta.
+        gravar(evento(d.sinal ?? SEM_PASSE, "recusado"), d.sinal === undefined);
         return responderRecusa(res);
       case "verificar":
         return responderDesafio(res, await desafio(req, p, agora));

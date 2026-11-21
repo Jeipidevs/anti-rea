@@ -12,7 +12,7 @@ própria aqui.
    primeira que casar vence: link de dono, rotas internas, o resto de `/.anti-rea/` (404), arquivo
    trancado (com passe de dono, 404 sem evento), caminho ambíguo (400), pré-voo CORS (ferramenta
    conhecida antes; só status e cabeçalhos do site), caminho público, passe de dono, isento, marca de
-   pego, ferramenta conhecida ou caminho de varredura, robô declarado, ritmo (pela chave do passe; sem
+   pego (o pedido feito por script leva 403, não a sombra), ferramenta conhecida ou caminho de varredura, robô declarado, ritmo (pela chave do passe; sem
    passe, só com `firstVisit: false`, pelo IP), passe de visitante e primeira visita (tela de
    verificação para a navegação e para o pedido sem formato a caminho sem extensão; mídia passa; o
    resto leva 403).

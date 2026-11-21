@@ -56,6 +56,21 @@ describe("porteiro: site lento ou fora do ar", () => {
     expect(t.eventos()).toEqual([]);
   });
 
+  it("upstreamTimeout da configuração é o prazo do site", async () => {
+    espiarFalhasDoSite();
+    const t = await montar({ upstreamTimeout: "1s" });
+    const passe = await t.passe();
+    const inicio = Date.now();
+    const r = await t.get("/mudo", { cookie: passe });
+    const levou = Date.now() - inicio;
+    expect(r.status).toBe(504);
+    expect(levou).toBeGreaterThanOrEqual(950);
+    expect(levou).toBeLessThan(4_000);
+    // A página que leva 1,5 s passa com um prazo maior.
+    const folgado = await montar({ upstreamTimeout: "3s" });
+    expect((await folgado.get("/lento", { cookie: await folgado.passe() })).status).toBe(200);
+  });
+
   it("corpo que chega devagar renova o tempo: o envio longo não vira 504", async () => {
     const t = await montar({}, { tempoDoSiteMs: 1_000 });
     const status = await new Promise<number>((resolver, rejeitar) => {
@@ -233,6 +248,15 @@ describe("porteiro: prévia na tela de verificação", () => {
     }
     expect(texto).toContain('<meta property="og:title" content="Página Devagar">');
     expect(t.site.recebidos.filter((p) => p.url === "/devagar")).toHaveLength(1);
+  });
+
+  it("leitor de prévia fora da lista, que não pede HTML, também espera a busca inteira", async () => {
+    // O gerador de prévia da Evolution (Baileys) e outros leitores de link sem agente conhecido.
+    const t = await montar();
+    const inicio = Date.now();
+    const r = await t.get("/devagar-leitor", { "user-agent": "node-fetch/1.0 (+https://github.com/bitinn/node-fetch)", accept: "*/*" });
+    expect(Date.now() - inicio).toBeGreaterThanOrEqual(1_400);
+    expect(r.texto).toContain('<meta property="og:title" content="Página Devagar">');
   });
 
   it("robô de prévia conhecido espera a busca e leva a prévia já no primeiro pedido", async () => {

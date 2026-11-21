@@ -167,12 +167,13 @@ export function cacheSoDoNavegador(valor: string | string[] | undefined): string
 
 /**
  * Cabeçalhos da resposta para o visitante: sem os de salto, sem Server e X-Powered-By, mais os
- * cookies do porteiro (só numa resposta 200). Resposta `privada` (liberada por passe ou por ser robô) não pode ir para
+ * cookies do porteiro (só em resposta abaixo de 400). Resposta `privada` (liberada por passe ou por ser robô) não pode ir para
  * cache compartilhado: senão a CDN entrega o JS do visitante verificado a qualquer um.
  */
 function cabecalhosParaOVisitante(resposta: IncomingMessage, opcoes: OpcoesRepasse): OutgoingHttpHeaders {
   const { privada } = opcoes;
-  const cookiesNovos = resposta.statusCode === 200 ? opcoes.cookiesNovos : [];
+  // Erro não leva passe; 204, 304 e redirecionamento levam (app de página única vive de 304).
+  const cookiesNovos = (resposta.statusCode ?? 500) < 400 ? opcoes.cookiesNovos : [];
   const saida: OutgoingHttpHeaders = {};
   const doConnection = listadosNoConnection(resposta.headers.connection);
   for (const [nome, valor] of Object.entries(resposta.headers)) {

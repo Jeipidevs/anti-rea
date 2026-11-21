@@ -28,6 +28,7 @@ describe("validarConfig", () => {
     expect(minimo.alerts.scans).toBe("panel");
     expect(minimo.alerts.channels).toEqual([]);
     expect(minimo.log.retentionMs).toBe(30 * 86_400_000);
+    expect(minimo.upstreamTimeoutMs).toBe(60_000);
     expect(minimo.shadow.language).toBe("pt-BR");
     expect(minimo.shadow.showIp).toBe(true);
     expect(minimo.exempt).toEqual([]);
@@ -74,6 +75,16 @@ describe("validarConfig", () => {
     expect(() =>
       validarConfig({ upstream: "http://s", domains: ["a.com"], check: { passDuration: "7 dias" } }),
     ).toThrow(/check\.passDuration/);
+  });
+
+  it("upstreamTimeout: de 1 s a 10 min, apontando o campo quando sai disso", () => {
+    const base = { upstream: "http://s", domains: ["a.com"] };
+    expect(validarConfig({ ...base, upstreamTimeout: "180s" }).upstreamTimeoutMs).toBe(180_000);
+    expect(validarConfig({ ...base, upstreamTimeout: "1s" }).upstreamTimeoutMs).toBe(1_000);
+    expect(validarConfig({ ...base, upstreamTimeout: "10m" }).upstreamTimeoutMs).toBe(600_000);
+    for (const valor of ["0s", "11m", "1h", "2 min", 90]) {
+      expect(() => validarConfig({ ...base, upstreamTimeout: valor }), String(valor)).toThrow(/upstreamTimeout/);
+    }
   });
 
   it("rejeita raiz que não é objeto", () => {

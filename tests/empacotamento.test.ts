@@ -15,6 +15,7 @@ import {
   SUFIXOS_TRANCADOS,
 } from "../src/deteccao/servidor/caminhos.js";
 import { SCANNERS } from "../src/deteccao/servidor/ferramentas.js";
+import { validarConfig } from "../src/config/carregar.js";
 import { ESPERA_GENTE_MS, ESPERA_ROBO_MS, VALIDADE_FALHA_MS } from "../src/porteiro/previa.js";
 import { MIN_SEGREDO } from "../src/cli/start.js";
 import { TEMPO_SITE_MS } from "../src/porteiro/repasse.js";
@@ -239,8 +240,13 @@ describe("números da documentação vêm do código", () => {
 
   it("operação: docs/03 e a FAQ citam o tempo do site, docs/02 o keep-alive e o prazo do desligamento", () => {
     const corrido = (arquivo: string) => ler(arquivo).replace(/\s+/g, " ");
-    expect(corrido("docs/03-configurar.md")).toContain(`não começar a responder em ${TEMPO_SITE_MS / 1000} s`);
-    expect(corrido("docs/perguntas-frequentes.md")).toContain(`depois de ${TEMPO_SITE_MS / 1000} s sem começar a responder`);
+    // O padrão do upstreamTimeout é o TEMPO_SITE_MS do código, e os dois documentos citam o número.
+    expect(validarConfig({ upstream: "http://s", domains: ["a.com"] }).upstreamTimeoutMs).toBe(TEMPO_SITE_MS);
+    expect(corrido("docs/03-configurar.md")).toContain(`upstreamTimeout: ${TEMPO_SITE_MS / 1000}s`);
+    expect(corrido("docs/03-configurar.md")).toContain(`no \`upstreamTimeout\` (${TEMPO_SITE_MS / 1000} s por padrão)`);
+    expect(corrido("docs/perguntas-frequentes.md")).toContain(
+      `depois do \`upstreamTimeout\` (${TEMPO_SITE_MS / 1000} s por padrão) sem começar a responder`,
+    );
     expect(corrido("docs/02-instalar.md")).toContain(`conexão ociosa por ${KEEP_ALIVE_MS / 1000} s`);
     expect(corrido("docs/02-instalar.md")).toContain(`espera até ${PRAZO_DESLIGAR_MS / 1000} s os pedidos em andamento`);
   });
