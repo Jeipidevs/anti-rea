@@ -55,7 +55,9 @@ const TABELA: Linha[] = [
       "DuckDuckBot",
     ],
   },
-  { classe: "meta", nomes: ["facebookexternalhit", "meta-externalagent", "meta-externalads", "Facebot"] },
+  // meta-webindexer: o indexador da Meta abre a página num Chrome sem tela; sem estar aqui, caía na
+  // verificação e a guarda o pegava pela depuração remota.
+  { classe: "meta", nomes: ["facebookexternalhit", "meta-externalagent", "meta-externalads", "meta-webindexer", "Facebot"] },
 ];
 
 export function roboDeclarado(agente: string | undefined): Robo | null {

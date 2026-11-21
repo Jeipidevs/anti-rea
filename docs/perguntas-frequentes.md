@@ -85,7 +85,7 @@ Pode, com `trustProxy: cloudflare` e o servidor aceitando conexões só dos ende
 `CDN-Cache-Control: no-store`, `Cloudflare-CDN-Cache-Control: no-store` e `Cache-Control: private`,
 para a CDN não guardar o JS de um visitante verificado e entregar a qualquer um. Regra de cache que
 força tempo na borda ("Cache Everything" com Edge TTL) passa por cima disso: desligue essa regra nos
-caminhos do site, ou deixe só imagens e fontes em cache.
+caminhos do site, ou deixe só imagens, fontes, vídeo e áudio em cache.
 
 **O link de login por e-mail parou de funcionar. Por quê?**
 Se o código vem no próprio caminho (`/login/magico/<código>`), a tela de verificação busca a prévia

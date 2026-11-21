@@ -151,6 +151,13 @@ describe("ehNavegacao e ehMidia", () => {
     expect(ehMidia(normalizarCaminho("/app.js;.png"))).toBe(false);
   });
 
+  it("vídeo e áudio também são mídia (o tocador do celular pede em pedaços, às vezes sem passe)", () => {
+    for (const c of ["/assets/tour.mp4", "/v/a.M4V", "/b.webm", "/c.mov", "/d.ogv", "/e.mp3", "/f.m4a", "/g.aac", "/h.ogg", "/i.oga", "/j.opus", "/k.wav", "/l.flac"]) {
+      expect(ehMidia(c), c).toBe(true);
+    }
+    for (const c of ["/mp4", "/a.mp4.js", "/.mp4/x"]) expect(ehMidia(c), c).toBe(false);
+  });
+
   it("fonte .ttf e .otf também é mídia (ícones e fontes de apps Expo e React Native Web)", () => {
     for (const c of ["/assets/Ionicons.ttf", "/fonts/Archivo.TTF", "/fonts/Titulo.otf"]) expect(ehMidia(c), c).toBe(true);
   });

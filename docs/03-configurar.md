@@ -85,7 +85,7 @@ que falha (site fora do ar, erro 5xx ou mais de 5 s) fica guardada só 30 s.
 
 O passe se renova sozinho: passada a metade do `passDuration`, a próxima resposta do site que não é
 erro (200, 204, 304 ou redirecionamento: uma página, um pedido de dados ou o índice de um app de
-página única que volta 304; imagens e fontes não contam) leva um passe novo, com a duração inteira.
+página única que volta 304; imagens, fontes, vídeo e áudio não contam) leva um passe novo, com a duração inteira.
 Quem usa o site pelo menos uma vez a cada metade do prazo nunca volta para a verificação.
 
 Desligar `firstVisit` deixa o site abrir direto, mas o robô recebe o código antes de ser pego.
