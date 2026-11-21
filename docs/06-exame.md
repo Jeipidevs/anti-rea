@@ -11,7 +11,7 @@ primeiro.
 ## Como rodar
 
 ```bash
-npx anti-rea exame https://seusite.com.br
+npx @jeipidevs/anti-rea exame https://seusite.com.br
 ```
 
 Na primeira vez ele pede para você provar que o site é seu: crie o arquivo
