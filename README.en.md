@@ -4,7 +4,7 @@
 
 <br>
 
-[![Version 0.1.3](https://img.shields.io/badge/version-0.1.3-FFC24B?style=for-the-badge)](#history-and-releases)
+[![Version 0.2.0](https://img.shields.io/badge/version-0.2.0-FFC24B?style=for-the-badge)](#history-and-releases)
 [![npm](https://img.shields.io/npm/v/@jeipidevs/anti-rea?style=for-the-badge&logo=npm&color=CB3837&label=npm)](https://www.npmjs.com/package/@jeipidevs/anti-rea)
 [![MIT License](https://img.shields.io/badge/license-MIT-7C6CFF?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](#)
@@ -15,7 +15,7 @@
 </div>
 
 > [!NOTE]
-> **Version 0.1.3: the gatekeeper works, runs in production and is on npm. The self-scan and the log panel come next.**
+> **Version 0.2.0: the gatekeeper runs in production and is on npm. Now with the self-scan and the log panel.**
 > Check the [roadmap](#roadmap) for what already runs. Nothing here promises what does not run yet.
 
 ## In one sentence
@@ -49,8 +49,13 @@ It also locks these files for everyone, in any folder: source maps (`.map`); `.e
 `.git-credentials`, `.ssh`, `.aws` and `wp-config.php.*`; files ending in `.bak`, `.old`, `.orig`,
 `.save`, `~`, `.swp`, `.swo`, `.sql` and `.sql.gz`; archives (`.zip`, `.tar`, `.tar.gz`, `.tgz`, `.gz`,
 `.7z`, `.rar`) whose name starts with `backup` or `bkp` and, at the root, those named `site`, `www`,
-`web`, `html`, `public_html`, `htdocs`, `wwwroot`, `db`, `database` or `dump`. A **self-scan** that
-shows what a curious visitor can see of your site comes next.
+`web`, `html`, `public_html`, `htdocs`, `wwwroot`, `db`, `database` or `dump`.
+
+The **self-scan** (`npx @jeipidevs/anti-rea exame https://yoursite.com`) shows what a curious visitor can
+see of your site: source maps, sensitive files, APIs that answer without login and secret keys in the
+code, with an HTML report. It only reads (GET, HEAD, OPTIONS) and only runs on a site that proves it is
+yours through `/.well-known/anti-rea.txt`. The **log panel** opens on your own site at
+`/.anti-rea/painel` with your owner pass, or becomes a file with `anti-rea painel`.
 
 > [!IMPORTANT]
 > No tool can stop 100% of copying of what the browser receives. ANTI-REA raises the cost, reports
@@ -74,7 +79,7 @@ Then point your domain to the gatekeeper instead of the site. The gatekeeper spe
 port 8080: HTTPS comes from what sits in front of it (nginx on the machine, the panel's Traefik or
 Cloudflare).
 
-Prefer Docker? Use `image: ghcr.io/jeipidevs/anti-rea:v0.1.3` in the `docker-compose.yml` shown in
+Prefer Docker? Use `image: ghcr.io/jeipidevs/anti-rea:v0.2.0` in the `docker-compose.yml` shown in
 the [Portuguese README](README.md#instalar-em-3-passos). The pinned tag keeps the gatekeeper on that
 version until you change it.
 
@@ -103,8 +108,8 @@ who reaches the gatekeeper port directly could pick their own IP with a header:
 - [x] Published Docker image (`ghcr.io/jeipidevs/anti-rea`)
 - [x] Published npm package (`@jeipidevs/anti-rea`)
 - [x] Apps with login, PWA and service worker (v0.1.1)
-- [ ] Self-scan
-- [ ] Log panel
+- [x] Self-scan (`anti-rea exame`, v0.2.0)
+- [x] Log panel (`/.anti-rea/painel` and `anti-rea painel`, v0.2.0)
 
 ## History and releases
 
@@ -123,6 +128,7 @@ scanners and automated browsers; no regular visitor.
 
 | Version | Date | What shipped |
 |---|---|---|
+| [v0.2.0](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.2.0) | 2026-11-22 | **Self-scan:** `npx @jeipidevs/anti-rea exame https://yoursite.com` looks for source maps, sensitive files (checked by content, no false positive on single-page apps), APIs that answer without login and secret keys in the code, with an HTML report. GET, HEAD and OPTIONS only, only on a site proven by `/.well-known/anti-rea.txt`; with the gatekeeper in front, it scans behind it using the owner link, without raising alerts. **Log panel** at `/.anti-rea/painel`, owner pass only, and `anti-rea painel` to write it to a file. Same gatekeeper as v0.1.3. |
 | [v0.1.3](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.3) | 2026-11-21 | **First npm release:** `npx @jeipidevs/anti-rea init` and `npx @jeipidevs/anti-rea start`, no clone or build. Same gatekeeper as v0.1.2. The package ships only what it needs (compiled code, the example config and the READMEs) and is built from scratch before packing. |
 | [v0.1.2](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.2) | 2026-11-21 | **Video and audio as public media** (mp4, webm, mov, mp3, m4a, ogg, wav, flac and more): without a pass, a direct video link got a 403 and would not play. **`meta-webindexer` on the Meta list**, verified against the AS32934 ranges: Meta's indexer opens pages in headless Chrome and was landing on the shadow page. 559 tests. |
 | [v0.1.1](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.1) | 2026-11-20 | **Ready for apps with login** (Next.js, PWA, single page). Configurable `upstreamTimeout` (60 s by default, 1 s to 10 min), so a slow page does not turn into a 504. A caught visitor gets a 403 on script requests instead of the shadow page with a 200, so the app never mistakes it for a response. The pass renews on any response below 400 (204, 304, redirects). `.ttf` and `.otf` count as media. Link readers that do not ask for HTML get the preview. 558 tests. |
@@ -132,8 +138,8 @@ A config with `upstreamTimeout` only starts on v0.1.1 or newer: v0.1.0 rejects t
 
 ## Responsible use
 
-ANTI-REA defends. The shadow page never runs anything against the visitor. The self-scan (coming next) will
-only run on domains you prove you control and will only read. IP addresses are personal data (GDPR, LGPD): mention
+ANTI-REA defends. The shadow page never runs anything against the visitor. The self-scan only runs on
+domains you prove you control and only reads. IP addresses are personal data (GDPR, LGPD): mention
 the collection in your privacy policy. Log files are readable only by the gatekeeper's user (files 0600; a folder the gatekeeper creates is 0700),
 and the logged address keeps the query names but drops their values (`/login?token=...`).
 

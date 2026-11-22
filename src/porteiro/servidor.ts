@@ -34,7 +34,8 @@ import {
 } from "./pedido.js";
 import { buscarHtml, CachePrevia, ESPERA_GENTE_MS, ESPERA_ROBO_MS } from "./previa.js";
 import { criarDestino, recusarUpgrade, repassarPedido, repassarUpgrade } from "./repasse.js";
-import { enviar, responderDesafio, responderRecusa, responderSombra, responderTexto } from "./respostas.js";
+import { dadosDoRegistro, filtroDaQuery, montarPainel } from "../painel/painel.js";
+import { enviar, responderDesafio, responderPainel, responderRecusa, responderSombra, responderTexto } from "./respostas.js";
 import { rotaGuarda, rotaPego, rotaVerificar, type ContextoRota } from "./rotas.js";
 import { agendarTarefas } from "./tarefas.js";
 
@@ -72,6 +73,12 @@ export const KEEP_ALIVE_MS = 95_000;
 export const CABECALHOS_MS = 96_000;
 /** O desligamento espera até 8 s pelos pedidos em andamento: o Docker mata o processo em 10 s. */
 export const PRAZO_DESLIGAR_MS = 8_000;
+/** Query crua do caminho (sem o "?"), ou null. */
+function queryDoCaminho(caminho: string): string | null {
+  const i = caminho.indexOf("?");
+  return i < 0 ? null : caminho.slice(i + 1).split("#", 1)[0]!;
+}
+
 /** Tamanho máximo de caminho e agente no evento do registro. */
 const MAX_CAMPO_EVENTO = 300;
 
@@ -248,6 +255,11 @@ export async function iniciarPorteiro(cfg: Config, deps: DepsPorteiro): Promise<
       }
       case "interno": {
         if (d.rota === "guarda") return rotaGuarda(req, res, guarda);
+        if (d.rota === "painel") {
+          const quando = new Date(agora);
+          const filtro = filtroDaQuery(queryDoCaminho(caminho), quando);
+          return responderPainel(res, montarPainel(dadosDoRegistro(deps.registro, filtro, quando, true)));
+        }
         const c: ContextoRota = {
           cfg,
           segredo,

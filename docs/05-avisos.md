@@ -40,7 +40,7 @@ A página vai com a query sem os valores, como no registro: `/entrar?token=abc12
 Varredura genérica acontece o dia inteiro em qualquer site público. Se virasse aviso, seu celular
 não pararia. Quer um resumo diário dela? Use `scans: dailySummary` (sai às 08:00, no fuso do
 servidor; veja [Horário e fuso](#horário-e-fuso)). Quer cada uma na hora? Use `scans: alert`. O
-padrão, `scans: panel`, só guarda no registro; a tela para ler o registro vem a seguir.
+padrão, `scans: panel`, só guarda no registro, e você lê no [painel](09-painel.md).
 
 Tentativas repetidas do mesmo IP viram **um aviso só** por janela (`groupByIp`, 1 hora por padrão):
 o primeiro aviso sai na hora e as outras tentativas só contam. Quando a janela fecha, sai um aviso

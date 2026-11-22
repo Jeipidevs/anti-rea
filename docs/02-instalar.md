@@ -1,7 +1,7 @@
 # Instalar
 
 > [!NOTE]
-> Versão 0.1.3: o pacote está no npm ([`@jeipidevs/anti-rea`](https://www.npmjs.com/package/@jeipidevs/anti-rea)) e a
+> Versão 0.2.0: o pacote está no npm ([`@jeipidevs/anti-rea`](https://www.npmjs.com/package/@jeipidevs/anti-rea)) e a
 > imagem Docker em `ghcr.io/jeipidevs/anti-rea`.
 
 ## Antes de começar
@@ -130,7 +130,7 @@ Aí os comandos (`init`, `start` e `dono`) rodam por essa pasta:
 `node <pasta do anti-rea>/dist/cli/index.js start`.
 
 Com Docker não precisa compilar nada: a imagem `ghcr.io/jeipidevs/anti-rea` já vem pronta. Para
-fixar a versão, troque `:latest` por `:v0.1.3`.
+fixar a versão, troque `:latest` por `:v0.2.0`.
 
 ## Último passo: apontar o domínio para o porteiro
 
@@ -151,7 +151,7 @@ fica sem HTTPS.
 No painel não há `docker-compose.yml` nem `.env` na pasta: a configuração, as variáveis e o registro
 chegam ao contêiner pelas telas do serviço.
 
-1. Crie um serviço novo com a imagem `ghcr.io/jeipidevs/anti-rea:v0.1.3` (ou `:latest`).
+1. Crie um serviço novo com a imagem `ghcr.io/jeipidevs/anti-rea:v0.2.0` (ou `:latest`).
 2. Monte o arquivo de configuração no contêiner em `/app/anti-rea.config.yml` (montagem de
    arquivo: "Mounts", tipo "File", no EasyPanel; "Storages", "File Mount", no Coolify). A imagem só
    lê esse caminho. Escreva o arquivo com o assistente em qualquer máquina, ou copie o

@@ -142,6 +142,26 @@ export class Registro {
     }
   }
 
+  /** Dias com arquivo na pasta ("AAAA-MM-DD"), do mais novo para o mais velho. Nunca lança. */
+  dias(): string[] {
+    try {
+      return readdirSync(this.pasta, { withFileTypes: true })
+        .filter((entrada) => entrada.isFile())
+        .map((entrada) => NOME_DIA.exec(entrada.name)?.[1])
+        .filter((dia): dia is string => dia !== undefined && !Number.isNaN(inicioDoDia(dia)))
+        .sort()
+        .reverse();
+    } catch (erro) {
+      avisar(`falha ao listar a pasta: ${mensagem(erro)}`);
+      return [];
+    }
+  }
+
+  /** Eventos gravados no arquivo do dia (linhas), sem mexer na contagem do teto. */
+  gravados(dia: string): number {
+    return DIA.test(dia) ? linhasNoArquivo(join(this.pasta, `${dia}.jsonl`)) : 0;
+  }
+
   /** Eventos do dia "AAAA-MM-DD" (UTC). Arquivo ausente devolve []; linha malformada e pulada. */
   ler(dia: string): Evento[] {
     if (!DIA.test(dia)) return [];

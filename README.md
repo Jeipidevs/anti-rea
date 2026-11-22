@@ -4,7 +4,7 @@
 
 <br>
 
-[![Versão 0.1.3](https://img.shields.io/badge/vers%C3%A3o-0.1.3-FFC24B?style=for-the-badge)](#trajeto-e-versões)
+[![Versão 0.2.0](https://img.shields.io/badge/vers%C3%A3o-0.2.0-FFC24B?style=for-the-badge)](#trajeto-e-versões)
 [![npm](https://img.shields.io/npm/v/@jeipidevs/anti-rea?style=for-the-badge&logo=npm&color=CB3837&label=npm)](https://www.npmjs.com/package/@jeipidevs/anti-rea)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-7C6CFF?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](#)
@@ -18,7 +18,7 @@
 <br>
 
 > [!NOTE]
-> **Versão 0.1.3: o porteiro funciona, roda em produção e está no npm. O exame do próprio site e o painel vêm a seguir.**
+> **Versão 0.2.0: o porteiro roda em produção e está no npm. Agora com o exame do próprio site e o painel de registro.**
 > Veja o [trajeto e as versões](#trajeto-e-versões) e o [roteiro](#roteiro). Nada aqui promete o que ainda não roda.
 
 ## Em uma frase
@@ -76,13 +76,16 @@ que começa por <code>backup</code> ou <code>bkp</code> e, na raiz, os chamados 
 <td width="33%" valign="top">
 <img src="assets/icones/exame.svg" width="48" alt=""><br>
 <b>Exame do seu site</b><br>
-Vai mostrar o que um curioso consegue ver do seu site antes que alguém de fora descubra. Vem a seguir.
+Mostra o que um curioso consegue ver do seu site antes que alguém de fora descubra: mapas de código,
+arquivos sensíveis, API sem login e chave no código. Só leitura, só no site que você prova ser seu
+(<a href="docs/06-exame.md">como rodar</a>).
 </td>
 <td width="33%" valign="top">
 <img src="assets/icones/painel.svg" width="48" alt=""><br>
 <b>Painel de registro</b><br>
-Hoje as tentativas ficam num registro (JSONL) na sua máquina. A tela para ler esse registro vem a
-seguir.
+Quem foi pego, de onde, em qual página e por quê, dia a dia. Abre no próprio site com o seu link de
+dono, em <code>/.anti-rea/painel</code>, ou vira um arquivo com <code>anti-rea painel</code>
+(<a href="docs/09-painel.md">detalhes</a>).
 </td>
 </tr>
 </table>
@@ -107,8 +110,8 @@ Quer entender cada parte com calma? Leia [O que é o ANTI-REA](docs/01-o-que-e.m
 <img src="assets/diagramas/o-que-protege.svg" alt="Diagrama: no navegador ficam JavaScript, mapas de código, chamadas de API e arquivos esquecidos; no servidor ficam regras, banco, senhas e integrações" width="100%">
 
 A lógica que roda no servidor nunca vai para o navegador. Ferramentas como o REA só alcançam o que o
-site entrega para a tela. O ANTI-REA **barra quem tenta analisar** essa parte, e o **exame** (que vem a
-seguir) vai avisar se algo do servidor vazou para ela.
+site entrega para a tela. O ANTI-REA **barra quem tenta analisar** essa parte, e o **exame** avisa se
+algo do servidor vazou para ela.
 
 > [!IMPORTANT]
 > Nenhuma ferramenta impede 100% a cópia do que o navegador recebe. Uma pessoa paciente, com um
@@ -144,14 +147,14 @@ pacote que já existe. Instalado, o comando continua sendo `anti-rea`.
 8080: o HTTPS fica com quem está na frente dele (o nginx da máquina, o Traefik do painel ou a
 Cloudflare), como explica [Instalar](docs/02-instalar.md#último-passo-apontar-o-domínio-para-o-porteiro).
 
-Prefere Docker? Use a imagem publicada neste `docker-compose.yml`. A versão fica fixa (`:v0.1.3`): o
+Prefere Docker? Use a imagem publicada neste `docker-compose.yml`. A versão fica fixa (`:v0.2.0`): o
 porteiro só muda quando você trocar a tag. No `upstream` da configuração, use o endereço do site visto
 de dentro do contêiner, não `localhost`.
 
 ```yaml
 services:
   anti-rea:
-    image: ghcr.io/jeipidevs/anti-rea:v0.1.3
+    image: ghcr.io/jeipidevs/anti-rea:v0.2.0
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:8080"
@@ -212,17 +215,29 @@ Configurar: [Avisos](docs/05-avisos.md).
 
 ## O exame do seu site
 
-> [!NOTE]
-> O exame ainda não existe na versão 0.1. Esta seção mostra como ele vai funcionar.
-
-<img src="assets/telas/exame.svg" alt="Terminal com o exame apontando mapa de código público, arquivo sensível, API sem login e chave aparente" width="100%">
+<img src="assets/telas/exame.svg" alt="Terminal com o exame apontando mapa de código público, arquivo sensível, API sem login e a falta do porteiro" width="100%">
 
 ```bash
 npx @jeipidevs/anti-rea exame https://seusite.com.br
 ```
 
-O exame vai usar a mesma lógica das ferramentas de engenharia reversa, só que a seu favor. Ele só vai
-rodar em site que você prova ser seu, e só vai fazer leitura: nunca altera nada. Detalhes em [Exame](docs/06-exame.md).
+O exame usa a mesma lógica das ferramentas de engenharia reversa, só que a seu favor. Na primeira vez
+ele pede para você provar que o site é seu, com um arquivo em `/.well-known/anti-rea.txt`. Ele só faz
+leitura: nunca altera nada. Com o porteiro na frente, passe o seu link de dono (`--dono`) para ele
+examinar o site por trás do porteiro sem virar aviso. Sai um relatório em HTML com o que fazer em cada
+item. Detalhes em [Exame](docs/06-exame.md).
+
+## O painel de registro
+
+Quem foi pego, de onde, em qual página e por quê. Abra o seu link de dono e vá a
+`https://seusite.com.br/.anti-rea/painel`: sem o passe de dono, esse endereço responde 404 como
+qualquer outro que não existe. Sem domínio, ou dentro do Docker, grave o painel num arquivo:
+
+```bash
+npx @jeipidevs/anti-rea painel --registro ./registro
+```
+
+Detalhes em [Painel de registro](docs/09-painel.md).
 
 ## Perguntas rápidas
 
@@ -282,8 +297,8 @@ Mais perguntas: [Perguntas frequentes](docs/perguntas-frequentes.md) · Termos d
 - [x] Imagem Docker publicada (`ghcr.io/jeipidevs/anti-rea`)
 - [x] Pacote publicado no npm (`@jeipidevs/anti-rea`)
 - [x] Apps com login, PWA e service worker (v0.1.1)
-- [ ] Exame do próprio site
-- [ ] Painel de registro
+- [x] Exame do próprio site (`anti-rea exame`, v0.2.0)
+- [x] Painel de registro (`/.anti-rea/painel` e `anti-rea painel`, v0.2.0)
 
 ## Trajeto e versões
 
@@ -303,6 +318,7 @@ navegador automatizado; nenhum visitante comum.
 
 | Versão | Data | O que entrou |
 |---|---|---|
+| [v0.2.0](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.2.0) | 22/11/2026 | **Exame do próprio site:** `npx @jeipidevs/anti-rea exame https://seusite.com.br` procura mapas de código, arquivos sensíveis (conferidos pelo conteúdo, sem falso positivo em página única), API que responde sem login e chave secreta no código, com relatório em HTML. Só GET, HEAD e OPTIONS, só no site provado por `/.well-known/anti-rea.txt`; com o porteiro na frente, examina por trás dele com o link de dono, sem gerar aviso. **Painel de registro** em `/.anti-rea/painel`, só com o passe de dono, e `anti-rea painel` para gravar em arquivo. O porteiro é o mesmo da v0.1.3. |
 | [v0.1.3](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.3) | 21/11/2026 | **Primeira versão no npm:** `npx @jeipidevs/anti-rea init` e `npx @jeipidevs/anti-rea start`, sem clonar nem compilar. O porteiro é o mesmo da v0.1.2. O pacote leva só o necessário (o código compilado, o exemplo de configuração e os READMEs) e é compilado do zero antes de empacotar. |
 | [v0.1.2](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.2) | 21/11/2026 | **Vídeo e áudio como mídia pública** (mp4, webm, mov, mp3, m4a, ogg, wav, flac e outros): sem passe, o link direto de um vídeo levava 403 e não tocava. **`meta-webindexer` na lista da Meta**, conferido pelas faixas AS32934: o indexador da Meta abre a página num Chrome sem tela e caía na página sombra. 559 testes. |
 | [v0.1.1](https://github.com/Jeipidevs/anti-rea/releases/tag/v0.1.1) | 20/11/2026 | **Pronto para apps com login** (Next.js, PWA, página única). `upstreamTimeout` configurável (60 s por padrão, de 1 s a 10 min), para página lenta não virar 504. Quem foi pego leva 403 no pedido feito por script, e não a sombra com 200, para o app não tomar a sombra por resposta. O passe renova em qualquer resposta abaixo de 400 (204, 304, redirecionamento). `.ttf` e `.otf` contam como mídia. Leitor de link que não pede HTML recebe a prévia. 558 testes. |
@@ -315,7 +331,7 @@ desconhecida.
 
 - O ANTI-REA **defende**. A página sombra nunca roda nada contra a máquina de quem tentou e nunca
   coleta além do que chega na requisição.
-- O exame (que vem a seguir) só vai rodar em site que você prova controlar. Ele não serve para
+- O exame só roda em site que você prova controlar e só faz pedidos de leitura. Ele não serve para
   varrer site dos outros.
 - **IP é dado pessoal** pela LGPD (e pelo GDPR). Se você usar o ANTI-REA, cite a coleta na política
   de privacidade do seu site. O registro apaga sozinho depois do prazo que você escolher, só o usuário

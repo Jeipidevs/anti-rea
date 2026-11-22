@@ -8,8 +8,8 @@ Escrita para quem nunca mexeu com segurança. Uma ideia por página, com imagem 
 </div>
 
 > [!NOTE]
-> Versão 0.1.3: o porteiro funciona, roda em produção e está no npm. O exame do próprio site e o painel vêm a seguir: as páginas deles
-> descrevem como vão funcionar. O [roteiro](../README.md#roteiro) mostra o que já roda.
+> Versão 0.2.0: o porteiro roda em produção e está no npm, agora com o exame do próprio site e o painel de
+> registro. O [roteiro](../README.md#roteiro) mostra o que já roda.
 
 ## Comece por aqui
 
@@ -28,6 +28,7 @@ Escrita para quem nunca mexeu com segurança. Uma ideia por página, com imagem 
 | [Exame do seu site](06-exame.md) | Descobrir o que está vazando |
 | [Modo dono](07-modo-dono.md) | Você e sua equipe abrirem o F12 sem cair na página sombra |
 | [Robôs oficiais](08-robos-oficiais.md) | Por que Google e Meta passam e como isso é conferido |
+| [Painel de registro](09-painel.md) | Ver quem foi pego, de onde e por quê |
 
 ## Consulta
 

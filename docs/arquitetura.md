@@ -1,8 +1,6 @@
 # Arquitetura (para quem contribui)
 
-Como o código da versão 0.1 está dividido, o que cada parte faz e as regras que valem para todas.
-O exame do próprio site e o painel do registro ainda não existem; quando chegarem, ganham pasta
-própria aqui.
+Como o código está dividido, o que cada parte faz e as regras que valem para todas.
 
 ## O caminho de um pedido
 
@@ -63,8 +61,18 @@ src/
     avisos.ts            porta única dos avisos: agrupamento por IP, teto global, resumo do dia
     canais/              um módulo por canal: whatsapp.ts, telegram.ts, webhook.ts
   registro/registro.ts   registro local em JSONL, um arquivo por dia, teto diário e retenção
+  painel/painel.ts       painel do registro: filtro pela query, leitura do registro e a página (sem
+                         script, tudo escapado); servido em /.anti-rea/painel só com passe de dono
+  exame/                 o exame do próprio site (anti-rea exame)
+    cliente.ts           a única saída do exame para a rede: só GET, HEAD e OPTIONS, só no host
+                         provado, com teto de pedidos, de tempo e de bytes
+    prova.ts             código de dono por host e a conferência de /.well-known/anti-rea.txt
+    detectores.ts        funções puras: scripts da página, mapas, arquivos sensíveis, rotas de API,
+                         resposta aberta e chaves aparentes
+    exame.ts             a ordem do exame: prova, porteiro, passe de dono, página, scripts e itens
+    relatorio.ts         o resumo do terminal e o relatório HTML
   config/                leitura e validação do anti-rea.config.yml (carregar.ts, duracao.ts)
-  cli/                   comandos: index.ts (roteamento), init.ts, start.ts, dono.ts
+  cli/                   comandos: index.ts (roteamento), init.ts, start.ts, dono.ts, exame.ts, painel.ts
 ```
 
 ## O contrato de um sinal
@@ -93,6 +101,16 @@ Exemplos: `ferramentaConhecida(agente)` e `caminhoDeVarredura(caminho)` em `dete
 - Sem credencial, o serviço sobe e diz o que falta, sem quebrar.
 - A página sombra nunca contém nada do site real e nunca roda nada contra o visitante.
 - Texto para pessoas em português, sem o travessão longo.
+
+## Regras do exame
+
+- Só lê: o tipo do cliente só aceita GET, HEAD e OPTIONS, e nada sai para outro host.
+- Nenhum pedido antes da prova de dono, e nenhum depois dela se ela falhar.
+- Com o porteiro na frente e sem o link de dono, para na porta: o exame nunca pode virar aviso falso
+  no celular do dono.
+- Detector novo confere o conteúdo da resposta, não só o status: site de página única responde 200
+  para tudo.
+- Chave achada sai mascarada no terminal e no relatório.
 
 ## Como testar
 

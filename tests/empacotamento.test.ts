@@ -146,6 +146,8 @@ describe("README e roteiro", () => {
     "Assistente de instalação (`anti-rea init`)",
     "Imagem Docker publicada (`ghcr.io/jeipidevs/anti-rea`)",
     "Pacote publicado no npm (`@jeipidevs/anti-rea`)",
+    "Exame do próprio site (`anti-rea exame`, v0.2.0)",
+    "Painel de registro (`/.anti-rea/painel` e `anti-rea painel`, v0.2.0)",
   ];
   const ready = [
     "Reverse proxy with server-side rules",
@@ -156,21 +158,19 @@ describe("README e roteiro", () => {
     "Install wizard (`anti-rea init`)",
     "Published Docker image (`ghcr.io/jeipidevs/anti-rea`)",
     "Published npm package (`@jeipidevs/anti-rea`)",
+    "Self-scan (`anti-rea exame`, v0.2.0)",
+    "Log panel (`/.anti-rea/painel` and `anti-rea painel`, v0.2.0)",
   ];
 
   it("README.md marca só o que tem teste passando e não se diz em construção", () => {
     const r = ler("README.md");
     for (const item of prontos) expect(r).toContain(`- [x] ${item}`);
-    for (const item of ["Exame do próprio site", "Painel de registro"]) {
-      expect(r).toContain(`- [ ] ${item}`);
-    }
     expect(r).not.toMatch(/em construção|em%20constru/);
   });
 
   it("README.en.md segue o mesmo roteiro", () => {
     const r = ler("README.en.md");
     for (const item of ready) expect(r).toContain(`- [x] ${item}`);
-    for (const item of ["Self-scan", "Log panel"]) expect(r).toContain(`- [ ] ${item}`);
     expect(r).not.toMatch(/under construction|under%20construction/);
   });
 
