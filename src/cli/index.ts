@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { mostrarDono } from "./dono.js";
+import { rodarExame } from "./exame.js";
 import { rodarInit } from "./init.js";
+import { gravarPainel } from "./painel.js";
 import { subirPorteiro } from "./start.js";
 
 const AJUDA = `ANTI-REA: porteiro contra engenharia reversa e cópia de sites.
@@ -10,13 +12,19 @@ Uso:
                                                              (.env que já existe só ganha as ANTI_REA_ que faltam)
   anti-rea start [--config caminho] [--porta 8080] [--registro pasta]
                                                              sobe o porteiro
-  anti-rea dono [--config caminho] [--novo]                  mostra o link de dono (--novo troca o link)`;
+  anti-rea dono [--config caminho] [--novo]                  mostra o link de dono (--novo troca o link)
+  anti-rea exame <endereço do site> [--dono link]            examina o seu site (só leitura, só em site provado);
+                                                             com --dono, examina por trás do porteiro
+  anti-rea painel [--registro pasta] [--dia AAAA-MM-DD] [--saida arquivo]
+                                                             grava o painel do registro num arquivo HTML`;
 
 /** Opções aceitas por comando; true = recebe valor, false = só a chave. */
 const OPCOES: Record<string, Record<string, boolean>> = {
   init: { forcar: false },
   start: { config: true, porta: true, registro: true },
   dono: { config: true, novo: false },
+  exame: { dono: true },
+  painel: { registro: true, dia: true, saida: true },
 };
 
 type Flags = Map<string, string | true>;
@@ -63,11 +71,32 @@ async function principal(argv: string[]): Promise<void> {
     process.exitCode = 1;
     return;
   }
+  // O exame recebe o endereço do site antes das opções.
+  const endereco = comando === "exame" && resto[0] !== undefined && !resto[0].startsWith("--") ? resto.shift() : undefined;
   const flags = lerFlags(comando, resto);
   const config = texto(flags, "config", "./anti-rea.config.yml");
 
   if (comando === "init") {
     for (const linha of await rodarInit(process.cwd(), flags.has("forcar"))) console.log(linha);
+    return;
+  }
+  if (comando === "exame") {
+    if (!endereco) throw new Error("Diga o endereço do site: anti-rea exame https://seusite.com.br");
+    const dono = flags.get("dono");
+    const { linhas, saida } = await rodarExame({ url: endereco, dono: typeof dono === "string" ? dono : undefined, pasta: process.cwd() });
+    for (const linha of linhas) console.log(linha);
+    process.exitCode = saida;
+    return;
+  }
+  if (comando === "painel") {
+    const dia = flags.get("dia");
+    const saida = flags.get("saida");
+    const linhas = gravarPainel({
+      registro: texto(flags, "registro", "./registro"),
+      dia: typeof dia === "string" ? dia : undefined,
+      saida: typeof saida === "string" ? saida : undefined,
+    });
+    for (const linha of linhas) console.log(linha);
     return;
   }
   if (comando === "dono") {

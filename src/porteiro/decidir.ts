@@ -44,7 +44,7 @@ export type Pedido = {
   https: boolean;
 };
 
-export type RotaInterna = "verificar" | "guarda" | "pego";
+export type RotaInterna = "verificar" | "guarda" | "pego" | "painel";
 
 /**
  * O que fazer com o pedido.
@@ -79,6 +79,7 @@ export type ContextoDecisao = {
 };
 
 const PREFIXO_DONO = "/.anti-rea/dono/";
+const ROTA_PAINEL = "/.anti-rea/painel";
 const ROTAS = new Map<string, RotaInterna>([
   ["/.anti-rea/verificar", "verificar"],
   ["/.anti-rea/guarda.js", "guarda"],
@@ -148,11 +149,17 @@ async function primeiraRegra(p: Pedido, ctx: ContextoDecisao): Promise<Decisao> 
   }
   const rota = ROTAS.get(caminho);
   if (rota) return { acao: "interno", rota };
-  // O resto de /.anti-rea/ é do porteiro e nunca vai ao site (nem uma pasta do site com esse nome).
-  if (caminhoDoPorteiro(caminho)) return { acao: "recusar", status: 404 };
 
   const cookies = lerCookies(p.cookie);
   const passe = passeDoPedido(cookies, ctx.segredo, ctx.versaoDono, ctx.agora);
+
+  // Painel do registro: só o dono, só leitura. Sem passe de dono é o mesmo 404 de rota que não existe.
+  const metodo = p.metodo.toUpperCase();
+  if (caminho === ROTA_PAINEL && passe?.tipo === "dono" && (metodo === "GET" || metodo === "HEAD")) {
+    return { acao: "interno", rota: "painel" };
+  }
+  // O resto de /.anti-rea/ é do porteiro e nunca vai ao site (nem uma pasta do site com esse nome).
+  if (caminhoDoPorteiro(caminho)) return { acao: "recusar", status: 404 };
 
   // 3: arquivo trancado. Com passe de visitante, procurar segredo (.env, .git) é cópia; backup não sobe,
   // porque pode ser um download do próprio site (fica trancado e registrado, sem aviso de cópia). Com

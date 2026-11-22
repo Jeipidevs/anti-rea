@@ -6,6 +6,8 @@ const CSP_SOMBRA = "default-src 'none'; style-src 'unsafe-inline'; img-src data:
 const CSP_DESAFIO =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: https:; connect-src 'self'";
 
+const CSP_PAINEL = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
 const HTML = "text/html; charset=utf-8";
 
 /** Escreve a resposta inteira; não faz nada se o visitante já foi embora ou a resposta já começou. */
@@ -35,6 +37,23 @@ export function responderDesafio(res: ServerResponse, html: string): void {
     res,
     200,
     { "content-type": HTML, "content-security-policy": CSP_DESAFIO, "x-robots-tag": "noindex", "cache-control": "no-store" },
+    html,
+  );
+}
+
+/** Painel do registro: só do dono; sem script, sem cache, sem iframe e sem Referer para fora. */
+export function responderPainel(res: ServerResponse, html: string): void {
+  enviar(
+    res,
+    200,
+    {
+      "content-type": HTML,
+      "content-security-policy": CSP_PAINEL,
+      "x-frame-options": "DENY",
+      "referrer-policy": "no-referrer",
+      "x-robots-tag": "noindex",
+      "cache-control": "no-store",
+    },
     html,
   );
 }

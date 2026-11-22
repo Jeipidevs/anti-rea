@@ -162,16 +162,16 @@ describe("imagens", () => {
 });
 
 describe("o bloco bash do README não tem comando que ainda não roda fora do exame", () => {
-  it("npx só com o nome publicado (@jeipidevs/anti-rea) e com comando que o CLI tem (init, start, dono) ou o exame, que o README marca como futuro", () => {
+  it("npx só com o nome publicado (@jeipidevs/anti-rea) e com comando que o CLI tem", () => {
     for (const bloco of blocosBash("README.md")) {
       for (const linha of bloco.split("\n").filter((l) => l.includes("npx "))) {
-        expect(linha.trim()).toMatch(/^npx @jeipidevs\/anti-rea (init|start|dono)\b|^npx @jeipidevs\/anti-rea exame https:\/\/seusite\.com\.br$/);
+        expect(linha.trim()).toMatch(/^npx @jeipidevs\/anti-rea (init|start|dono|exame|painel)\b/);
       }
     }
   });
 
   it("nenhum texto manda rodar npx anti-rea sem o escopo: o npm recusou esse nome", () => {
-    for (const arquivo of ["README.md", "README.en.md", "docs/02-instalar.md", "docs/06-exame.md", "docs/07-modo-dono.md"]) {
+    for (const arquivo of ["README.md", "README.en.md", "docs/02-instalar.md", "docs/06-exame.md", "docs/07-modo-dono.md", "docs/09-painel.md"]) {
       expect(ler(arquivo), arquivo).not.toMatch(/npx anti-rea|install -g anti-rea/);
     }
   });
