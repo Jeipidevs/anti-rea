@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANTI-REA: quem tenta copiar seu site leva só a sombra</title>
+<meta name="description" content="Porteiro de código aberto contra engenharia reversa e cópia de sites. Gente de verdade entra normal; ferramenta copiadora cai numa página sombra e você recebe o aviso no celular.">
+<meta name="theme-color" content="#08090F">
+<meta property="og:title" content="ANTI-REA: quem tenta copiar seu site leva só a sombra">
+<meta property="og:description" content="Porteiro de código aberto contra engenharia reversa e cópia de sites. Com exame do próprio site e painel de registro.">
+<meta property="og:image" content="img/sombra.jpg">
+<meta property="og:type" content="website">
+<link rel="icon" href="img/simbolo.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<div class="luz" aria-hidden="true"></div>
+
+<header class="topo">
+  <a class="marca" href="#inicio" aria-label="ANTI-REA, início">
+    <img src="img/simbolo.svg" width="32" height="32" alt="">
+    <span>ANTI-REA</span>
+  </a>
+  <nav class="menu" aria-label="Seções">
+    <a href="#como-funciona">Como funciona</a>
+    <a href="#recursos">Recursos</a>
+    <a href="#instalar">Instalar</a>
+    <a href="#exame">Exame</a>
+    <a href="#painel">Painel</a>
+  </nav>
+  <a class="botao botao-pequeno" href="#download">Baixar</a>
+</header>
+
+<main id="inicio">
+
+<!-- 1. Abertura -->
+<section class="abertura">
+  <div class="abertura-texto">
+    <p class="selo-versao revelar"><span class="ponto"></span> v0.2.0 · código aberto · MIT</p>
+    <h1 class="revelar">Quem tenta copiar seu site leva <em>só a sombra.</em></h1>
+    <p class="lide revelar">O ANTI-REA é um porteiro que fica na frente do seu site. Gente de verdade entra
+      normal. Ferramenta de engenharia reversa, robô copiador e varredura de ataque caem numa página
+      sombra, no mesmo endereço, e você recebe o aviso no celular na hora.</p>
+    <div class="comando revelar">
+      <code><span class="cifrao">$</span> npx @jeipidevs/anti-rea init</code>
+      <button class="copiar" type="button" data-copiar="npx @jeipidevs/anti-rea init" aria-label="Copiar o comando">Copiar</button>
+    </div>
+    <div class="acoes revelar">
+      <a class="botao" href="#download">Baixar o ANTI-REA</a>
+      <a class="botao botao-contorno" href="https://github.com/Jeipidevs/anti-rea" rel="noopener">
+        <img src="icones/github.svg" class="icone-marca" width="18" height="18" alt=""> Ver no GitHub
+      </a>
+    </div>
+    <p class="funciona-com revelar">Funciona com Next.js, WordPress, Laravel, HTML simples ou o que você tiver.
+      Sem mexer em uma linha do seu código.</p>
+  </div>
+
+  <!-- Cena: pedidos chegando ao porteiro -->
+  <div class="cena revelar" aria-label="Animação: pedidos chegam ao porteiro; pessoas e robôs oficiais vão ao site, ferramentas de cópia vão à página sombra" role="img">
+    <div class="cena-grade" aria-hidden="true"></div>
+    <div class="destino destino-site" aria-hidden="true">
+      <span class="destino-rotulo">Seu site</span>
+      <span class="destino-contagem">entradas: <b data-cont="site">0</b></span>
+    </div>
+    <div class="porteiro" aria-hidden="true">
+      <div class="porteiro-anel"></div>
+      <img src="img/simbolo.svg" width="64" height="64" alt="">
+      <span>porteiro</span>
+    </div>
+    <div class="destino destino-sombra" aria-hidden="true">
+      <span class="destino-rotulo">Página sombra</span>
+      <span class="destino-contagem">pegos: <b data-cont="sombra">0</b></span>
+    </div>
+    <svg class="trilhos" viewBox="0 0 520 440" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 220 H220" />
+      <path d="M300 205 C360 205 380 90 470 90" class="trilho-site" />
+      <path d="M300 235 C360 235 380 350 470 350" class="trilho-sombra" />
+    </svg>
+    <div class="pedidos" aria-hidden="true"></div>
+    <div class="alerta" aria-hidden="true">
+      <img src="icones/whatsapp.svg" width="16" height="16" alt="">
+      <span>Tentativa de cópia barrada · <b class="alerta-quem">curl</b></span>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Números -->
+<section class="numeros" aria-label="Números do projeto">
+  <div class="numero revelar"><b data-numero="602">0</b><span>testes automáticos passando</span></div>
+  <div class="numero revelar"><b>&lt; 1 s</b><span>de verificação, só na primeira visita</span></div>
+  <div class="numero revelar"><b data-numero="20" data-prefixo="+">0</b><span>sites em produção desde 20/11/2026</span></div>
+  <div class="numero revelar"><b data-numero="0">0</b><span>visitantes comuns barrados no registro de produção</span></div>
+</section>
+
+<!-- 3. Como funciona -->
+<section id="como-funciona" class="secao">
+  <div class="cabeca revelar">
+    <p class="sobretitulo">Como funciona</p>
+    <h2>Quatro passos, nenhuma linha de código no seu site.</h2>
+  </div>
+  <ol class="passos">
+    <li class="passo revelar">
+      <span class="passo-n">01</span>
+      <img src="icones/porteiro.svg" width="48" height="48" alt="">
+      <h3>Todo visitante passa pelo porteiro</h3>
+      <p>Ele olha quem está pedindo e o que está pedindo, antes de qualquer coisa chegar ao site.</p>
+    </li>
+    <li class="passo revelar">
+      <span class="passo-n">02</span>
+      <img src="icones/facil.svg" width="48" height="48" alt="">
+      <h3>Na primeira visita, o navegador é verificado</h3>
+      <p>Menos de um segundo. Quem passa ganha um passe assinado e navega livre por dias.</p>
+    </li>
+    <li class="passo revelar">
+      <span class="passo-n">03</span>
+      <span class="robos">
+        <img src="icones/google.svg" class="icone-marca" width="22" height="22" alt="Google">
+        <img src="icones/apple.svg" class="icone-marca" width="22" height="22" alt="Apple">
+        <img src="icones/meta.svg" class="icone-marca" width="22" height="22" alt="Meta">
+        <span class="bing">Bing</span>
+      </span>
+      <h3>Robôs oficiais passam direto</h3>
+      <p>Google, Bing, Apple e Meta são confirmados pelo endereço oficial. Busca e anúncio seguem funcionando.</p>
+    </li>
+    <li class="passo revelar">
+      <span class="passo-n">04</span>
+      <img src="icones/sombra.svg" width="48" height="48" alt="">
+      <h3>Quem é pego vê a sombra</h3>
+      <p>No mesmo endereço, sem redirecionar. Nada do site real vai junto, e você recebe o aviso.</p>
+    </li>
+  </ol>
+</section>
+
+<!-- 4. Recursos -->
+<section id="recursos" class="secao">
+  <div class="cabeca revelar">
+    <p class="sobretitulo">Recursos</p>
+    <h2>Encarece, denuncia e engana quem tenta copiar.</h2>
+  </div>
+  <div class="bento">
+    <article class="bloco bloco-sombra revelar">
+      <div class="bloco-texto">
+        <h3>Página sombra</h3>
+        <p>Robô copiador, navegador automatizado e quem abre o F12 veem só a mensagem sarcástica. Mensagem,
+          cor e logo são seus para trocar.</p>
+      </div>
+      <figure class="janela inclinar">
+        <div class="janela-barra"><i></i><i></i><i></i><span>seusite.com.br/_next/static/chunks/app.js.map</span></div>
+        <img src="img/sombra.jpg" width="2560" height="1600" loading="lazy" alt="Página sombra real do ANTI-REA: Ops. Pegamos você, com o IP e a tentativa registrada">
+      </figure>
+    </article>
+
+    <article class="bloco bloco-aviso revelar">
+      <div class="bloco-texto">
+        <h3>Aviso na hora</h3>
+        <p>WhatsApp, Telegram ou webhook, com IP, página, motivo e horário. Tentativas repetidas chegam agrupadas:
+          seu celular não vira sirene.</p>
+        <p class="canais">
+          <img src="icones/whatsapp.svg" class="icone-marca" width="20" height="20" alt="WhatsApp">
+          <img src="icones/telegram.svg" class="icone-marca" width="20" height="20" alt="Telegram">
+          <span>webhook</span>
+        </p>
+      </div>
+      <img class="aviso-tela" src="img/aviso-whatsapp.svg" loading="lazy" alt="Exemplo de aviso no WhatsApp: tentativa de cópia barrada, com site, página, IP, motivo e destino">
+    </article>
+
+    <article class="bloco bloco-trancados revelar">
+      <h3>Arquivos sensíveis trancados</h3>
+      <p>Para todo mundo, em qualquer pasta.</p>
+      <div class="esteira" aria-hidden="true">
+        <div class="esteira-faixa">
+          <code>.env</code><code>.git/config</code><code>app.js.map</code><code>.htpasswd</code><code>backup.zip</code><code>dump.sql</code><code>wp-config.php.bak</code><code>.npmrc</code><code>.DS_Store</code><code>.aws</code>
+          <code>.env</code><code>.git/config</code><code>app.js.map</code><code>.htpasswd</code><code>backup.zip</code><code>dump.sql</code><code>wp-config.php.bak</code><code>.npmrc</code><code>.DS_Store</code><code>.aws</code>
+        </div>
+      </div>
+    </article>
+
+    <article class="bloco bloco-guarda revelar">
+      <h3>Guarda contínua</h3>
+      <p>Depois da verificação, a guarda confere a aba a cada 0,5 s enquanto ela está visível. Num aparelho com a
+        CPU 6 vezes mais lenta, isso dá 0,7% de CPU.</p>
+      <div class="pulso" aria-hidden="true"><span></span><span></span><span></span></div>
+    </article>
+
+    <article class="bloco bloco-verificacao revelar">
+      <div class="bloco-texto">
+        <h3>Verificação de menos de 1 s</h3>
+        <p>Só na primeira visita. Robôs de prévia de link (WhatsApp, Telegram) recebem o título, a descrição e a
+          imagem do site.</p>
+      </div>
+      <img class="verificacao-tela" src="img/verificacao.png" width="1120" height="720" loading="lazy" alt="Tela real de verificação do navegador do ANTI-REA">
+    </article>
+  </div>
+</section>
+
+<!-- 5. Por dentro -->
+<section id="por-dentro" class="secao">
+  <div class="cabeca revelar">
+    <p class="sobretitulo">Por dentro</p>
+    <h2>Telas reais da v0.2.0.</h2>
+    <p>Capturadas do próprio código, com dados de exemplo.</p>
+  </div>
+  <div class="vitrine revelar">
+    <div class="abas" role="tablist" aria-label="Telas do ANTI-REA">
+      <button role="tab" aria-selected="true" aria-controls="tela-vitrine" data-tela="sombra">Página sombra</button>
+      <button role="tab" aria-selected="false" aria-controls="tela-vitrine" data-tela="painel">Painel</button>
+      <button role="tab" aria-selected="false" aria-controls="tela-vitrine" data-tela="exame">Exame</button>
+      <button role="tab" aria-selected="false" aria-controls="tela-vitrine" data-tela="celular">No celular</button>
+    </div>
+    <figure id="tela-vitrine" class="janela janela-grande inclinar" role="tabpanel">
+      <div class="janela-barra"><i></i><i></i><i></i><span class="vitrine-endereco">seusite.com.br/.env</span></div>
+      <div class="vitrine-palco">
+        <img class="vitrine-img ativa" data-tela="sombra" src="img/sombra.jpg" width="2560" height="1600" loading="lazy" alt="Página sombra">
+        <img class="vitrine-img" data-tela="painel" src="img/painel.png" width="2560" height="2000" loading="lazy" alt="Painel de registro com o resumo do dia, os últimos dias e os eventos">
+        <img class="vitrine-img" data-tela="exame" src="img/exame.png" width="2560" height="2000" loading="lazy" alt="Relatório do exame com itens graves, de atenção e o que fazer">
+        <div class="vitrine-img vitrine-celular" data-tela="celular">
+          <img src="img/sombra-celular.jpg" width="780" height="1688" loading="lazy" alt="Página sombra no celular">
+        </div>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- 6. Instalar -->
+<section id="instalar" class="secao secao-dividida">
+  <div class="revelar">
+    <p class="sobretitulo">Instalar</p>
+    <h2>Três passos. Um assistente faz a configuração por você.</h2>
+    <ol class="lista-passos">
+      <li><b>Rode o assistente</b> na pasta onde a configuração vai morar. Ele pergunta o endereço do site, o que
+        fica na frente dele e onde você quer os avisos.</li>
+      <li><b>Ligue o porteiro</b> com <code>start</code>. Ele passa a responder na porta 8080.</li>
+      <li><b>Aponte o domínio para o porteiro</b> no nginx, no Traefik ou no painel da hospedagem. Guarde o link de
+        dono: ele libera você e a sua equipe.</li>
+    </ol>
+    <p class="nota">Precisa de Node.js 22 ou mais novo, ou de Docker. <a href="https://github.com/Jeipidevs/anti-rea/blob/main/docs/02-instalar.md" rel="noopener">Guia completo de instalação</a></p>
+  </div>
+  <div class="terminal revelar" data-digitar>
+    <div class="terminal-barra"><i></i><i></i><i></i><span>Terminal</span></div>
+    <pre class="terminal-corpo"><code><span class="t-cmd" data-linha>$ npx @jeipidevs/anti-rea init</span>
+<span class="t-fraco" data-linha>ANTI-REA  ·  assistente de instalação</span>
+<span data-linha><span class="t-ok">✔</span> Endereço do seu site? <span class="t-valor">http://localhost:3000</span></span>
+<span data-linha><span class="t-ok">✔</span> Domínio público? <span class="t-valor">seusite.com.br</span></span>
+<span data-linha><span class="t-ok">✔</span> O que fica na frente do porteiro? <span class="t-valor">nginx, Traefik ou painel</span></span>
+<span data-linha><span class="t-ok">✔</span> Onde quer receber os avisos? <span class="t-valor">WhatsApp</span></span>
+<span data-linha><span class="t-ok">✔</span> Quem abre o F12 cai na sombra? <span class="t-valor">sim</span></span>
+<span class="t-destaque" data-linha>Pronto. Criei anti-rea.config.yml e .env</span>
+<span class="t-fraco" data-linha>Seu link de dono (guarde, ele libera você):</span>
+<span class="t-valor" data-linha>https://seusite.com.br/.anti-rea/dono/••••••••</span>
+<span class="t-cmd" data-linha>$ npx @jeipidevs/anti-rea start</span>
+<span data-linha>Porteiro no ar em :8080, protegendo http://localhost:3000</span></code></pre>
+  </div>
+</section>
+
+<!-- 7. Exame -->
+<section id="exame" class="secao secao-dividida secao-invertida">
+  <div class="revelar">
+    <p class="sobretitulo">Novo na v0.2.0 · Exame do próprio site</p>
+    <h2>Veja o que um curioso enxerga do seu site, antes dele.</h2>
+    <p>O exame faz o que uma ferramenta de engenharia reversa faria, só que a seu favor: procura mapas de código,
+      arquivos sensíveis no ar, API que responde sem login e chave secreta esquecida no código. Sai um relatório
+      com o que fazer em cada item.</p>
+    <ul class="garantias">
+      <li><b>Só leitura.</b> Pedidos GET, HEAD e OPTIONS, nunca outro método.</li>
+      <li><b>Só no seu site.</b> Ele pede um arquivo em <code>/.well-known/anti-rea.txt</code> antes de começar.</li>
+      <li><b>Sem alarme falso.</b> Com o porteiro na frente, use o link de dono e nada vira aviso.</li>
+    </ul>
+    <div class="comando comando-claro">
+      <code><span class="cifrao">$</span> npx @jeipidevs/anti-rea exame https://seusite.com.br</code>
+      <button class="copiar" type="button" data-copiar="npx @jeipidevs/anti-rea exame https://seusite.com.br" aria-label="Copiar o comando do exame">Copiar</button>
+    </div>
+  </div>
+  <div class="terminal revelar" data-digitar>
+    <div class="terminal-barra"><i></i><i></i><i></i><span>Terminal</span></div>
+    <pre class="terminal-corpo"><code><span class="t-cmd" data-linha>$ npx @jeipidevs/anti-rea exame https://seusite.com.br</span>
+<span class="t-fraco" data-linha>Dono confirmado pelo arquivo /.well-known/anti-rea.txt</span>
+<span class="t-titulo" data-linha>O que um curioso consegue ver do seu site</span>
+<span data-linha><span class="t-grave">✖</span> Mapa de código público  <span class="t-fraco">/_next/static/chunks/app.js.map</span></span>
+<span data-linha><span class="t-grave">✖</span> Arquivo sensível no ar  <span class="t-fraco">/.env.backup</span></span>
+<span data-linha><span class="t-atencao">!</span> API responde sem login  <span class="t-fraco">GET /api/clientes</span></span>
+<span data-linha><span class="t-atencao">!</span> Sem porteiro na frente do site</span>
+<span data-linha><span class="t-ok">✔</span> Nenhuma chave aparente no código</span>
+<span data-linha>2 graves  ·  2 atenção  ·  1 ok</span>
+<span class="t-valor" data-linha>exame-seusite.com.br-2026-11-22.html</span></code></pre>
+  </div>
+</section>
+
+<!-- 8. Painel -->
+<section id="painel" class="secao secao-painel">
+  <div class="cabeca revelar">
+    <p class="sobretitulo">Novo na v0.2.0 · Painel de registro</p>
+    <h2>Quem foi pego, de onde e por quê. Dia a dia.</h2>
+    <p>Abra o seu link de dono e vá a <code>/.anti-rea/painel</code>. Para quem não é dono, o endereço nem existe:
+      responde 404 como qualquer outro. Sem domínio, <code>anti-rea painel</code> grava o mesmo painel num arquivo.</p>
+  </div>
+  <figure class="janela janela-painel revelar inclinar">
+    <div class="janela-barra"><i></i><i></i><i></i><span>seusite.com.br/.anti-rea/painel</span></div>
+    <img src="img/painel.png" width="2560" height="2000" loading="lazy" alt="Painel de registro real do ANTI-REA com dados de exemplo">
+  </figure>
+</section>
+
+<!-- 9. A verdade -->
+<section class="secao verdade revelar">
+  <img src="icones/codigo-aberto.svg" width="48" height="48" alt="">
+  <div>
+    <h2>A verdade, sem enfeite.</h2>
+    <p>Nenhuma ferramenta impede 100% a cópia do que o navegador recebe. Uma pessoa paciente, com um navegador comum,
+      sempre consegue salvar o que a página mostra. O ANTI-REA <b>encarece, denuncia e engana</b> quem tenta. A lógica
+      do servidor nunca vai para o navegador, e o exame avisa se algo dela vazou. Desconfie de quem prometer site
+      invisível.</p>
+  </div>
+</section>
+
+<!-- 10. Download -->
+<section id="download" class="secao">
+  <div class="cabeca revelar">
+    <p class="sobretitulo">Download</p>
+    <h2>Escolha o formato. A versão é a mesma nos três.</h2>
+  </div>
+  <div class="baixar">
+    <a class="opcao revelar" href="https://www.npmjs.com/package/@jeipidevs/anti-rea" rel="noopener">
+      <img src="icones/npm.svg" class="icone-marca icone-npm" width="40" height="40" alt="">
+      <h3>npm</h3>
+      <p>Node.js 22 ou mais novo.</p>
+      <code>npm install -g @jeipidevs/anti-rea</code>
+      <span class="opcao-ir">Abrir no npm</span>
+    </a>
+    <a class="opcao revelar" href="https://github.com/Jeipidevs/anti-rea/pkgs/container/anti-rea" rel="noopener">
+      <img src="icones/docker.svg" class="icone-marca icone-docker" width="40" height="40" alt="">
+      <h3>Docker</h3>
+      <p>Imagem pronta no GitHub Container Registry.</p>
+      <code>ghcr.io/jeipidevs/anti-rea:v0.2.0</code>
+      <span class="opcao-ir">Ver a imagem</span>
+    </a>
+    <a class="opcao opcao-destaque revelar" href="https://github.com/Jeipidevs/anti-rea/releases/tag/v0.2.0" rel="noopener">
+      <img src="icones/github.svg" class="icone-marca" width="40" height="40" alt="">
+      <h3>Código-fonte</h3>
+      <p>Release v0.2.0, licença MIT. Leia, mude e contribua.</p>
+      <code>git clone https://github.com/Jeipidevs/anti-rea</code>
+      <span class="opcao-ir">Baixar a v0.2.0</span>
+    </a>
+  </div>
+</section>
+
+<!-- 11. Créditos -->
+<section id="creditos" class="secao creditos revelar">
+  <p class="sobretitulo">Créditos</p>
+  <h2>Criado por João Pedro Schmitz Linhares.</h2>
+  <p>Ideia, arquitetura e desenvolvimento do ANTI-REA, feito no Brasil.</p>
+  <div class="autor-links">
+    <a class="autor-link" href="https://www.instagram.com/jpschmitz.dev/" rel="noopener">
+      <img src="icones/instagram.svg" class="icone-marca" width="22" height="22" alt="">
+      <span><b>@jpschmitz.dev</b><small>Instagram</small></span>
+    </a>
+    <a class="autor-link" href="https://github.com/Jeipidevs" rel="noopener">
+      <img src="icones/github.svg" class="icone-marca" width="22" height="22" alt="">
+      <span><b>jeipidevs</b><small>GitHub</small></span>
+    </a>
+  </div>
+  <p class="nota">O ANTI-REA nasceu estudando a lógica do <a href="https://github.com/morluto/rea" rel="noopener">REA (Reverse Engineer Anything)</a>
+    para saber como uma análise acontece e como se defender dela. É um projeto independente, sem ligação com o REA
+    ou com seus autores.</p>
+</section>
+
+</main>
+
+<footer class="rodape">
+  <a class="marca" href="#inicio"><img src="img/simbolo.svg" width="24" height="24" alt=""><span>ANTI-REA</span></a>
+  <p>Licença MIT · v0.2.0 · <a href="https://github.com/Jeipidevs/anti-rea/blob/main/docs/README.md" rel="noopener">Documentação</a> ·
+    <a href="https://github.com/Jeipidevs/anti-rea/blob/main/SECURITY.md" rel="noopener">Segurança</a></p>
+  <p>Feito por João Pedro Schmitz Linhares · <a href="https://www.instagram.com/jpschmitz.dev/" rel="noopener">@jpschmitz.dev</a> ·
+    <a href="https://github.com/Jeipidevs" rel="noopener">jeipidevs</a></p>
+</footer>
+
+<div class="aviso-copiado" role="status" aria-live="polite"></div>
+<script src="app.js" defer></script>
+</body>
+</html>
