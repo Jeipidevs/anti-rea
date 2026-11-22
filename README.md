@@ -11,7 +11,7 @@
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#instalar-em-3-passos)
 [![PRs bem-vindos](https://img.shields.io/badge/PRs-bem--vindos-3BE8A8?style=for-the-badge)](CONTRIBUTING.md)
 
-**[Documentação](docs/README.md)** · **[Instalar](#instalar-em-3-passos)** · **[Perguntas frequentes](docs/perguntas-frequentes.md)** · **[English](README.en.md)**
+**[Site](https://jeipidevs.github.io/anti-rea/)** · **[Documentação](docs/README.md)** · **[Instalar](#instalar-em-3-passos)** · **[Perguntas frequentes](docs/perguntas-frequentes.md)** · **[English](README.en.md)**
 
 </div>
 
